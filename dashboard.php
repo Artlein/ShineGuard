@@ -77,7 +77,7 @@ html, body {
 
 .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
     gap: 20px;
     margin-bottom: 32px;
 }
@@ -90,7 +90,7 @@ html, body {
     border: 1px solid #e2e8f0;
     transition: all 0.3s ease;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
     display: flex;
     flex-direction: column;
 }
@@ -550,10 +550,138 @@ html, body {
     .main-content {
         margin-left: 0 !important;
         width: 100% !important;
+        padding: 16px !important;
+        padding-bottom: 80px !important;
     }
-    
-    .sidebar {
-        transform: translateX(-100%);
+
+    /* KPI cards — 1 column, full width */
+    .kpi-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .kpi-card {
+        padding: 16px;
+        border-radius: 12px;
+    }
+
+    .kpi-value {
+        font-size: 28px;
+    }
+
+    .kpi-top {
+        margin-bottom: 10px;
+    }
+
+    .kpi-label {
+        font-size: 13px;
+        margin-bottom: 8px;
+    }
+
+    .kpi-footer {
+        padding-top: 10px;
+        font-size: 12px;
+    }
+
+    /* IoT panel */
+    .iot-panel {
+        padding: 18px;
+    }
+
+    .iot-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .iot-title-wrapper h2 {
+        font-size: 16px;
+    }
+
+    .iot-actions {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .iot-actions .btn {
+        flex: 1;
+        justify-content: center;
+        font-size: 12px;
+        padding: 10px 8px;
+    }
+
+    .sensor-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .sensor-card {
+        padding: 14px 10px;
+    }
+
+    .sensor-value {
+        font-size: 20px;
+    }
+
+    /* Dashboard panels */
+    .panel {
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+    }
+
+    .panel-header h3 {
+        font-size: 15px;
+    }
+
+    /* Work order stats */
+    .wo-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+
+    .wo-stat {
+        padding: 12px 6px;
+    }
+
+    .wo-value {
+        font-size: 20px;
+    }
+
+    .wo-label {
+        font-size: 10px;
+    }
+
+    /* Activity items */
+    .activity-item {
+        padding: 10px;
+    }
+
+    .activity-action {
+        font-size: 13px;
+    }
+
+    .activity-details {
+        font-size: 11px;
+    }
+
+    /* Alert items */
+    .alert-item {
+        padding: 12px;
+    }
+
+    .alert-node {
+        font-size: 13px;
+    }
+
+    /* Page header */
+    .page-header h1 {
+        font-size: 18px;
+    }
+
+    .page-header p {
+        font-size: 13px;
     }
 }
 </style>
