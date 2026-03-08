@@ -600,14 +600,42 @@ header {
 @media (max-width: 1100px) { .hdr-health { display: none; } }
 @media (max-width: 900px)  { .hdr-center { display: none; } }
 @media (max-width: 768px)  {
-    header { padding: 0 16px; height: 70px; }
-    .hdr-title { font-size: 18px; }
+    header { padding: 0 14px; height: 62px; gap: 10px; }
+    .hdr-title { font-size: 17px; }
     .hdr-sub { display: none; }
+    .hdr-user-meta { display: none; }
+    .hdr-user { padding: 4px 6px; border-radius: 50%; }
+    .hdr-icon-btn { width: 38px; height: 38px; font-size: 16px; }
+    .hdr-notif  { width: 38px; height: 38px; font-size: 16px; }
+    .hdr-notif-pill { height: 38px; padding: 0 10px; font-size: 13px; }
+    .hdr-hamburger { display: flex !important; }
+    .hdr-right { gap: 8px; }
 }
+
+.hdr-hamburger {
+    display: none;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    font-size: 20px;
+    color: #0f172a;
+    transition: background 0.2s;
+}
+.hdr-hamburger:hover { background: #f1f5f9; }
 </style>
 
 <header>
-    
+
+    <button class="hdr-hamburger" onclick="toggleSidebar()" title="Open Menu" aria-label="Open navigation menu">
+        ☰
+    </button>
+
     <div class="hdr-left">
         <h1 class="hdr-title"><?php echo htmlspecialchars($system_name); ?></h1>
         <p class="hdr-sub">

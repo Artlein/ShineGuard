@@ -35,7 +35,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     z-index        : 1000 !important;
     font-family    : var(--sb-font) !important;
     overflow       : hidden !important;
-    transition     : width 0.3s var(--ease) !important;
+    transition     : width 0.3s var(--ease), transform 0.3s var(--ease) !important;
     box-shadow     : 4px 0 30px rgba(0,0,0,0.35) !important;
     padding        : 0 !important;
     border         : none !important;
@@ -43,6 +43,65 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
 .sidebar.collapsed {
     width: var(--sb-w-collapsed) !important;
+}
+
+/* Mobile overlay backdrop */
+.sb-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 999;
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.sb-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+/* Mobile close button inside sidebar */
+.sb-close-mobile {
+    display: none;
+    position: absolute;
+    top: 16px;
+    right: 14px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #f1f5f9;
+    font-size: 16px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    transition: background 0.2s;
+    line-height: 1;
+}
+.sb-close-mobile:hover { background: rgba(255,255,255,0.2); }
+
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%) !important;
+        width: var(--sb-w) !important;
+        z-index: 1100 !important;
+    }
+    .sidebar.mobile-open {
+        transform: translateX(0) !important;
+    }
+    .sidebar.collapsed {
+        width: var(--sb-w) !important;
+        transform: translateX(-100%) !important;
+    }
+    .sidebar.collapsed.mobile-open {
+        transform: translateX(0) !important;
+    }
+    .sb-toggle { display: none !important; }
+    .sb-close-mobile { display: flex; }
+    .sidebar-feather { display: none !important; }
 }
 
 .sb-inner {
@@ -237,6 +296,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 }
 </style>
 
+<div class="sb-overlay" onclick="closeMobileSidebar()"></div>
 <aside class="sidebar">
     <div class="sb-inner">
         
@@ -253,6 +313,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
             <button class="sb-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
             </button>
+            <button class="sb-close-mobile" onclick="closeMobileSidebar()" title="Close Menu">✕</button>
         </div>
 
         <nav class="sb-nav">
@@ -324,19 +385,57 @@ $current_page = basename($_SERVER['PHP_SELF']);
 <div class="sidebar-feather" style="position:fixed; top:0; bottom:0; left:280px; width:28px; background:linear-gradient(90deg, rgba(13,17,23,0.1) 0%, transparent 100%); pointer-events:none; z-index:999; transition: left 0.3s var(--ease);"></div>
 
 <script>
+function isMobile() {
+    return window.innerWidth <= 768;
+}
+
+function openMobileSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sb-overlay');
+    sidebar.classList.add('mobile-open');
+    if (overlay) overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeMobileSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sb-overlay');
+    sidebar.classList.remove('mobile-open');
+    if (overlay) overlay.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
 function toggleSidebar() {
+    if (isMobile()) {
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar.classList.contains('mobile-open')) {
+            closeMobileSidebar();
+        } else {
+            openMobileSidebar();
+        }
+        return;
+    }
+    // Desktop collapse behaviour
     const sidebar = document.querySelector('.sidebar');
     const layout = document.querySelector('.layout');
     const feather = document.querySelector('.sidebar-feather');
     const isCollapsed = sidebar.classList.toggle('collapsed');
-    
     if (layout) layout.classList.toggle('sidebar-collapsed', isCollapsed);
     if (feather) feather.style.left = isCollapsed ? '70px' : '280px';
-    
     localStorage.setItem('sidebarCollapsed', isCollapsed);
 }
 
+// Close sidebar when a nav link is tapped on mobile
+document.addEventListener('DOMContentLoaded', () => {
+    if (isMobile()) {
+        document.querySelectorAll('.sb-nav a').forEach(link => {
+            link.addEventListener('click', () => closeMobileSidebar());
+        });
+    }
+});
+
 (function() {
+    if (isMobile()) return; // Don't restore collapsed state on mobile
     const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
     if (isCollapsed) {
         const sidebar = document.querySelector('.sidebar');
@@ -348,3 +447,30 @@ function toggleSidebar() {
     }
 })();
 </script>
+
+<?php
+/* Bottom navigation bar — mobile only */
+$p = $current_page;
+$al_query = isset($conn) ? $conn->query("SELECT COUNT(*) as c FROM alerts WHERE status='Open'") : false;
+$al_count  = ($al_query) ? (int)$al_query->fetch_assoc()['c'] : 0;
+?>
+<nav class="mobile-bottom-nav">
+    <a href="dashboard.php"    class="mob-nav-item <?php echo $p=='dashboard.php'?'active':''; ?>">
+        <span class="mob-nav-icon">🏠</span><span>Home</span>
+    </a>
+    <a href="streetlights.php" class="mob-nav-item <?php echo $p=='streetlights.php'?'active':''; ?>">
+        <span class="mob-nav-icon">💡</span><span>Lights</span>
+    </a>
+    <a href="alerts.php"       class="mob-nav-item <?php echo $p=='alerts.php'?'active':''; ?>">
+        <span class="mob-nav-icon">🚨</span><span>Alerts</span>
+        <?php if ($al_count > 0): ?>
+        <span class="mob-nav-badge"><?php echo $al_count; ?></span>
+        <?php endif; ?>
+    </a>
+    <a href="work_orders.php"  class="mob-nav-item <?php echo $p=='work_orders.php'?'active':''; ?>">
+        <span class="mob-nav-icon">🔧</span><span>Orders</span>
+    </a>
+    <a href="settings.php"     class="mob-nav-item <?php echo $p=='settings.php'?'active':''; ?>">
+        <span class="mob-nav-icon">⚙️</span><span>Settings</span>
+    </a>
+</nav>

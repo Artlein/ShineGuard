@@ -519,22 +519,198 @@ tbody tr:hover {
 }
 
 @media (max-width: 768px) {
+   /* Layout — no sidebar column, push content down under header */
    .layout {
       grid-template-columns: 1fr;
+      grid-template-rows: 62px 1fr;
       grid-template-areas:
          "header"
          "main";
    }
 
-   aside {
-      display: none;
-   }
-
-   .kpi-grid {
+   .layout.sidebar-collapsed {
       grid-template-columns: 1fr;
    }
 
+   aside {
+      display: flex; /* keep in DOM for drawer, JS handles show/hide */
+   }
+
+   /* Main content padding */
+   .main-content {
+      padding: 16px;
+      padding-bottom: 80px; /* room for bottom nav bar */
+   }
+
+   /* Page header */
+   .page-header h1 {
+      font-size: 20px;
+   }
+
+   .page-header p {
+      font-size: 13px;
+   }
+
+   /* Panel header — stack on small screens */
+   .panel-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+   }
+
+   /* KPI cards — 1 column on very small, 2 on medium phones */
+   .kpi-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+   }
+
+   .kpi-card {
+      padding: 16px;
+   }
+
+   .kpi-data h3 {
+      font-size: 24px;
+   }
+
+   /* Grid map — 3 columns on phone */
    .grid-map {
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+   }
+
+   /* Tables — horizontal scroll */
+   .table-container {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+   }
+
+   table {
+      min-width: 540px;
+   }
+
+   th, td {
+      padding: 10px 12px;
+      font-size: 13px;
+   }
+
+   /* Buttons — bigger tap targets */
+   .btn {
+      min-height: 44px;
+      padding: 10px 14px;
+      touch-action: manipulation;
+   }
+
+   .btn-sm {
+      min-height: 38px;
+      padding: 8px 12px;
+      touch-action: manipulation;
+   }
+
+   /* Modals — bottom sheet style on mobile */
+   .modal-content {
+      width: 100%;
+      max-width: 100%;
+      border-radius: 20px 20px 0 0;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      max-height: 90vh;
+      margin: 0;
+   }
+
+   .modal.open {
+      align-items: flex-end;
+   }
+}
+
+@media (min-width: 480px) and (max-width: 768px) {
+   .kpi-grid {
+      grid-template-columns: repeat(2, 1fr);
+   }
+}
+
+/* ============================================================
+   BOTTOM NAVIGATION BAR (mobile only)
+   ============================================================ */
+.mobile-bottom-nav {
+   display: none;
+}
+
+@media (max-width: 768px) {
+   .mobile-bottom-nav {
+      display: flex;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 64px;
+      background: #111827;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      z-index: 900;
+      justify-content: space-around;
+      align-items: center;
+      padding: 0 4px;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+   }
+
+   .mob-nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      flex: 1;
+      height: 100%;
+      text-decoration: none;
+      color: #94a3b8;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      transition: color 0.2s;
+      position: relative;
+      touch-action: manipulation;
+   }
+
+   .mob-nav-item .mob-nav-icon {
+      font-size: 20px;
+      line-height: 1;
+   }
+
+   .mob-nav-item span {
+      font-size: 10px;
+   }
+
+   .mob-nav-item.active,
+   .mob-nav-item:hover {
+      color: #34d399;
+   }
+
+   .mob-nav-item.active::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 20%;
+      right: 20%;
+      height: 2px;
+      background: #34d399;
+      border-radius: 0 0 4px 4px;
+   }
+
+   .mob-nav-badge {
+      position: absolute;
+      top: 8px;
+      right: calc(50% - 18px);
+      background: #ef4444;
+      color: white;
+      font-size: 9px;
+      font-weight: 800;
+      min-width: 16px;
+      height: 16px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 3px;
+      border: 1.5px solid #111827;
    }
 }
