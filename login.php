@@ -459,36 +459,110 @@
         }
         
         @media (max-width: 768px) {
+            body {
+                align-items: center;
+                padding: 20px 16px;
+            }
+
             .login-container {
                 grid-template-columns: 1fr;
-                max-width: 400px;
-                border-radius: 16px;
+                max-width: 360px;
+                width: 100%;
+                border-radius: 20px;
+                /* Not full-height — let background show */
             }
-            
+
+            /* Compact green brand panel */
             .login-left {
-                padding: 40px 30px;
+                padding: 24px 24px 20px;
+                flex-direction: row;
+                align-items: center;
+                gap: 16px;
+                text-align: left;
             }
-            
+
+            .logo-wrapper {
+                margin-bottom: 0;
+                flex-shrink: 0;
+            }
+
             .logo-circle {
-                width: 80px;
-                height: 80px;
+                width: 56px;
+                height: 56px;
+                animation: none; /* skip float animation on mobile */
             }
-            
+
             .brand-text h1 {
-                font-size: 22px;
+                font-size: 18px;
+                margin-bottom: 2px;
             }
-            
+
+            .brand-text p {
+                font-size: 12px;
+                opacity: 0.85;
+            }
+
             .tagline {
                 display: none;
             }
-            
+
+            /* Tighted form panel */
             .login-right {
-                padding: 40px 30px;
+                padding: 24px 24px 28px;
             }
-            
+
+            .login-header {
+                margin-bottom: 20px;
+            }
+
             .login-header h2 {
-                font-size: 24px;
+                font-size: 20px;
+                margin-bottom: 4px;
             }
+
+            .login-header p {
+                font-size: 13px;
+            }
+
+            .form-group {
+                margin-bottom: 14px;
+            }
+
+            .form-group label {
+                font-size: 11px;
+                margin-bottom: 6px;
+            }
+
+            .input-wrapper input {
+                padding: 12px 38px 12px 14px;
+                font-size: 15px; /* prevent iOS zoom */
+                border-radius: 10px;
+            }
+
+            .remember-forgot {
+                margin-bottom: 18px;
+                font-size: 13px;
+            }
+
+            .login-button {
+                padding: 14px;
+                font-size: 15px;
+                border-radius: 10px;
+                touch-action: manipulation;
+                min-height: 50px;
+            }
+
+            .footer-text {
+                font-size: 11px;
+                margin-top: 16px;
+            }
+        }
+
+        @media (max-width: 380px) {
+            body { padding: 16px 12px; }
+            .login-container { max-width: 100%; }
+            .login-left { padding: 18px 16px; }
+            .login-right { padding: 20px 16px 24px; }
         }
 
         ::selection {
