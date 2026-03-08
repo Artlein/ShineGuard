@@ -12,6 +12,9 @@ if (isset($conn)) {
     }
 }
 ?>
+<!-- Global mobile stylesheet — loaded after per-page styles to ensure overrides work -->
+<style><?php include __DIR__ . '/../assets/mobile.css'; ?></style>
+
 
 <div id="pageLoader" style="
     display: none;

@@ -1,0 +1,366 @@
+/* ============================================================
+   ShineGuard — Global Mobile Stylesheet
+   Loaded via header.php — overrides ALL page-specific styles
+   ============================================================ */
+
+@media (max-width: 768px) {
+
+    /* ── LAYOUT ── */
+    .layout {
+        display: block !important;
+        padding-top: 62px;
+        /* height of sticky header */
+    }
+
+    .main-content {
+        padding: 14px !important;
+        padding-bottom: 80px !important;
+        width: 100% !important;
+        margin-left: 0 !important;
+        overflow-x: hidden !important;
+    }
+
+    /* ── PAGE HEADER ── */
+    .page-header,
+    .page-header h1,
+    h1 {
+        font-size: 18px !important;
+        line-height: 1.3;
+    }
+
+    .page-header p,
+    .hdr-sub {
+        font-size: 12px !important;
+    }
+
+    /* ── UNIVERSAL GRID FIX ──
+   Force ALL multi-column grids to single column.
+   Individual exceptions below. */
+    [style*="grid-template-columns"],
+    [style*="grid-template-columns: 1fr 1fr"],
+    [style*="grid-template-columns: repeat"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* ── FILTER / ACTION BARS ── */
+    .filter-bar,
+    .action-bar,
+    .toolbar,
+    .controls,
+    .tab-bar,
+    [class*="filter"],
+    [class*="controls"] {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+
+    .filter-bar input,
+    .filter-bar select,
+    .action-bar input,
+    .action-bar select {
+        width: 100% !important;
+        font-size: 15px !important;
+        /* prevent iOS zoom */
+    }
+
+    /* ── BUTTONS ── */
+    .btn,
+    .btn-sm,
+    button[class*="btn"] {
+        min-height: 42px !important;
+        font-size: 13px !important;
+        touch-action: manipulation !important;
+        padding: 8px 12px !important;
+    }
+
+    /* ── PANELS ── */
+    .panel,
+    .card,
+    [class*="panel"],
+    [class*="card"] {
+        border-radius: 12px !important;
+        padding: 14px !important;
+        margin-bottom: 14px !important;
+    }
+
+    .panel-header,
+    [class*="panel-header"],
+    [class*="card-header"] {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+    }
+
+    .panel-header h2,
+    .panel-header h3,
+    .panel-header h4 {
+        font-size: 15px !important;
+    }
+
+    /* ── TABLES ── */
+    .table-container,
+    [class*="table-wrap"],
+    [class*="table-container"],
+    table {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    table {
+        display: table !important;
+        /* override block for actual table */
+        min-width: 480px;
+    }
+
+    th,
+    td {
+        padding: 9px 10px !important;
+        font-size: 12px !important;
+        white-space: nowrap;
+    }
+
+    th {
+        font-size: 11px !important;
+    }
+
+    /* ── KPI / STAT CARDS ── */
+    .kpi-grid,
+    .stat-grid,
+    .stats-grid,
+    [class*="kpi-grid"],
+    [class*="stats-row"] {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    .kpi-card,
+    .stat-card,
+    [class*="kpi-card"] {
+        padding: 14px !important;
+        overflow: visible !important;
+    }
+
+    .kpi-value,
+    [class*="kpi-value"] {
+        font-size: 26px !important;
+    }
+
+    .kpi-label,
+    [class*="kpi-label"] {
+        font-size: 13px !important;
+    }
+
+    /* ── ALERTS PAGE ── */
+    .detail-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .alert-filters,
+    [class*="alert-filter"] {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+
+    .alert-item {
+        padding: 12px !important;
+    }
+
+    /* ── STREETLIGHTS PAGE ── */
+    .streetlight-grid,
+    .sl-grid,
+    .light-grid,
+    [class*="streetlight"] [class*="grid"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    .sl-filters,
+    .view-switcher,
+    [class*="view-toggle"] {
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+    }
+
+    .sl-filters select,
+    .sl-filters input {
+        width: 100% !important;
+        font-size: 15px !important;
+    }
+
+    /* Map container — make full width */
+    #map,
+    [id*="map"],
+    .map-container {
+        height: 220px !important;
+        border-radius: 10px !important;
+    }
+
+    /* ── WORK ORDERS PAGE ── */
+    .wo-tabs,
+    .tab-list,
+    [class*="tab-"] {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        white-space: nowrap !important;
+        display: flex !important;
+        gap: 4px !important;
+        padding-bottom: 4px !important;
+    }
+
+    .wo-tabs a,
+    .wo-tabs button,
+    .tab-list a,
+    .tab-list button {
+        white-space: nowrap !important;
+        font-size: 12px !important;
+        padding: 8px 10px !important;
+        flex-shrink: 0 !important;
+    }
+
+    /* ── SCHEDULE PAGE ── */
+    .schedule-grid,
+    [class*="schedule-grid"],
+    [class*="calendar"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* ── REPORTS PAGE ── */
+    .report-filters,
+    [class*="report-filter"],
+    .chart-controls {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+
+    .chart-container,
+    [class*="chart-container"] {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    canvas {
+        max-width: 100% !important;
+    }
+
+    /* ── SETTINGS PAGE ── */
+    .settings-layout,
+    .settings-tabs,
+    [class*="setting-grid"],
+    .setting-row {
+        grid-template-columns: 1fr !important;
+        flex-direction: column !important;
+    }
+
+    .settings-nav,
+    .settings-sidebar,
+    [class*="settings-tab"] {
+        width: 100% !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        white-space: nowrap !important;
+        gap: 4px !important;
+        padding: 8px 0 !important;
+    }
+
+    .settings-nav a,
+    .settings-nav button {
+        flex-shrink: 0 !important;
+        font-size: 12px !important;
+        padding: 8px 12px !important;
+    }
+
+    .form-row,
+    [class*="form-row"],
+    [class*="form-group"] {
+        grid-template-columns: 1fr !important;
+        flex-direction: column !important;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        font-size: 15px !important;
+        /* prevent iOS zoom */
+        width: 100% !important;
+    }
+
+    /* ── CCTV PAGE ── */
+    .camera-grid,
+    .cctv-grid,
+    [class*="camera-grid"],
+    .snapshot-gallery,
+    #galleryGrid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .camera-card,
+    [class*="camera-card"] {
+        border-radius: 12px !important;
+        overflow: hidden !important;
+    }
+
+    .cctv-controls,
+    .camera-controls,
+    [class*="cam-controls"] {
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+    }
+
+    /* ── FIREBASE DASHBOARD ── */
+    .firebase-grid,
+    .node-grid,
+    [class*="firebase-grid"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* ── MODALS ── */
+    .modal-content,
+    [class*="modal-content"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 20px 20px 0 0 !important;
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        max-height: 88vh !important;
+        margin: 0 !important;
+        padding: 20px !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    .modal.open {
+        align-items: flex-end !important;
+    }
+
+    /* ── TOASTS ── */
+    #globalToast,
+    [id*="Toast"],
+    [class*="toast"] {
+        left: 12px !important;
+        right: 12px !important;
+        max-width: calc(100% - 24px) !important;
+        top: 14px !important;
+    }
+
+    /* ── MISC OVERFLOW FIXES ── */
+    img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    pre,
+    code {
+        overflow-x: auto;
+        max-width: 100%;
+    }
+
+    iframe {
+        max-width: 100% !important;
+    }
+
+}
+
+/* end @media (max-width: 768px) */
