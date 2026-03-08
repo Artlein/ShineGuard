@@ -3,9 +3,6 @@
 # ============================================================
 
 # --- Sensitive Configuration Files ---
-# Firebase credentials (real API keys inside)
-firebase_config.php
-
 # Database credentials
 # dbconnect.php is kept in repo but sanitized; add here if you prefer to exclude it
 # dbconnect.php
