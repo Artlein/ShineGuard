@@ -1,0 +1,54 @@
+# ============================================================
+# ShineGuard - .gitignore
+# ============================================================
+
+# --- Sensitive Configuration Files ---
+# Firebase credentials (real API keys inside)
+firebase_config.php
+
+# Database credentials
+# dbconnect.php is kept in repo but sanitized; add here if you prefer to exclude it
+# dbconnect.php
+
+# --- Third-Party Libraries (install separately) ---
+tcpdf/
+
+# --- Uploaded / Generated Files ---
+snapshots/*.jpg
+snapshots/*.jpeg
+snapshots/*.png
+snapshots/*.gif
+snapshots/*.webp
+snapshots/*.enc
+# Keep the snapshots directory itself (with a .gitkeep)
+
+# --- Log & Temp Files ---
+*.log
+*.tmp
+*.cache
+
+# --- Backup Files ---
+*.bak
+*.orig
+*.old
+
+# --- macOS Metadata ---
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# --- IDE / Editor Files ---
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# --- Task & Planning Files ---
+task.md
+
+# --- Test Files (optional: remove these lines if you want to keep them) ---
+# test_firebase.php
+# test_system.php
+
+# --- PHP Session Files ---
+sess_*

@@ -1,0 +1,4 @@
+AuthType Basic
+AuthName "Restricted Snapshots Area"
+AuthUserFile /Applications/XAMPP/xamppfiles/htdocs/ShineGuard/snapshots/.htpasswd
+Require valid-user
