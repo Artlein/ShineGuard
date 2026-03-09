@@ -2,6 +2,13 @@
 require_once 'dbconnect.php';
 requireLogin();
 
+// Block PDF export for System Observer
+if (isset($_GET['export']) && $_GET['export'] === 'pdf' && !canDo('export_reports')) {
+    header('Location: reports.php?error=unauthorized');
+    exit();
+}
+
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'verify_password') {
     ob_clean();
     header('Content-Type: application/json');

@@ -22,6 +22,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_schedule'])) {
+    if (!canDo('manage_schedules')) {
+        header('Location: schedule.php?error=unauthorized');
+        exit();
+    }
     $preset_name = sanitize($_POST['preset_name']);
     $time_on = $_POST['time_on'];
     $time_off = $_POST['time_off'];
@@ -39,6 +43,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_schedule'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_schedule'])) {
+    if (!canDo('manage_schedules')) {
+        header('Location: schedule.php?error=unauthorized');
+        exit();
+    }
     $schedule_id = intval($_POST['schedule_id']);
     $preset_name = sanitize($_POST['preset_name']);
     $time_on = $_POST['time_on'];
@@ -58,6 +66,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_schedule'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_schedule'])) {
+    if (!canDo('manage_schedules')) {
+        header('Location: schedule.php?error=unauthorized');
+        exit();
+    }
     $schedule_id = intval($_POST['schedule_id']);
 
     $stmt = $conn->prepare("SELECT preset_name FROM schedule_presets WHERE schedule_id = ?");

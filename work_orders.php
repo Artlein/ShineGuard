@@ -3,7 +3,7 @@ require_once 'dbconnect.php';
 requireLogin();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_work_order'])) {
-    if ($_SESSION['role'] === 'System Observer') {
+    if (!canDo('create_work_orders')) {
         header('Location: work_orders.php?error=unauthorized');
         exit();
     }
@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_work_order']))
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
-    if ($_SESSION['role'] === 'System Observer') {
+    if (!canDo('update_work_orders')) {
         header('Location: work_orders.php?error=unauthorized');
         exit();
     }
@@ -468,9 +468,13 @@ tbody td {
                 <td><?php echo $alert['rul_estimate'] ?? 'N/A'; ?></td>
                 <td><?php echo date('M d, H:i', strtotime($alert['created_at'])); ?></td>
                 <td>
+                    <?php if (canDo('create_work_orders')): ?>
                     <button onclick="showWorkOrderForm(<?php echo $alert['alert_id']; ?>, <?php echo $alert['light_id']; ?>, '<?php echo addslashes($alert['description']); ?>', '<?php echo $alert['node_name']; ?>')" class="btn primary" style="white-space: nowrap;">
                         Create Work Order
                     </button>
+                    <?php else: ?>
+                    <span style="font-size:0.8rem;color:#94a3b8;font-weight:600;">View only</span>
+                    <?php endif; ?>
                 </td>
             </tr>
             <?php endwhile; ?>
@@ -514,7 +518,9 @@ tbody td {
                 <td><?php echo date('M d, Y H:i', strtotime($order['maintenance_date'])); ?></td>
                 <td><span class="badge <?php echo $order['status'] === 'In Progress' ? 'warning' : 'ok'; ?>"><?php echo $order['status']; ?></span></td>
                 <td style="white-space: nowrap;">
+                    <?php if (canDo('update_work_orders')): ?>
                     <button onclick="showUpdateForm(<?php echo $order['log_id']; ?>)" class="btn" style="margin-right: 4px; background: #10b981; color: white; border-color: #10b981;">Update</button>
+                    <?php endif; ?>
                     <button onclick="viewDetails(<?php echo $order['log_id']; ?>, '<?php echo addslashes($order['action_taken']); ?>', '<?php echo addslashes($order['notes'] ?? ''); ?>')" class="btn" style="background: #ef4444; color: white; border-color: #ef4444;">Details</button>
                 </td>
             </tr>

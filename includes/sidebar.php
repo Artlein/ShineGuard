@@ -346,10 +346,12 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 <div class="sb-ico">🔧</div>
                 <span class="sb-nav-lbl">Work Orders</span>
             </a>
+            <?php if (canDo('manage_schedules')): ?>
             <a href="schedule.php" class="<?php echo $current_page=='schedule.php'?'active':''; ?>">
                 <div class="sb-ico">📅</div>
                 <span class="sb-nav-lbl">Schedules</span>
             </a>
+            <?php endif; ?>
             <a href="reports.php" class="<?php echo $current_page=='reports.php'?'active':''; ?>">
                 <div class="sb-ico">📊</div>
                 <span class="sb-nav-lbl">Reports</span>
@@ -360,10 +362,12 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 <div class="sb-ico">🔥</div>
                 <span class="sb-nav-lbl">Firebase IoT</span>
             </a>
+            <?php if (canDo('view_settings')): ?>
             <a href="settings.php" class="<?php echo $current_page=='settings.php'?'active':''; ?>">
                 <div class="sb-ico">⚙️</div>
                 <span class="sb-nav-lbl">Settings</span>
             </a>
+            <?php endif; ?>
         </nav>
 
         <div class="sb-footer">
@@ -470,7 +474,13 @@ $al_count  = ($al_query) ? (int)$al_query->fetch_assoc()['c'] : 0;
     <a href="work_orders.php"  class="mob-nav-item <?php echo $p=='work_orders.php'?'active':''; ?>">
         <span class="mob-nav-icon">🔧</span><span>Orders</span>
     </a>
+    <?php if (canDo('view_settings')): ?>
     <a href="settings.php"     class="mob-nav-item <?php echo $p=='settings.php'?'active':''; ?>">
         <span class="mob-nav-icon">⚙️</span><span>Settings</span>
     </a>
+    <?php else: ?>
+    <a href="reports.php"      class="mob-nav-item <?php echo $p=='reports.php'?'active':''; ?>">
+        <span class="mob-nav-icon">📊</span><span>Reports</span>
+    </a>
+    <?php endif; ?>
 </nav>

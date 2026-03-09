@@ -43,6 +43,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $camera_id = intval($_POST['camera_id'] ?? 0);
     
     if ($action === 'update_settings' && $camera_id > 0) {
+        if (!canDo('manage_cctv')) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Unauthorized']);
+            exit();
+        }
         $nvr_ip = $_POST['nvr_ip'];
         $nvr_port = intval($_POST['nvr_port']);
         $channel = intval($_POST['channel']);
@@ -62,6 +67,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'add_camera') {
+        if (!canDo('manage_cctv')) {
+            header('Location: cctv.php?error=unauthorized');
+            exit();
+        }
         $camera_name = $_POST['new_camera_name'] ?? '';
         $location = $_POST['new_location'] ?? '';
         $nvr_ip = $_POST['new_nvr_ip'] ?? '';
@@ -86,7 +95,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'delete_camera' && $camera_id > 0) {
-        
+        if (!canDo('manage_cctv')) {
+            header('Location: cctv.php?error=unauthorized');
+            exit();
+        }
         $conn->query("DELETE FROM camera_snapshots WHERE camera_id = $camera_id");
         $conn->query("DELETE FROM camera_events WHERE camera_id = $camera_id");
         $conn->query("DELETE FROM cctv_footage WHERE camera_id = $camera_id");
@@ -510,9 +522,11 @@ html, body {
     <div class="panel">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h2 style="margin: 0;">📹 Camera Feeds</h2>
+            <?php if (canDo('manage_cctv')): ?>
             <button class="btn primary" onclick="openAddCameraModal()" style="padding: 10px 18px; font-size: 14px;">
                 ➕ Add Camera
             </button>
+            <?php endif; ?>
         </div>
         <div class="camera-grid">
             <?php 
@@ -584,9 +598,11 @@ html, body {
                     <button class="control-btn btn-snap" onclick="takeSnapshot(<?php echo $camera['camera_id']; ?>, '<?php echo addslashes($camera['camera_name']); ?>', this)">
                         📸 Snapshot
                     </button>
+                    <?php if (canDo('manage_cctv')): ?>
                     <button class="control-btn btn-settings" onclick="openSettings(<?php echo $camera['camera_id']; ?>, <?php echo htmlspecialchars(json_encode($camera)); ?>)">
                         ⚙️ Settings
                     </button>
+                    <?php endif; ?>
                     <button class="control-btn btn-fullscreen" onclick="toggleFullscreen(<?php echo $camera['camera_id']; ?>, this)">
                         ⛶ Maximize
                     </button>

@@ -3,7 +3,7 @@ require_once 'dbconnect.php';
 requireLogin();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'acknowledge') {
-    if ($_SESSION['role'] === 'System Observer') {
+    if (!canDo('acknowledge_alerts')) {
         header('Location: alerts.php?error=unauthorized');
         exit();
     }
@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'new_work_order') {
-    if ($_SESSION['role'] === 'System Observer') {
+    if (!canDo('create_work_orders')) {
         header('Location: alerts.php?error=unauthorized');
         exit();
     }
@@ -398,9 +398,11 @@ tbody td {
                     <p style="margin: 4px 0 0 0; font-size: 0.875rem; color: #64748b;">Review and manage system warnings</p>
                 </div>
             </div>
+            <?php if (canDo('create_work_orders')): ?>
             <button class="btn primary" onclick="document.getElementById('woModal').style.display='flex'" style="background: #3b82f6; color: white; border: none; padding: 10px 20px; font-weight: 600; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.5); transition: all 0.2s;">
                 + New Work Order
             </button>
+            <?php endif; ?>
         </div>
         <div class="table-container">
             <table>
@@ -470,13 +472,15 @@ tbody td {
                         </td>
                         <td style="white-space:nowrap; font-size:.82rem; color:#64748b;"><?php echo $age; ?></td>
                         <td onclick="event.stopPropagation();">
-                            <?php if ($alert['status'] === 'Open'): ?>
+                            <?php if ($alert['status'] === 'Open' && canDo('acknowledge_alerts')): ?>
                             <form method="POST" style="display:inline;">
                                 <input type="hidden" name="action" value="acknowledge">
                                 <input type="hidden" name="alert_id" value="<?php echo $alert['alert_id']; ?>">
                                 <button type="submit" class="btn-sm" style="background:#10b981;color:white;border:none;font-weight:600;padding:6px 16px;border-radius:6px;box-shadow:0 2px 4px rgba(16,185,129,.3);cursor:pointer;"
                                     onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='none'">✔ Ack</button>
                             </form>
+                            <?php elseif ($alert['status'] === 'Open'): ?>
+                                <span style="font-size:.8rem;color:#94a3b8;font-weight:600;">— View only</span>
                             <?php elseif ($alert['status'] === 'Acknowledged'): ?>
                                 <span style="font-size:.8rem;color:#16a34a;font-weight:600;">✓ Acknowledged</span>
                             <?php else: ?>
