@@ -240,7 +240,7 @@ function syncHealthData($conn) {
     }
     
     // Check if relay is being toggled too frequently
-    if ($relayToggleCount > 100) {
+    if ($relayToggleCount > 25) {
         createAlert($conn, $light_id, 'Warning', 'Medium', 
             "High relay toggle count on {$mysqlNode}: {$relayToggleCount} (may indicate instability)");
     }
