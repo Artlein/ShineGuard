@@ -669,6 +669,10 @@ header {
             ⚙️
         </a>
 
+        <button id="darkModeToggle" class="hdr-icon-btn" onclick="toggleDarkMode()" title="Toggle Dark Mode" style="font-size:18px; cursor:pointer; border:none;">
+            ☾
+        </button>
+
         <?php 
         $open_alerts_query = $conn->query("SELECT COUNT(*) as count FROM alerts WHERE status='Open'");
         $alerts_count = $open_alerts_query ? $open_alerts_query->fetch_assoc()['count'] : 0;
@@ -766,6 +770,27 @@ header {
             if (!text) return '';
             const regex = new RegExp(`(${term})`, 'gi');
             return text.replace(regex, '<span style="background: rgba(250,204,21,0.4); border-radius: 2px;">$1</span>');
+        }
+    });
+    </script>
+    <script>
+    // Dark mode: apply immediately on load
+    (function() {
+        if (localStorage.getItem('sg_theme') === 'dark') {
+            document.documentElement.classList.add('dark-mode');
+        }
+    })();
+    function toggleDarkMode() {
+        const isDark = document.documentElement.classList.toggle('dark-mode');
+        localStorage.setItem('sg_theme', isDark ? 'dark' : 'light');
+        document.getElementById('darkModeToggle').textContent = isDark ? '☀' : '☾';
+        document.getElementById('darkModeToggle').title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+    }
+    // Set icon state on load
+    document.addEventListener('DOMContentLoaded', function() {
+        if (localStorage.getItem('sg_theme') === 'dark') {
+            const btn = document.getElementById('darkModeToggle');
+            if (btn) { btn.textContent = '☀'; btn.title = 'Switch to Light Mode'; }
         }
     });
     </script>

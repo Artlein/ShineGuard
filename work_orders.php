@@ -61,7 +61,7 @@ $pending_alerts_query = "SELECT a.*, s.node_name, s.location, s.status as light_
                          ORDER BY a.severity DESC, a.created_at ASC";
 $pending_alerts = $conn->query($pending_alerts_query);
 
-$active_work_orders = "SELECT ml.*, s.node_name, s.location, u.full_name as technician_name, a.description as alert_description 
+$active_work_orders = "SELECT ml.*, s.node_name, s.location, s.latitude, s.longitude, u.full_name as technician_name, a.description as alert_description 
                        FROM maintenance_logs ml 
                        INNER JOIN streetlights s ON ml.light_id = s.light_id 
                        INNER JOIN users u ON ml.user_id = u.user_id 
@@ -70,7 +70,7 @@ $active_work_orders = "SELECT ml.*, s.node_name, s.location, u.full_name as tech
                        ORDER BY ml.maintenance_date ASC";
 $active_orders = $conn->query($active_work_orders);
 
-$completed_orders = "SELECT ml.*, s.node_name, s.location, u.full_name as technician_name 
+$completed_orders = "SELECT ml.*, s.node_name, s.location, s.latitude, s.longitude, u.full_name as technician_name 
                      FROM maintenance_logs ml 
                      INNER JOIN streetlights s ON ml.light_id = s.light_id 
                      INNER JOIN users u ON ml.user_id = u.user_id 
@@ -103,6 +103,8 @@ if (!isset($theme_color)) {
 ?>
 <style>:root { --theme-color: <?php echo htmlspecialchars($theme_color); ?>; }</style>
 <link rel="stylesheet" href="assets/css/work_orders.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLwg=" crossorigin=""></script>
 </head>
 <body>
 <div class="layout">
@@ -221,7 +223,7 @@ if (!isset($theme_color)) {
                     <?php if (canDo('update_work_orders')): ?>
                     <button onclick="showUpdateForm(<?php echo $order['log_id']; ?>)" class="btn" style="margin-right: 4px; background: #10b981; color: white; border-color: #10b981;">Update</button>
                     <?php endif; ?>
-                    <button onclick="viewDetails(<?php echo $order['log_id']; ?>, '<?php echo addslashes($order['action_taken']); ?>', '<?php echo addslashes($order['notes'] ?? ''); ?>')" class="btn" style="background: #ef4444; color: white; border-color: #ef4444;">Details</button>
+                    <button onclick="viewDetails(<?php echo $order['log_id']; ?>, '<?php echo addslashes($order['action_taken']); ?>', '<?php echo addslashes($order['notes'] ?? ''); ?>', '<?php echo $order['node_name']; ?>', '<?php echo addslashes($order['location']); ?>', <?php echo floatval($order['latitude']); ?>, <?php echo floatval($order['longitude']); ?>)" class="btn" style="background: #ef4444; color: white; border-color: #ef4444;">Details</button>
                 </td>
             </tr>
             <?php endwhile; ?>
@@ -341,13 +343,15 @@ if (!isset($theme_color)) {
 </div>
 
 <div id="detailsModal" class="modal">
-    <div class="modal-content" style="max-width: 700px;">
+    <div class="modal-content" style="max-width: 780px;">
         <span class="close" onclick="closeModal('detailsModal')">&times;</span>
         <h2 style="margin-top: 0;">📋 Work Order Details</h2>
-        <div id="detailsContent" style="line-height: 1.8;">
-            
+        <div id="detailsContent" style="line-height: 1.8;"></div>
+        <div id="wo-map-wrapper" style="margin-top: 16px; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; display: none;">
+            <div style="background: #f8fafc; padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 700; color: #475569;">📍 Node Location Map</div>
+            <div id="wo-map" style="height: 220px; width: 100%;"></div>
         </div>
-        <div style="margin-top: 24px; text-align: right;">
+        <div style="margin-top: 16px; text-align: right;">
             <button onclick="closeModal('detailsModal')" class="btn">Close</button>
         </div>
     </div>
@@ -371,21 +375,51 @@ function closeModal(modalId) {
     document.getElementById(modalId).classList.remove('open');
 }
 
-function viewDetails(logId, action, notes) {
+let woMap = null;
+
+function viewDetails(logId, action, notes, nodeName, location, lat, lng) {
     const detailsContent = document.getElementById('detailsContent');
     detailsContent.innerHTML = `
-        <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 16px;">
-            <div style="font-size: 18px; font-weight: 700; color: #1f2937; margin-bottom: 12px;">Work Order 
+        <div style="background: #f8fafc; padding: 14px 16px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 14px; display: flex; gap: 24px; flex-wrap: wrap;">
+            <div><div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Node</div><div style="font-weight: 700; color: #0f172a; font-size: 15px;">${nodeName || '—'}</div></div>
+            <div style="flex:1;"><div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Location</div><div style="font-weight: 600; color: #334155; font-size: 14px;">${location || '—'}</div></div>
         </div>
-        <div style="margin-bottom: 16px;">
-            <strong style="color: #1f2937;">Action Taken:</strong>
-            <div style="color: #64748b; margin-top: 8px; padding: 12px; background: #f9fafb; border-radius: 6px;">${action}</div>
+        <div style="margin-bottom: 14px;">
+            <strong style="color: #1f2937; font-size: 13px;">Action Taken:</strong>
+            <div style="color: #64748b; margin-top: 8px; padding: 12px; background: #f9fafb; border-radius: 6px; font-size: 14px; line-height: 1.6;">${action}</div>
         </div>
-        ${notes ? `<div style="margin-bottom: 16px;">
-            <strong style="color: #1f2937;">Additional Notes:</strong>
-            <div style="color: #64748b; margin-top: 8px; padding: 12px; background: #f9fafb; border-radius: 6px;">${notes}</div>
-        </div>` : ''}
+        ${notes ? `<div style="margin-bottom: 14px;"><strong style="color: #1f2937; font-size: 13px;">Additional Notes:</strong><div style="color: #64748b; margin-top: 8px; padding: 12px; background: #f9fafb; border-radius: 6px; font-size: 14px; line-height: 1.6;">${notes}</div></div>` : ''}
     `;
+
+    const mapWrapper = document.getElementById('wo-map-wrapper');
+
+    if (lat && lng && lat !== 0 && lng !== 0) {
+        mapWrapper.style.display = 'block';
+        // Small delay to ensure modal is visible before initializing map
+        setTimeout(() => {
+            if (woMap) {
+                woMap.remove();
+                woMap = null;
+            }
+            woMap = L.map('wo-map').setView([lat, lng], 17);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(woMap);
+            const icon = L.divIcon({
+                className: '',
+                html: `<div style="background:#ef4444;width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>`,
+                iconSize: [28, 28],
+                iconAnchor: [14, 28]
+            });
+            L.marker([lat, lng], { icon })
+                .addTo(woMap)
+                .bindPopup(`<b>${nodeName}</b><br>${location}`, { maxWidth: 200 })
+                .openPopup();
+        }, 200);
+    } else {
+        mapWrapper.style.display = 'none';
+    }
+
     document.getElementById('detailsModal').classList.add('open');
 }
 

@@ -714,3 +714,323 @@ tbody tr:hover {
       border: 1.5px solid #111827;
    }
 }
+
+/* ============================================================
+   DARK MODE
+   ============================================================ */
+:root.dark-mode {
+   --bg: #0f172a;
+   --panel: #1e293b;
+   --muted: #1a2942;
+   --border: #334155;
+   --text: #f1f5f9;
+   --dim: #94a3b8;
+   --shadow: rgba(0, 0, 0, 0.4);
+   --card: #253047;
+   --chip: #1e3a5f;
+}
+
+.dark-mode body {
+   background: linear-gradient(135deg, #0f172a 0%, #1a2035 100%);
+   color: var(--text);
+}
+
+.dark-mode .main-content {
+   background: #0f172a;
+}
+
+/* Header */
+.dark-mode header {
+   background: #1e293b !important;
+   border-bottom-color: #334155 !important;
+   box-shadow: 0 1px 0 #334155, 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+.dark-mode .hdr-title {
+   color: #f1f5f9 !important;
+}
+
+.dark-mode .hdr-sub {
+   color: #94a3b8 !important;
+}
+
+.dark-mode .hdr-sub-dot {
+   background: #475569 !important;
+}
+
+.dark-mode .hdr-search input {
+   background: #0f172a !important;
+   border-color: #334155 !important;
+   color: #f1f5f9 !important;
+}
+
+.dark-mode .hdr-search input::placeholder {
+   color: #64748b !important;
+}
+
+.dark-mode .hdr-search input:focus {
+   background: #152035 !important;
+   border-color: #3b82f6 !important;
+}
+
+.dark-mode .hdr-search-shortcut {
+   background: #334155 !important;
+   color: #94a3b8 !important;
+}
+
+.dark-mode .hdr-icon-btn {
+   background: #1e293b !important;
+   border-color: #334155 !important;
+   color: #94a3b8 !important;
+}
+
+.dark-mode .hdr-icon-btn:hover {
+   background: #253047 !important;
+   color: #f1f5f9 !important;
+}
+
+.dark-mode .hdr-notif {
+   background: #1e293b !important;
+   border-color: #334155 !important;
+}
+
+.dark-mode .hdr-user {
+   background: #1a2942 !important;
+   border-color: #334155 !important;
+}
+
+.dark-mode .hdr-user-name {
+   color: #f1f5f9 !important;
+}
+
+.dark-mode .hdr-user-role {
+   color: #94a3b8 !important;
+}
+
+.dark-mode .hdr-search-results {
+   background: #1e293b !important;
+   border-color: #334155 !important;
+   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dark-mode .search-item {
+   color: #f1f5f9 !important;
+   border-bottom-color: #283550 !important;
+}
+
+.dark-mode .search-item:hover {
+   background: #253047 !important;
+}
+
+.dark-mode .search-item .icon {
+   background: #253047 !important;
+}
+
+/* Sidebar */
+.dark-mode aside,
+.dark-mode .sidebar {
+   background: #1e293b !important;
+   border-right-color: #334155 !important;
+}
+
+.dark-mode nav a {
+   color: #94a3b8 !important;
+}
+
+.dark-mode nav a:hover {
+   background: #253047 !important;
+   color: #f1f5f9 !important;
+}
+
+.dark-mode nav a.active {
+   background: linear-gradient(135deg, #064e3b, #065f46) !important;
+   color: #34d399 !important;
+   border-color: #059669 !important;
+}
+
+.dark-mode .navsection {
+   color: #475569 !important;
+}
+
+/* Panels & Cards */
+.dark-mode .panel {
+   background: #1e293b !important;
+   border-color: #334155 !important;
+   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35) !important;
+}
+
+.dark-mode .panel h2,
+.dark-mode .panel h3 {
+   color: #f1f5f9 !important;
+}
+
+.dark-mode .panel-header {
+   border-bottom-color: #334155 !important;
+}
+
+.dark-mode .view-all {
+   color: #60a5fa !important;
+}
+
+.dark-mode .kpi-card {
+   background: linear-gradient(135deg, #1e293b, #253047) !important;
+   border-color: #334155 !important;
+}
+
+.dark-mode .kpi-card.success {
+   background: linear-gradient(135deg, #064e3b, #022c22) !important;
+   border-color: #059669 !important;
+}
+
+.dark-mode .kpi-card.danger {
+   background: linear-gradient(135deg, #450a0a, #200505) !important;
+   border-color: #dc2626 !important;
+}
+
+.dark-mode .kpi-card.warning {
+   background: linear-gradient(135deg, #451a03, #1f0a01) !important;
+   border-color: #d97706 !important;
+}
+
+.dark-mode .kpi-card.info {
+   background: linear-gradient(135deg, #1e3a5f, #0d2040) !important;
+   border-color: #2563eb !important;
+}
+
+.dark-mode .kpi-label {
+   color: #94a3b8 !important;
+}
+
+.dark-mode .kpi-value {
+   color: #f1f5f9 !important;
+}
+
+.dark-mode .kpi-subvalue {
+   color: #64748b !important;
+}
+
+/* Tables */
+.dark-mode table {
+   color: #f1f5f9 !important;
+}
+
+.dark-mode thead th {
+   background: #253047 !important;
+   border-bottom-color: #334155 !important;
+   color: #94a3b8 !important;
+}
+
+.dark-mode tbody tr {
+   border-bottom-color: #2d3f55 !important;
+}
+
+.dark-mode tbody tr:hover {
+   background: #253047 !important;
+}
+
+.dark-mode td strong {
+   color: #f1f5f9 !important;
+}
+
+.dark-mode td {
+   color: #cbd5e1 !important;
+}
+
+/* Buttons */
+.dark-mode .btn {
+   background: #253047 !important;
+   border-color: #334155 !important;
+   color: #f1f5f9 !important;
+}
+
+.dark-mode .btn:hover {
+   background: #2d3f55 !important;
+   border-color: #475569 !important;
+}
+
+.dark-mode .btn.primary {
+   background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+   border-color: #16a34a !important;
+   color: white !important;
+}
+
+.dark-mode .btn.danger {
+   background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+   border-color: #dc2626 !important;
+   color: white !important;
+}
+
+/* Modals */
+.dark-mode .modal-content {
+   background: #1e293b !important;
+   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6) !important;
+}
+
+.dark-mode .modal-content h2,
+.dark-mode .modal-content h3,
+.dark-mode .modal-content label {
+   color: #f1f5f9 !important;
+}
+
+.dark-mode .modal-content input,
+.dark-mode .modal-content select,
+.dark-mode .modal-content textarea {
+   background: #0f172a !important;
+   border-color: #334155 !important;
+   color: #f1f5f9 !important;
+}
+
+.dark-mode .close {
+   color: #94a3b8 !important;
+}
+
+/* Forms */
+.dark-mode .form-group input,
+.dark-mode .form-group select,
+.dark-mode .form-group textarea {
+   background: #0f172a !important;
+   border-color: #334155 !important;
+   color: #f1f5f9 !important;
+}
+
+/* KPI footer helper states */
+.dark-mode .kpi-footer {
+   opacity: 0.85;
+}
+
+/* Page header */
+.dark-mode .page-header h1 {
+   color: #f1f5f9 !important;
+}
+
+.dark-mode .page-header p {
+   color: #94a3b8 !important;
+}
+
+/* Alert items on dashboard */
+.dark-mode .alert-item {
+   background: #253047 !important;
+   border-color: #334155 !important;
+}
+
+.dark-mode .alert-item.critical {
+   background: #3b1010 !important;
+   border-color: #991b1b !important;
+}
+
+.dark-mode .alert-item.medium {
+   background: #2d1c02 !important;
+   border-color: #92400e !important;
+}
+
+.dark-mode .alert-node {
+   color: #f1f5f9 !important;
+}
+
+.dark-mode .alert-description {
+   color: #94a3b8 !important;
+}
+
+.dark-mode .alert-time {
+   color: #64748b !important;
+}
