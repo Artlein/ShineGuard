@@ -872,29 +872,18 @@ tbody tr:hover {
    color: #60a5fa !important;
 }
 
-.dark-mode .kpi-card {
-   background: linear-gradient(135deg, #1e293b, #253047) !important;
-   border-color: #334155 !important;
+/* KPI cards use vivid color gradients and white text by default — no dark mode override needed */
+
+.dark-mode .kpi-label {
+   color: rgba(255, 255, 255, 0.75) !important;
 }
 
-.dark-mode .kpi-card.success {
-   background: linear-gradient(135deg, #064e3b, #022c22) !important;
-   border-color: #059669 !important;
+.dark-mode .kpi-value {
+   color: white !important;
 }
 
-.dark-mode .kpi-card.danger {
-   background: linear-gradient(135deg, #450a0a, #200505) !important;
-   border-color: #dc2626 !important;
-}
-
-.dark-mode .kpi-card.warning {
-   background: linear-gradient(135deg, #451a03, #1f0a01) !important;
-   border-color: #d97706 !important;
-}
-
-.dark-mode .kpi-card.info {
-   background: linear-gradient(135deg, #1e3a5f, #0d2040) !important;
-   border-color: #2563eb !important;
+.dark-mode .kpi-subvalue {
+   color: rgba(255, 255, 255, 0.6) !important;
 }
 
 .dark-mode .kpi-label {
