@@ -52,33 +52,30 @@ function getUserRole() {
     return $_SESSION['role'] ?? 'guest';
 }
 
-/**
- * Centralised RBAC permission check.
- * Usage: canDo('manage_schedules')
- */
+
 function canDo(string $action): bool {
     static $map = [
-        // Who can view reports
+        
         'view_reports'         => ['System Admin', 'Maintenance Operator', 'System Observer'],
-        // Who can export / download PDF reports
+        
         'export_reports'       => ['System Admin', 'Maintenance Operator'],
-        // Who can create/edit/delete schedules
+        
         'manage_schedules'     => ['System Admin'],
-        // Who can add/delete cameras or change camera settings
+        
         'manage_cctv'          => ['System Admin'],
-        // Who can view the CCTV page at all
+        
         'view_cctv'            => ['System Admin', 'Maintenance Operator', 'System Observer'],
-        // Who can add/edit/delete streetlights
+        
         'manage_streetlights'  => ['System Admin'],
-        // Who can manage users (add/edit/delete)
+        
         'manage_users'         => ['System Admin'],
-        // Who can create new work orders
+        
         'create_work_orders'   => ['System Admin', 'Maintenance Operator'],
-        // Who can update work order status
+        
         'update_work_orders'   => ['System Admin', 'Maintenance Operator'],
-        // Who can acknowledge or resolve alerts
+        
         'acknowledge_alerts'   => ['System Admin', 'Maintenance Operator'],
-        // Who can access the Settings page
+        
         'view_settings'        => ['System Admin'],
     ];
     return in_array(getUserRole(), $map[$action] ?? [], true);

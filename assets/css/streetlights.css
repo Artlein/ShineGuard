@@ -1,0 +1,167 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+}
+
+.page-header h1 {
+    font-size: 32px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 8px 0;
+    letter-spacing: -0.5px;
+}
+
+.page-header p {
+    color: #64748b;
+    font-size: 15px;
+    margin: 0;
+    font-weight: 500;
+}
+
+#map {
+    width: 100%;
+    height: 600px;
+    border-radius: 12px;
+    border: 3px solid var(--accent);
+    z-index: 1;
+}
+
+.map-view-toggle {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.view-btn {
+    padding: 10px 20px;
+    border: 2px solid var(--accent);
+    background: white;
+    color: var(--text);
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.view-btn.active {
+    background: var(--accent);
+    color: white;
+}
+
+.view-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.hidden {
+    display: none !important;
+}
+
+.leaflet-popup-content-wrapper {
+    border-radius: 12px;
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+    min-height: 220px;
+}
+
+.leaflet-popup-content {
+    margin: 24px 20px;
+    font-size: 14px;
+    text-align: center;
+}
+
+.popup-header {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--accent);
+    margin-bottom: 12px;
+}
+
+.popup-info {
+    margin: 8px 0;
+}
+
+.popup-controls {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    justify-content: center;
+}
+
+.popup-btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+    transition: all 0.3s;
+}
+
+.popup-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.popup-btn.primary {
+    background: #10b981;
+    color: white;
+}
+
+.popup-btn.secondary {
+    background: #3b82f6;
+    color: white;
+}
+
+.diagnostic-result {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.diagnostic-item {
+    padding: 15px;
+    border-radius: 8px;
+    border: 2px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.diagnostic-item.pass {
+    border-color: #10b981;
+    background: #d1fae5;
+}
+
+.diagnostic-item.fail {
+    border-color: #ef4444;
+    background: #fee2e2;
+}
+
+.diagnostic-item strong {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #64748b;
+}
+
+.diagnostic-item .result {
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.diagnostic-item.pass .result {
+    color: #065f46;
+}
+
+.diagnostic-item.fail .result {
+    color: #991b1b;
+}

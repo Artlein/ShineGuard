@@ -91,318 +91,18 @@ $stats = $conn->query("SELECT
 <title>Work Orders - Shine Guard Hulo</title>
 <link rel="icon" type="image/png" href="img/ShineGuard3.png">
 
-<style>
-<?php include 'assets/style.css'; ?>
-
-:root { 
-    --theme-color: <?php echo $theme_color; ?>; 
+<link rel="stylesheet" href="assets/style.css">
+<?php
+if (!isset($theme_color)) {
+    $theme_color = '#10b981';
+    $tc_result = $conn->query("SELECT config_value FROM system_config WHERE config_key = 'theme_color' LIMIT 1");
+    if ($tc_result && $tc_row = $tc_result->fetch_assoc()) {
+        $theme_color = $tc_row['config_value'];
+    }
 }
-
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-html, body {
-    margin: 0 !important;
-    padding: 0 !important;
-    height: 100%;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
-}
-
-:root {
-  --bg:           #f0f4f8;
-  --surface:      #ffffff;
-  --surface-2:    #f7f9fc;
-  --border:       #e4e9f0;
-  --border-light: #edf1f7;
-  --text-primary: #1a2035;
-  --text-secondary: #6b7a99;
-  --text-muted:   #a0aec0;
-  --accent:       #e53e3e;
-  --green:        #22c55e;
-  --green-dim:    #f0fdf4;
-  --green-border: #bbf7d0;
-  --red:          #ef4444;
-  --red-dim:      #fef2f2;
-  --red-border:   #fecaca;
-  --blue:         #3b82f6;
-  --blue-dim:     #eff6ff;
-  --radius:       16px;
-  --radius-sm:    10px;
-  --shadow:       0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05);
-  --shadow-md:    0 4px 16px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
-}
-
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  background: var(--bg);
-  font-family: 'Inter', sans-serif;
-  color: var(--text-primary);
-}
-
-.main-content {
-  padding: 2.2rem 2.6rem;
-  font-family: 'Inter', sans-serif;
-}
-
-.page-header {
-  text-align: center;
-  margin-bottom: 2.4rem;
-  padding-bottom: 0;
-}
-
-.page-header h1 {
-  font-size: 1.85rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  color: var(--text-primary);
-  margin-bottom: 0.3rem;
-  text-transform: uppercase;
-}
-
-.page-header p {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  font-weight: 400;
-}
-
-.panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 1.8rem 2rem;
-  margin-bottom: 1.6rem;
-  position: relative;
-  overflow: hidden;
-}
-
-.panel.panel-create { border-top: 3px solid #3b82f6; }
-.panel.panel-list   { border-top: 3px solid #22c55e; }
-
-.panel h2 {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-
-.form-grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.2rem 1.6rem;
-  margin-bottom: 1.4rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.form-group label {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  letter-spacing: 0.02em;
-}
-
-.form-group input[type="text"],
-.form-group input[type="number"],
-.form-group input[type="time"] {
-  background: var(--surface-2);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.9rem;
-  font-weight: 500;
-  padding: 0.6rem 0.9rem;
-  transition: border-color .15s, box-shadow .15s;
-  outline: none;
-  width: 100%;
-}
-
-.form-group input:focus {
-  border-color: var(--blue);
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(59,130,246,.12);
-}
-
-.form-group input::placeholder {
-  color: var(--text-muted);
-  font-weight: 400;
-}
-
-.form-days-label {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: 0.6rem;
-}
-
-.days-grid {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  margin-bottom: 1.5rem;
-}
-
-.day-chip {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  background: var(--surface-2);
-  border: 1.5px solid var(--border);
-  border-radius: 8px;
-  padding: 0.38rem 0.8rem;
-  cursor: pointer;
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  transition: all .15s;
-  user-select: none;
-}
-
-.day-chip:has(input:checked) {
-  background: var(--blue-dim);
-  border-color: var(--blue);
-  color: var(--blue);
-}
-
-.day-chip input[type="checkbox"] {
-  accent-color: var(--blue);
-  width: 13px; height: 13px;
-  cursor: pointer;
-}
-
-.btn-primary {
-  background: var(--text-primary);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  padding: 0.65rem 1.6rem;
-  cursor: pointer;
-  transition: background .15s, transform .1s, box-shadow .15s;
-  box-shadow: var(--shadow);
-}
-
-.btn-primary:hover {
-  background: #2d3748;
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.table-wrapper {
-  overflow-x: auto;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
-}
-
-thead tr {
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--border);
-}
-
-thead th {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  padding: 0.85rem 1.1rem;
-  text-align: left;
-  white-space: nowrap;
-}
-
-tbody tr {
-  border-bottom: 1px solid var(--border-light);
-  transition: background .1s;
-}
-
-tbody tr:last-child { border-bottom: none; }
-tbody tr:hover { background: #f8fafc; }
-
-tbody td {
-  padding: 0.9rem 1.1rem;
-  color: var(--text-primary);
-  font-weight: 500;
-  vertical-align: middle;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 0.28rem 0.7rem;
-  border-radius: 30px;
-  white-space: nowrap;
-}
-
-.badge.ok {
-  background: var(--green-dim);
-  color: var(--green);
-  border: 1px solid var(--green-border);
-}
-
-.badge.ok::before  { content: '●'; font-size: 0.5rem; }
-
-.badge.fail {
-  background: var(--red-dim);
-  color: var(--red);
-  border: 1px solid var(--red-border);
-}
-
-.badge.fail::before { content: '●'; font-size: 0.5rem; }
-
-.actions-cell { display: flex; gap: 0.5rem; }
-
-.btn-sm {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  color: var(--text-secondary);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.76rem;
-  font-weight: 600;
-  padding: 0.32rem 0.72rem;
-  cursor: pointer;
-  transition: all .13s;
-  white-space: nowrap;
-}
-
-.btn-sm:hover {
-  background: #edf2f7;
-  border-color: #cbd5e0;
-  color: var(--text-primary);
-}
-
-.btn-sm.danger:hover {
-  background: var(--red-dim);
-  border-color: var(--red-border);
-  color: var(--red);
-}
-</style>
+?>
+<style>:root { --theme-color: <?php echo htmlspecialchars($theme_color); ?>; }</style>
+<link rel="stylesheet" href="assets/css/work_orders.css">
 </head>
 <body>
 <div class="layout">
@@ -497,7 +197,7 @@ tbody td {
     <table>
         <thead>
             <tr>
-                <th>WO #</th>
+                <th>WO 
                 <th>Node</th>
                 <th>Location</th>
                 <th>Action</th>
@@ -510,7 +210,7 @@ tbody td {
         <tbody>
             <?php while ($order = $active_orders->fetch_assoc()): ?>
             <tr>
-                <td><strong style="color: #2563eb;">#<?php echo str_pad($order['log_id'], 4, '0', STR_PAD_LEFT); ?></strong></td>
+                <td><strong style="color: #2563eb;">
                 <td><strong><?php echo $order['node_name']; ?></strong></td>
                 <td><?php echo $order['location']; ?></td>
                 <td style="max-width: 250px;"><?php echo substr($order['action_taken'], 0, 50); ?>...</td>
@@ -544,7 +244,7 @@ tbody td {
     <table>
         <thead>
             <tr>
-                <th>WO #</th>
+                <th>WO 
                 <th>Node</th>
                 <th>Action</th>
                 <th>Technician</th>
@@ -556,7 +256,7 @@ tbody td {
         <tbody>
             <?php while ($order = $completed->fetch_assoc()): ?>
             <tr>
-                <td><strong style="color: #059669;">#<?php echo str_pad($order['log_id'], 4, '0', STR_PAD_LEFT); ?></strong></td>
+                <td><strong style="color: #059669;">
                 <td><?php echo $order['node_name']; ?></td>
                 <td style="max-width: 200px;"><?php echo substr($order['action_taken'], 0, 40); ?>...</td>
                 <td><?php echo $order['technician_name']; ?></td>
@@ -675,7 +375,7 @@ function viewDetails(logId, action, notes) {
     const detailsContent = document.getElementById('detailsContent');
     detailsContent.innerHTML = `
         <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 16px;">
-            <div style="font-size: 18px; font-weight: 700; color: #1f2937; margin-bottom: 12px;">Work Order #${String(logId).padStart(4, '0')}</div>
+            <div style="font-size: 18px; font-weight: 700; color: #1f2937; margin-bottom: 12px;">Work Order 
         </div>
         <div style="margin-bottom: 16px;">
             <strong style="color: #1f2937;">Action Taken:</strong>

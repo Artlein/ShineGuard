@@ -1,0 +1,339 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+}
+
+body {
+    background: var(--bg);
+    font-family: 'Inter', sans-serif;
+    color: var(--text-primary);
+}
+
+.main-content {
+    padding: 2.2rem 2.6rem;
+    font-family: 'Inter', sans-serif;
+}
+
+.page-header {
+    text-align: center;
+    margin-bottom: 2.4rem;
+    padding-bottom: 0;
+}
+
+.page-header h1 {
+    font-size: 1.85rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text-primary);
+    margin-bottom: 0.3rem;
+    text-transform: uppercase;
+}
+
+.page-header p {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+.panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.8rem 2rem;
+    margin-bottom: 1.6rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.panel.panel-create {
+    border-top: 3px solid #3b82f6;
+}
+
+.panel.panel-list {
+    border-top: 3px solid #22c55e;
+}
+
+.panel h2 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem 1.6rem;
+    margin-bottom: 1.4rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.form-group label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.02em;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group input[type="time"] {
+    background: var(--surface-2);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 0.6rem 0.9rem;
+    transition: border-color .15s, box-shadow .15s;
+    outline: none;
+    width: 100%;
+}
+
+.form-group input:focus {
+    border-color: var(--blue);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, .12);
+}
+
+.form-group input::placeholder {
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.btn-primary {
+    background: var(--text-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    padding: 0.65rem 1.6rem;
+    cursor: pointer;
+    transition: background .15s, transform .1s, box-shadow .15s;
+    box-shadow: var(--shadow);
+}
+
+.btn-primary:hover {
+    background: #2d3748;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+thead tr {
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+}
+
+thead th {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    padding: 0.85rem 1.1rem;
+    text-align: left;
+    white-space: nowrap;
+}
+
+tbody tr {
+    border-bottom: 1px solid var(--border-light);
+    transition: background .1s;
+}
+
+tbody tr:last-child {
+    border-bottom: none;
+}
+
+tbody tr:hover {
+    background: #f8fafc;
+}
+
+tbody td {
+    padding: 0.9rem 1.1rem;
+    color: var(--text-primary);
+    font-weight: 500;
+    vertical-align: middle;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.28rem 0.7rem;
+    border-radius: 30px;
+    white-space: nowrap;
+}
+
+.badge.ok {
+    background: var(--green-dim);
+    color: var(--green);
+    border: 1px solid var(--green-border);
+}
+
+.badge.ok::before {
+    content: '●';
+    font-size: 0.5rem;
+}
+
+.badge.fail {
+    background: var(--red-dim);
+    color: var(--red);
+    border: 1px solid var(--red-border);
+}
+
+.badge.fail::before {
+    content: '●';
+    font-size: 0.5rem;
+}
+
+.actions-cell {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-sm {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text-secondary);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.76rem;
+    font-weight: 600;
+    padding: 0.32rem 0.72rem;
+    cursor: pointer;
+    transition: all .13s;
+    white-space: nowrap;
+}
+
+.btn-sm:hover {
+    background: #edf2f7;
+    border-color: #cbd5e0;
+    color: var(--text-primary);
+}
+
+.btn-sm.danger:hover {
+    background: var(--red-dim);
+    border-color: var(--red-border);
+    color: var(--red);
+}
+
+.badge-high {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.badge-medium {
+    background: #fff7ed;
+    color: #ea580c;
+    border: 1px solid #fed7aa;
+}
+
+.badge-low {
+    background: #fefce8;
+    color: #ca8a04;
+    border: 1px solid #fde68a;
+}
+
+.badge-open {
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+}
+
+.badge-acknowledged {
+    background: #f0fdf4;
+    color: #16a34a;
+    border: 1px solid #bbf7d0;
+}
+
+.badge-resolved {
+    background: #f8fafc;
+    color: #64748b;
+    border: 1px solid #cbd5e1;
+}
+
+.detail-row {
+    display: none;
+}
+
+.detail-row.open {
+    display: table-row;
+}
+
+.detail-row td {
+    background: #f8fafc;
+    padding: .8rem 1.1rem;
+    font-size: .82rem;
+    color: #475569;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: .6rem 1.6rem;
+}
+
+.detail-item strong {
+    display: block;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #94a3b8;
+    margin-bottom: .15rem;
+}
+
+.detail-item span {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.expand-btn {
+    cursor: pointer;
+    font-size: 1rem;
+    transition: transform .2s;
+    display: inline-block;
+}
+
+.expand-btn.open {
+    transform: rotate(90deg);
+}

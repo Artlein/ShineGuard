@@ -1,10 +1,5 @@
 <?php
-/**
- * firebase_config.example.php
- * 
- * Copy this file to firebase_config.php and fill in your own credentials.
- * NEVER commit firebase_config.php to version control.
- */
+
 
 class FirebaseConfig {
     
@@ -36,6 +31,6 @@ class FirebaseConfig {
         'control'  => '/SG-NODE2/Control.json'
     ];
 
-    // ... rest of the class methods remain the same
+    
 }
 ?>
