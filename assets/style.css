@@ -872,18 +872,12 @@ tbody tr:hover {
    color: #60a5fa !important;
 }
 
-/* KPI cards use vivid color gradients and white text by default — no dark mode override needed */
-
-.dark-mode .kpi-label {
-   color: rgba(255, 255, 255, 0.75) !important;
-}
-
-.dark-mode .kpi-value {
+/* Dark Mode KPI Cards - White in Light Mode, Dark Navy in Dark Mode */
+.dark-mode .kpi-card {
+   background: #1e293b !important;
+   border-color: #334155 !important;
    color: white !important;
-}
-
-.dark-mode .kpi-subvalue {
-   color: rgba(255, 255, 255, 0.6) !important;
+   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
 }
 
 .dark-mode .kpi-label {
@@ -897,6 +891,38 @@ tbody tr:hover {
 .dark-mode .kpi-subvalue {
    color: #64748b !important;
 }
+
+.dark-mode .kpi-footer {
+   background: #1a2942 !important;
+   border-color: #334155 !important;
+   color: #cbd5e1 !important;
+}
+
+/* Dark mode glass icons */
+.dark-mode .kpi-card.success .kpi-icon {
+   background: rgba(16, 185, 129, 0.1) !important;
+   color: #10b981 !important;
+   border-color: rgba(16, 185, 129, 0.2) !important;
+}
+
+.dark-mode .kpi-card.warning .kpi-icon {
+   background: rgba(245, 158, 11, 0.1) !important;
+   color: #f59e0b !important;
+   border-color: rgba(245, 158, 11, 0.2) !important;
+}
+
+.dark-mode .kpi-card.danger .kpi-icon {
+   background: rgba(239, 68, 68, 0.1) !important;
+   color: #ef4444 !important;
+   border-color: rgba(239, 68, 68, 0.2) !important;
+}
+
+.dark-mode .kpi-card.info .kpi-icon {
+   background: rgba(59, 130, 246, 0.1) !important;
+   color: #3b82f6 !important;
+   border-color: rgba(59, 130, 246, 0.2) !important;
+}
+
 
 /* Tables */
 .dark-mode table {
