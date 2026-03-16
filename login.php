@@ -93,7 +93,7 @@
                             required
                             autocomplete="current-password"
                         >
-                        <span class="input-icon">🔒</span>
+                        <span class="input-icon" id="togglePassword" style="cursor: pointer; user-select: none; transition: transform 0.2s;" title="Show Password">👁️</span>
                     </div>
                 </div>
                 
@@ -162,7 +162,7 @@
             document.getElementById('errorMessage').classList.remove('show');
         }
 
-        const inputs = document.querySelectorAll('input[type="text"], input[type="password"]');
+        const inputs = document.querySelectorAll('input[type="text"], input[type="password"], input[type="email"]');
         inputs.forEach(input => {
             input.addEventListener('focus', function() {
                 this.parentElement.style.transform = 'scale(1.01)';
@@ -170,6 +170,23 @@
             input.addEventListener('blur', function() {
                 this.parentElement.style.transform = 'scale(1)';
             });
+        });
+
+        const togglePassword = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('password');
+
+        togglePassword.addEventListener('click', function () {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            
+            this.textContent = type === 'password' ? '👁️' : '🙈';
+            this.title = type === 'password' ? 'Show Password' : 'Hide Password';
+            
+            // Add a little pop animation when clicked
+            this.style.transform = 'translateY(-50%) scale(1.2)';
+            setTimeout(() => {
+                this.style.transform = 'translateY(-50%) scale(1)';
+            }, 150);
         });
     </script>
 </body>

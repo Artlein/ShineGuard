@@ -91,6 +91,20 @@ function fetchFirebaseDataSilent($endpoint) {
     return null;
 }
 
+function checkThresholds($conn, $light_id, $brightness, $temperature, $current, $voltage, $humidity) {
+    if ($voltage == 0 && $current == 0 && $temperature == 0) {
+        return; // Node is likely offline, do not generate false hardware alerts.
+    }
+
+    $configQuery = "SELECT config_key, config_value FROM system_config WHERE config_key LIKE '%threshold%'";
+    $result = $conn->query($configQuery);
+    
+    $thresholds = [];
+    while ($row = $result->fetch_assoc()) {
+        $thresholds[$row['config_key']] = floatval($row['config_value']);
+    }
+}
+
 function getThresholds($conn) {
     $query = "SELECT config_key, config_value FROM system_config 
               WHERE config_key LIKE '%threshold%'";

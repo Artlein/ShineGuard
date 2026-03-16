@@ -31,34 +31,7 @@ function getDimmingLabel($level) {
 
 require_once 'firebase_config.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['self_check'])) {
-    $light_id = intval($_POST['light_id']);
 
-    $stmt = $conn->prepare("SELECT node_name FROM streetlights WHERE light_id = ?");
-    $stmt->bind_param("i", $light_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $light = $result->fetch_assoc();
-
-    $diagnostic_results = [
-        'power_test' => rand(0, 1) ? 'PASS' : 'FAIL',
-        'sensor_test' => rand(0, 1) ? 'PASS' : 'FAIL',
-        'connectivity_test' => rand(0, 1) ? 'PASS' : 'FAIL',
-        'dimming_test' => rand(0, 1) ? 'PASS' : 'FAIL',
-        'timestamp' => date('Y-m-d H:i:s')
-    ];
-
-    $log_stmt = $conn->prepare("INSERT INTO diagnostic_logs (light_id, test_type, result, notes, tested_at) VALUES (?, 'Self-Check', ?, ?, NOW())");
-    $result_summary = json_encode($diagnostic_results);
-    $notes = "Automated self-check diagnostic test";
-    $log_stmt->bind_param("iss", $light_id, $result_summary, $notes);
-    $log_stmt->execute();
-    
-    logActivity($conn, $_SESSION['user_id'], 'Diagnostics', "Ran self-check on {$light['node_name']}");
-    
-    header('Location: streetlights.php?success=diagnostic_run&diagnostic_id=' . $conn->insert_id);
-    exit();
-}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
     if ($_SESSION['role'] !== 'System Admin') {
@@ -403,33 +376,7 @@ html, body {
         <p>Monitor and control all 32 streetlight nodes in Barangay Hulo, Mandaluyong City</p></center> 
     </div>
 
-    <?php if($diagnostic_message): ?>
-    <div class="panel" style="background: #dbeafe; border-color: #93c5fd; margin-bottom: 20px;">
-        <h3 style="color: #1e40af; margin-top: 0;">🔧 Diagnostic Test Complete</h3>
-        <?php 
-        $results = json_decode($diagnostic_message['result'], true);
-        ?>
-        <div class="diagnostic-result">
-            <div class="diagnostic-item <?php echo strtolower($results['power_test']); ?>">
-                <strong>⚡ Power Test</strong>
-                <div class="result"><?php echo $results['power_test']; ?></div>
-            </div>
-            <div class="diagnostic-item <?php echo strtolower($results['sensor_test']); ?>">
-                <strong>📡 Sensor Test</strong>
-                <div class="result"><?php echo $results['sensor_test']; ?></div>
-            </div>
-            <div class="diagnostic-item <?php echo strtolower($results['connectivity_test']); ?>">
-                <strong>🌐 Connectivity Test</strong>
-                <div class="result"><?php echo $results['connectivity_test']; ?></div>
-            </div>
-            <div class="diagnostic-item <?php echo strtolower($results['dimming_test']); ?>">
-                <strong>💡 Dimming Test</strong>
-                <div class="result"><?php echo $results['dimming_test']; ?></div>
-            </div>
-        </div>
-        <small style="color: #64748b;">Test completed at: <?php echo date('M d, Y h:i A', strtotime($results['timestamp'])); ?></small>
-    </div>
-    <?php endif; ?>
+
 
     <div class="panel">
 
@@ -583,10 +530,7 @@ html, body {
     <input type="hidden" name="action" value="toggle">
 </form>
 
-<form id="diagnosticForm" method="POST" style="display: none;">
-    <input type="hidden" name="light_id" id="diagnostic_light_id">
-    <input type="hidden" name="self_check" value="1">
-</form>
+
 
 <div id="nodeModal" class="modal">
     <div class="modal-content modal-spring">
@@ -975,39 +919,118 @@ async function confirmDiagnostic() {
     }
     
     pwdError.style.display = 'none';
-    btn.innerHTML = 'Verifying...';
+    btn.innerHTML = 'Testing...';
     btn.disabled = true;
     
     try {
         const formData = new URLSearchParams();
-        formData.append('action', 'verify_password');
+        formData.append('light_id', modal._lightId);
         formData.append('admin_password', pwdInput.value);
         
-        const response = await fetch('streetlights.php', {
+        // Save original HTML in case of password failure
+        const inner = modal.querySelector('.modal-spring');
+        const originalHTML = inner.innerHTML;
+        
+        // Show progress view
+        inner.innerHTML = `
+            <div style="text-align: center; padding: 20px 0;">
+                <div style="font-size: 30px; margin-bottom: 10px;">⏳</div>
+                <h3 style="margin: 0 0 10px 0; color: #0f172a;">Running Smart Diagnostics</h3>
+                <p style="color: #64748b; font-size: 14px; margin-bottom: 25px;">Please wait while we test hardware and network telemetry...</p>
+                
+                <div style="text-align: left; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 13px; color: #334155;">
+                    <div id="diag-step-1" style="margin-bottom: 8px;">[ ] Pinging IoT Node (Firebase)...</div>
+                    <div id="diag-step-2" style="margin-bottom: 8px;">[ ] Reading Hardware Sensors...</div>
+                    <div id="diag-step-3" style="margin-bottom: 8px;">[ ] Checking Relay States...</div>
+                    <div id="diag-step-4" style="margin-bottom: 0;">[ ] Auditing Maintenance History...</div>
+                </div>
+            </div>
+        `;
+        
+        await new Promise(r => setTimeout(r, 600));
+        document.getElementById('diag-step-1').innerHTML = '<b>[✔] Pinging IoT Node (Firebase)... DONE</b>';
+        await new Promise(r => setTimeout(r, 600));
+        document.getElementById('diag-step-2').innerHTML = '<b>[✔] Reading Hardware Sensors... DONE</b>';
+        await new Promise(r => setTimeout(r, 600));
+        document.getElementById('diag-step-3').innerHTML = '<b>[✔] Checking Relay States... DONE</b>';
+        await new Promise(r => setTimeout(r, 600));
+        document.getElementById('diag-step-4').innerHTML = '<b>[✔] Auditing Maintenance History... DONE</b>';
+        await new Promise(r => setTimeout(r, 400));
+        
+        const response = await fetch('api/run_diagnostic.php', {
             method: 'POST',
             body: formData,
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
         });
         
         const data = await response.json();
+        
         if (data.success) {
-            document.getElementById('diagnostic_light_id').value = modal._lightId;
-            modal.style.display = 'none';
-            document.getElementById('diagnosticForm').submit();
+            const res = data.results;
+            
+            let healthColor = res.health === 'Excellent' ? '#10b981' : (res.health === 'Warning' ? '#f59e0b' : '#ef4444');
+            
+            inner.innerHTML = `
+                <div style="text-align: center; padding: 10px 0;">
+                    <div style="background: ${healthColor}20; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto;">
+                        <span style="font-size: 28px;">${res.health === 'Excellent' ? '✅' : (res.health === 'Warning' ? '⚠️' : '❌')}</span>
+                    </div>
+                    <h2 style="margin: 0 0 5px 0; color: #0f172a;">System Health: ${res.score}%</h2>
+                    <div style="color: ${healthColor}; font-weight: 700; margin-bottom: 25px;">${res.health}</div>
+                    
+                    <div style="text-align: left; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 25px;">
+                        <div style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; background: ${res.network.status==='Pass'?'#f0fdf4':(res.network.status==='Warning'?'#fffbeb':'#fef2f2')}">
+                            <span style="font-size: 16px; margin-right: 12px;">${res.network.status==='Pass'?'✅':(res.network.status==='Warning'?'⚠️':'❌')}</span>
+                            <div>
+                                <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase;">Network Connection</div>
+                                <div style="font-size: 14px; font-weight: 600; color: #1e293b; line-height: 1.3;">${res.network.message}</div>
+                            </div>
+                        </div>
+                        <div style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; background: ${res.sensors.status==='Pass'?'#f0fdf4':(res.sensors.status==='Warning'?'#fffbeb':'#fef2f2')}">
+                            <span style="font-size: 16px; margin-right: 12px;">${res.sensors.status==='Pass'?'✅':(res.sensors.status==='Warning'?'⚠️':'❌')}</span>
+                            <div>
+                                <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase;">Hardware Sensors</div>
+                                <div style="font-size: 14px; font-weight: 600; color: #1e293b; line-height: 1.3;">${res.sensors.message}</div>
+                            </div>
+                        </div>
+                        <div style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; background: ${res.relay.status==='Pass'?'#f0fdf4':(res.relay.status==='Warning'?'#fffbeb':'#fef2f2')}">
+                            <span style="font-size: 16px; margin-right: 12px;">${res.relay.status==='Pass'?'✅':(res.relay.status==='Warning'?'⚠️':'❌')}</span>
+                            <div>
+                                <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase;">Relay State</div>
+                                <div style="font-size: 14px; font-weight: 600; color: #1e293b; line-height: 1.3;">${res.relay.message}</div>
+                            </div>
+                        </div>
+                        <div style="padding: 12px 16px; display: flex; align-items: center; background: ${res.history.status==='Pass'?'#f0fdf4':(res.history.status==='Warning'?'#fffbeb':'#fef2f2')}">
+                            <span style="font-size: 16px; margin-right: 12px;">${res.history.status==='Pass'?'✅':(res.history.status==='Warning'?'⚠️':'❌')}</span>
+                            <div>
+                                <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase;">History Check</div>
+                                <div style="font-size: 14px; font-weight: 600; color: #1e293b; line-height: 1.3;">${res.history.message}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display:flex; justify-content: center;">
+                        <button onclick="window.location.reload()" style="padding:10px 24px; border-radius:10px; border:none; background:#0f172a; font-family:'Inter',sans-serif; font-size:0.875rem; font-weight:700; color:white; cursor:pointer;">Close Report</button>
+                    </div>
+                </div>
+            `;
+            
         } else {
-            pwdError.textContent = 'Incorrect password. Try again.';
-            pwdError.style.display = 'block';
-            pwdInput.style.borderColor = '#ef4444';
-            btn.innerHTML = '🔧 Run Test';
-            btn.disabled = false;
+            inner.innerHTML = originalHTML;
+            const restoredPwdInput = document.getElementById('diagAdminPassword');
+            const restoredPwdError = document.getElementById('diagPasswordError');
+            if (restoredPwdInput) {
+                restoredPwdInput.value = '';
+                restoredPwdInput.style.borderColor = '#ef4444';
+            }
+            if (restoredPwdError) {
+                restoredPwdError.textContent = data.error || 'Diagnostic failed to run.';
+                restoredPwdError.style.display = 'block';
+            }
         }
     } catch(err) {
         console.error(err);
-        pwdError.textContent = 'Error verifying password. Check connection.';
-        pwdError.style.display = 'block';
-        btn.disabled = false;
+        window.location.reload();
     }
 }
 

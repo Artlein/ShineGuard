@@ -252,6 +252,12 @@ function syncHealthData($conn) {
  * Check sensor thresholds and create alerts
  */
 function checkThresholds($conn, $light_id, $brightness, $temperature, $current, $voltage, $humidity) {
+    // If telemetry shows perfect 0s for V, I, and Temp, the node is likely offline/unreachable
+    // Do not generate thresholds alerts for an offline node.
+    if ($voltage == 0 && $current == 0 && $temperature == 0) {
+        return; 
+    }
+
     // Get all thresholds from config
     $configQuery = "SELECT config_key, config_value FROM system_config 
         WHERE config_key LIKE '%threshold%'";
