@@ -231,9 +231,9 @@ if (!isset($theme_color)) {
     </table>
     </div>
     <?php else: ?>
-    <div style="text-align: center; padding: 60px 20px; background: #f9fafb; border-radius: 8px;">
-        <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
-        <p style="color: #64748b; font-size: 16px; margin: 0;">No active work orders at this time.</p>
+    <div style="text-align: center; padding: 60px 20px; background: var(--muted); border-radius: 8px; border: 1px dashed var(--border);">
+        <div style="font-size: 48px; margin-bottom: 16px; color: var(--dim);">📋</div>
+        <p style="color: var(--dim); font-size: 16px; margin: 0;">No active work orders at this time.</p>
     </div>
     <?php endif; ?>
 </div>

@@ -12,34 +12,10 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
 }
 
-:root {
-    --bg: #f0f4f8;
-    --surface: #ffffff;
-    --surface-2: #f7f9fc;
-    --border: #e4e9f0;
-    --border-light: #edf1f7;
-    --text-primary: #1a2035;
-    --text-secondary: #6b7a99;
-    --text-muted: #a0aec0;
-    --accent: #e53e3e;
-    --green: #22c55e;
-    --green-dim: #f0fdf4;
-    --green-border: #bbf7d0;
-    --red: #ef4444;
-    --red-dim: #fef2f2;
-    --red-border: #fecaca;
-    --blue: #3b82f6;
-    --blue-dim: #eff6ff;
-    --radius: 16px;
-    --radius-sm: 10px;
-    --shadow: 0 1px 3px rgba(0, 0, 0, .07), 0 1px 2px rgba(0, 0, 0, .05);
-    --shadow-md: 0 4px 16px rgba(0, 0, 0, .08), 0 1px 4px rgba(0, 0, 0, .04);
-}
-
 body {
     background: var(--bg);
     font-family: 'Inter', sans-serif;
-    color: var(--text-primary);
+    color: var(--text);
 }
 
 .main-content {
@@ -57,19 +33,19 @@ body {
     font-size: 1.85rem;
     font-weight: 800;
     letter-spacing: -0.03em;
-    color: var(--text-primary);
+    color: var(--text);
     margin-bottom: 0.3rem;
     text-transform: uppercase;
 }
 
 .page-header p {
     font-size: 0.875rem;
-    color: var(--text-secondary);
+    color: var(--dim);
     font-weight: 400;
 }
 
 .panel {
-    background: var(--surface);
+    background: var(--panel);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
@@ -90,7 +66,7 @@ body {
 .panel h2 {
     font-size: 1rem;
     font-weight: 700;
-    color: var(--text-primary);
+    color: var(--text);
     margin-bottom: 1.5rem;
     display: flex;
     align-items: center;
@@ -113,17 +89,17 @@ body {
 .form-group label {
     font-size: 0.78rem;
     font-weight: 600;
-    color: var(--text-secondary);
+    color: var(--dim);
     letter-spacing: 0.02em;
 }
 
 .form-group input[type="text"],
 .form-group input[type="number"],
 .form-group input[type="time"] {
-    background: var(--surface-2);
+    background: var(--muted);
     border: 1.5px solid var(--border);
     border-radius: var(--radius-sm);
-    color: var(--text-primary);
+    color: var(--text);
     font-family: 'Inter', sans-serif;
     font-size: 0.9rem;
     font-weight: 500;
@@ -147,7 +123,7 @@ body {
 .form-days-label {
     font-size: 0.78rem;
     font-weight: 600;
-    color: var(--text-secondary);
+    color: var(--dim);
     margin-bottom: 0.6rem;
 }
 
@@ -162,14 +138,14 @@ body {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    background: var(--surface-2);
+    background: var(--muted);
     border: 1.5px solid var(--border);
     border-radius: 8px;
     padding: 0.38rem 0.8rem;
     cursor: pointer;
     font-size: 0.76rem;
     font-weight: 600;
-    color: var(--text-secondary);
+    color: var(--dim);
     transition: all .15s;
     user-select: none;
 }
@@ -188,8 +164,8 @@ body {
 }
 
 .btn-primary {
-    background: var(--text-primary);
-    color: #fff;
+    background: var(--text);
+    color: var(--bg);
     border: none;
     border-radius: var(--radius-sm);
     font-family: 'Inter', sans-serif;
@@ -221,7 +197,7 @@ table {
 }
 
 thead tr {
-    background: var(--surface-2);
+    background: var(--muted);
     border-bottom: 1px solid var(--border);
 }
 
@@ -230,7 +206,7 @@ thead th {
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--text-secondary);
+    color: var(--dim);
     padding: 0.85rem 1.1rem;
     text-align: left;
     white-space: nowrap;
@@ -251,7 +227,7 @@ tbody tr:hover {
 
 tbody td {
     padding: 0.9rem 1.1rem;
-    color: var(--text-primary);
+    color: var(--text);
     font-weight: 500;
     vertical-align: middle;
 }
@@ -297,10 +273,10 @@ tbody td {
 }
 
 .btn-sm {
-    background: var(--surface-2);
+    background: var(--muted);
     border: 1px solid var(--border);
     border-radius: 7px;
-    color: var(--text-secondary);
+    color: var(--dim);
     font-family: 'Inter', sans-serif;
     font-size: 0.76rem;
     font-weight: 600;

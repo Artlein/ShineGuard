@@ -207,28 +207,28 @@ if (!isset($theme_color)) {
 </main>
 </div>
 
-<div id="deleteModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-  <div class="modal-spring" style="background:white; border-radius:20px; padding:32px; max-width:400px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.25); font-family:'Inter',sans-serif;">
+<div id="deleteModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(4px);">
+  <div class="modal-spring" style="background:var(--panel); border-radius:20px; padding:32px; max-width:400px; width:90%; box-shadow:var(--shadow-md); font-family:'Inter',sans-serif; border: 1px solid var(--border);">
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
-      <div style="background:#fef2f2; width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">🗑️</div>
+      <div style="background:rgba(239, 68, 68, 0.1); width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">🗑️</div>
       <div>
-        <div style="font-size:1.1rem; font-weight:800; color:#0f172a;">Delete Schedule?</div>
-        <div style="font-size:0.8rem; color:#64748b; margin-top:2px;" id="deleteModalScheduleName">Loading...</div>
+        <div style="font-size:1.1rem; font-weight:800; color:var(--text);">Delete Schedule?</div>
+        <div style="font-size:0.8rem; color:var(--dim); margin-top:2px;" id="deleteModalScheduleName">Loading...</div>
       </div>
     </div>
     
-    <p style="font-size:0.9rem; color:#475569; line-height:1.6; margin-bottom:24px;">
+    <p style="font-size:0.9rem; color:var(--dim); line-height:1.6; margin-bottom:24px;">
       Are you sure you want to delete this schedule? This action cannot be undone and will stop any automated lighting for this preset.
     </p>
 
     <div style="margin-bottom: 24px; text-align: left;">
-        <label for="deleteAdminPassword" style="display:block; font-size:0.875rem; font-weight:600; color:#0f172a; margin-bottom:8px;">🔐 Administrator Password <span style="color:#ef4444;">*</span></label>
-        <input type="password" id="deleteAdminPassword" placeholder="Enter password to confirm deletion" style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid #cbd5e1; font-family:'Inter',sans-serif; font-size:0.875rem; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
+        <label for="deleteAdminPassword" style="display:block; font-size:0.875rem; font-weight:600; color:var(--text); margin-bottom:8px;">🔐 Administrator Password <span style="color:#ef4444;">*</span></label>
+        <input type="password" id="deleteAdminPassword" placeholder="Enter password to confirm deletion" style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid var(--border); background:var(--muted); color:var(--text); font-family:'Inter',sans-serif; font-size:0.875rem; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='var(--blue)'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'" onblur="this.style.borderColor='var(--border)'; this.style.boxShadow='none'">
         <div id="deletePasswordError" style="color:#ef4444; font-size:0.75rem; margin-top:6px; display:none;">Password is required</div>
     </div>
 
     <div style="display:flex; gap:12px; justify-content:flex-end;">
-      <button onclick="closeDeleteModal()" style="padding:10px 22px; border-radius:10px; border:1.5px solid #e2e8f0; background:white; font-family:'Inter',sans-serif; font-size:0.875rem; font-weight:600; color:#64748b; cursor:pointer;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='white'">Cancel</button>
+      <button onclick="closeDeleteModal()" style="padding:10px 22px; border-radius:10px; border:1.5px solid var(--border); background:var(--panel); font-family:'Inter',sans-serif; font-size:0.875rem; font-weight:600; color:var(--dim); cursor:pointer;" onmouseover="this.style.background='var(--muted)'" onmouseout="this.style.background='var(--panel)'">Cancel</button>
       <form id="deleteScheduleForm" method="POST" style="margin:0;" onsubmit="event.preventDefault(); confirmDelete();">
         <input type="hidden" name="schedule_id" id="delete_schedule_id">
         <input type="hidden" name="delete_schedule" value="1">
@@ -238,9 +238,9 @@ if (!isset($theme_color)) {
   </div>
 </div>
 
-<div id="editModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;">
-    <div style="background: white; border-radius: 16px; padding: 32px; width: 100%; max-width: 500px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
-        <h2 style="margin-top: 0; margin-bottom: 24px; color: #0f172a; font-size: 1.5rem; display: flex; align-items: center; gap: 8px;">
+<div id="editModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+    <div style="background: var(--panel); border-radius: 16px; padding: 32px; width: 100%; max-width: 500px; box-shadow: var(--shadow-md); border: 1px solid var(--border);">
+        <h2 style="margin-top: 0; margin-bottom: 24px; color: var(--text); font-size: 1.5rem; display: flex; align-items: center; gap: 8px;">
             <span>✏️</span> Edit Schedule
         </h2>
         <form method="POST">
@@ -272,12 +272,12 @@ if (!isset($theme_color)) {
             
             <div class="form-group" style="margin-top: 15px; margin-bottom: 24px; flex-direction: row; align-items: center; gap: 8px;">
                 <input type="checkbox" name="is_active" id="edit_is_active" value="1" style="width: auto;">
-                <label for="edit_is_active" style="margin: 0; cursor: pointer; font-size: 0.9rem;">Schedule Active</label>
+                <label for="edit_is_active" style="margin: 0; cursor: pointer; font-size: 0.9rem; color: var(--text);">Schedule Active</label>
             </div>
 
             <div style="margin-bottom: 24px; text-align: left;">
-                <label for="editAdminPassword" style="display:block; font-size:0.875rem; font-weight:600; color:#0f172a; margin-bottom:8px;">🔐 Administrator Password <span style="color:#ef4444;">*</span></label>
-                <input type="password" id="editAdminPassword" placeholder="Enter password to confirm changes" style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid #cbd5e1; font-family:'Inter',sans-serif; font-size:0.875rem; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
+                <label for="editAdminPassword" style="display:block; font-size:0.875rem; font-weight:600; color:var(--text); margin-bottom:8px;">🔐 Administrator Password <span style="color:#ef4444;">*</span></label>
+                <input type="password" id="editAdminPassword" placeholder="Enter password to confirm changes" style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid var(--border); background:var(--muted); color:var(--text); font-family:'Inter',sans-serif; font-size:0.875rem; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='var(--blue)'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'" onblur="this.style.borderColor='var(--border)'; this.style.boxShadow='none'">
                 <div id="editPasswordError" style="color:#ef4444; font-size:0.75rem; margin-top:6px; display:none;">Password is required</div>
             </div>
 
@@ -290,28 +290,28 @@ if (!isset($theme_color)) {
     </div>
 </div>
 
-<div id="createModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-  <div class="modal-spring" style="background:white; border-radius:20px; padding:32px; max-width:400px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.25); font-family:'Inter',sans-serif;">
+<div id="createModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(4px);">
+  <div class="modal-spring" style="background:var(--panel); border-radius:20px; padding:32px; max-width:400px; width:90%; box-shadow:var(--shadow-md); font-family:'Inter',sans-serif; border: 1px solid var(--border);">
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
-      <div style="background:#f0fdf4; width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">➕</div>
+      <div style="background:rgba(16, 185, 129, 0.1); width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">➕</div>
       <div>
-        <div style="font-size:1.1rem; font-weight:800; color:#0f172a;">Create Schedule?</div>
-        <div style="font-size:0.8rem; color:#64748b; margin-top:2px;" id="createModalTitle">New Preset</div>
+        <div style="font-size:1.1rem; font-weight:800; color:var(--text);">Create Schedule?</div>
+        <div style="font-size:0.8rem; color:var(--dim); margin-top:2px;" id="createModalTitle">New Preset</div>
       </div>
     </div>
     
-    <p style="font-size:0.9rem; color:#475569; line-height:1.6; margin-bottom:24px;">
+    <p style="font-size:0.9rem; color:var(--dim); line-height:1.6; margin-bottom:24px;">
       You are about to create a new automated schedule. Please provide your administrator password to confirm.
     </p>
 
     <div style="margin-bottom: 24px; text-align: left;">
-        <label for="createAdminPassword" style="display:block; font-size:0.875rem; font-weight:600; color:#0f172a; margin-bottom:8px;">🔐 Administrator Password <span style="color:#ef4444;">*</span></label>
-        <input type="password" id="createAdminPassword" placeholder="Enter password to confirm creation" style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid #cbd5e1; font-family:'Inter',sans-serif; font-size:0.875rem; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
+        <label for="createAdminPassword" style="display:block; font-size:0.875rem; font-weight:600; color:var(--text); margin-bottom:8px;">🔐 Administrator Password <span style="color:#ef4444;">*</span></label>
+        <input type="password" id="createAdminPassword" placeholder="Enter password to confirm creation" style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid var(--border); background:var(--muted); color:var(--text); font-family:'Inter',sans-serif; font-size:0.875rem; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='var(--blue)'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'" onblur="this.style.borderColor='var(--border)'; this.style.boxShadow='none'">
         <div id="createPasswordError" style="color:#ef4444; font-size:0.75rem; margin-top:6px; display:none;">Password is required</div>
     </div>
 
     <div style="display:flex; gap:12px; justify-content:flex-end;">
-      <button onclick="closeCreateModal()" style="padding:10px 22px; border-radius:10px; border:1.5px solid #e2e8f0; background:white; font-family:'Inter',sans-serif; font-size:0.875rem; font-weight:600; color:#64748b; cursor:pointer;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='white'">Cancel</button>
+      <button onclick="closeCreateModal()" style="padding:10px 22px; border-radius:10px; border:1.5px solid var(--border); background:var(--panel); font-family:'Inter',sans-serif; font-size:0.875rem; font-weight:600; color:var(--dim); cursor:pointer;" onmouseover="this.style.background='var(--muted)'" onmouseout="this.style.background='var(--panel)'">Cancel</button>
       <button id="createConfirmBtn" onclick="confirmCreate()" style="padding:10px 22px; border-radius:10px; border:none; background:#10b981; font-family:'Inter',sans-serif; font-size:0.875rem; font-weight:700; color:white; cursor:pointer; box-shadow:0 4px 12px rgba(16,185,129,0.35); transition:all 0.2s;" onmouseover="this.style.background='#059669'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#10b981'; this.style.transform='translateY(0)';">💾 Create Now</button>
     </div>
   </div>

@@ -370,19 +370,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
             <?php endif; ?>
         </nav>
 
-        <div class="sb-footer">
-            <div class="sb-footer-user">
-                <div class="sb-av">👤</div>
-                <div class="sb-um">
-                    <strong><?php echo htmlspecialchars($_SESSION['full_name'] ?? 'System Admin'); ?></strong>
-                    <span><?php echo ucfirst($_SESSION['role'] ?? 'Administrator'); ?></span>
-                </div>
-            </div>
-            <a href="logout.php" class="sb-out" title="Logout">
-                <span>🚪</span>
-                <span>Logout</span>
-            </a>
-        </div>
     </div>
 </aside>
 

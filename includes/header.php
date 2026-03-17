@@ -400,8 +400,8 @@ header {
     width          : 42px;
     height         : 42px;
     border-radius  : 10px;
-    background     : #ffffff;
-    border         : 1px solid #e2e8f0;
+    background     : var(--panel);
+    border         : 1px solid var(--border);
     display        : flex;
     align-items    : center;
     justify-content: center;
@@ -421,40 +421,25 @@ header {
     position     : absolute;
     top          : -5px;
     right        : -5px;
-    width        : 18px;
-    height       : 18px;
+    width        : 20px;
+    height       : 20px;
     border-radius: 50%;
-    background   : #ef4444;
-    color        : white;
-    font-size    : 10px;
-    font-weight  : 800;
+    background   : #ffffff;
+    color        : #ef4444;
+    font-size    : 11px;
+    font-weight  : 900;
     display      : flex;
     align-items  : center;
     justify-content: center;
-    border       : 2px solid white;
-    box-shadow   : 0 2px 4px rgba(239, 68, 68, 0.3);
+    border       : 2px solid #ef4444;
+    box-shadow   : 0 2px 4px rgba(0,0,0,0.2);
 }
 
-.hdr-notif-pill {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    height: 42px;
-    padding: 0 16px;
-    border-radius: 10px;
-    background: #fef2f2;
-    border: 1px solid #fca5a5;
-    color: #ef4444;
-    font-size: 15px;
-    font-weight: 700;
-    text-decoration: none;
-    transition: all 0.2s ease;
+.hdr-notif.has-alerts {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: white;
     animation: pulseAlert 2s infinite;
-}
-
-.hdr-notif-pill:hover {
-    background: #fee2e2;
-    transform: translateY(-1px);
 }
 
 @keyframes pulseAlert {
@@ -463,36 +448,96 @@ header {
     100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
+.hdr-user-container {
+    position: relative;
+}
+
 .hdr-user {
-    display      : flex;
-    align-items  : center;
-    gap          : 10px;
-    padding      : 5px 14px 5px 6px;
-    background   : #f8fafc;
-    border       : 1px solid #e2e8f0;
-    border-radius: 30px;
-    transition   : all 0.18s ease;
-    cursor       : default;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    transition: all 0.18s ease;
+    cursor: pointer;
 }
 
 .hdr-user:hover {
-    background  : #f1f5f9;
-    border-color: #cbd5e1;
+    background: var(--panel);
+    border-color: var(--dim);
+}
+
+.hdr-user-dropdown {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    width: 240px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-md);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.hdr-user-dropdown.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.dropdown-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(var(--sb-accent-rgb), 0.03);
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.dropdown-item:hover {
+    background: var(--muted);
+    color: var(--accent);
+}
+
+.dropdown-item.logout {
+    color: #ef4444;
+    border-top: 1px solid var(--border);
+}
+
+.dropdown-item.logout:hover {
+    background: #fef2f2;
 }
 
 .hdr-av {
     width          : 36px;
     height         : 36px;
-    border-radius  : 50%;
-    background     : linear-gradient(135deg, #10b981, #34d399);
+    border-radius  : 8px;
+    background     : linear-gradient(135deg, var(--sb-accent-deep), var(--sb-accent));
     display        : flex;
     align-items    : center;
     justify-content: center;
     font-size      : 15px;
     flex-shrink    : 0;
-    box-shadow     : 0 2px 6px rgba(16,185,129,0.3);
+    box-shadow     : 0 2px 6px rgba(var(--sb-accent-rgb), 0.3);
     color          : white;
-    font-weight    : 500;
+    font-weight    : 600;
 }
 
 .hdr-search-results {
@@ -616,7 +661,7 @@ header {
     .hdr-title { font-size: 17px; }
     .hdr-sub { display: none; }
     .hdr-user-meta { display: none; }
-    .hdr-user { padding: 4px 6px; border-radius: 50%; }
+    .hdr-user { border: none; background: transparent; }
     .hdr-icon-btn { width: 38px; height: 38px; font-size: 16px; }
     .hdr-notif  { width: 38px; height: 38px; font-size: 16px; }
     .hdr-notif-pill { height: 38px; padding: 0 10px; font-size: 13px; }
@@ -670,13 +715,6 @@ header {
 
     <div class="hdr-right">
 
-        <a href="reports.php" class="hdr-icon-btn" title="System Reports">
-            📊
-        </a>
-
-        <a href="settings.php" class="hdr-icon-btn" title="Global Settings">
-            ⚙️
-        </a>
 
         <button id="darkModeToggle" class="hdr-icon-btn" onclick="toggleDarkMode()" title="Toggle Dark Mode" style="font-size:18px; cursor:pointer; border:none;">
             ☾
@@ -686,23 +724,35 @@ header {
         $open_alerts_query = $conn->query("SELECT COUNT(*) as count FROM alerts WHERE status='Open'");
         $alerts_count = $open_alerts_query ? $open_alerts_query->fetch_assoc()['count'] : 0;
         ?>
-        <?php if ($alerts_count > 0): ?>
-        <a href="alerts.php" class="hdr-notif-pill" title="Active Alerts">
-            <span style="font-size:18px; line-height:1;">🚨</span> Alerts <?php echo $alerts_count; ?>
+        <a href="alerts.php" class="hdr-notif <?php echo $alerts_count > 0 ? 'has-alerts' : ''; ?>" title="<?php echo $alerts_count > 0 ? $alerts_count . ' Active Alerts' : 'Alerts'; ?>">
+            <?php echo $alerts_count > 0 ? '🚨' : '🔔'; ?>
+            <?php if ($alerts_count > 0): ?>
+            <span class="hdr-notif-badge"><?php echo $alerts_count; ?></span>
+            <?php endif; ?>
         </a>
-        <?php else: ?>
-        <a href="alerts.php" class="hdr-notif" title="Alerts">
-            🔔
-        </a>
-        <?php endif; ?>
 
-        <div class="hdr-user">
-            <div class="hdr-av">
-                <?php echo strtoupper(substr($_SESSION['full_name'] ?? 'User', 0, 1)); ?>
+        <div class="hdr-user-container">
+            <div class="hdr-user" onclick="toggleUserDropdown(event)" title="<?php echo htmlspecialchars($_SESSION['full_name'] ?? 'User Profile'); ?>">
+                <div class="hdr-av">
+                    <?php echo strtoupper(substr($_SESSION['full_name'] ?? 'U', 0, 1)); ?>
+                </div>
             </div>
-            <div class="hdr-user-meta">
-                <span class="hdr-user-name"><?php echo htmlspecialchars($_SESSION['full_name'] ?? 'User'); ?></span>
-                <span class="hdr-user-role"><?php echo ucfirst($_SESSION['role'] ?? 'Admin'); ?></span>
+            
+            <div id="userDropdown" class="hdr-user-dropdown">
+                <div class="dropdown-header">
+                    <div style="font-weight: 800; color: var(--text); font-size: 0.9rem;"><?php echo htmlspecialchars($_SESSION['full_name'] ?? 'User'); ?></div>
+                    <div style="font-size: 0.75rem; color: var(--dim);"><?php echo htmlspecialchars($_SESSION['email'] ?? 'admin@hulo.gov.ph'); ?></div>
+                </div>
+                
+                <a href="settings.php" class="dropdown-item">
+                    <span>👤</span> Information
+                </a>
+                <a href="settings.php?tab=preferences" class="dropdown-item">
+                    <span>⚙️</span> Settings
+                </a>
+                <a href="logout.php" class="dropdown-item logout">
+                    <span>🚪</span> Logout
+                </a>
             </div>
         </div>
     </div>
@@ -799,6 +849,26 @@ header {
             if (btn) {
                 btn.textContent = '☀';
                 btn.title = 'Switch to Light Mode';
+            }
+        }
+    });
+
+    function toggleUserDropdown(e) {
+        e.stopPropagation();
+        const dropdown = document.getElementById('userDropdown');
+        dropdown.classList.toggle('active');
+        
+        // Close search results if open
+        const resultsBox = document.getElementById('searchResults');
+        if (resultsBox) resultsBox.classList.remove('active');
+    }
+
+    // Close dropdown on click outside
+    document.addEventListener('click', (e) => {
+        const dropdown = document.getElementById('userDropdown');
+        if (dropdown && dropdown.classList.contains('active')) {
+            if (!e.target.closest('.hdr-user-container')) {
+                dropdown.classList.remove('active');
             }
         }
     });

@@ -45,6 +45,34 @@ if (isset($conn)) {
         $theme_color = $row['config_value'];
     }
 }
+
+// Server-side Weather Fetch
+$weather_data = null;
+try {
+    $weather_url = 'https://api.open-meteo.com/v1/forecast?latitude=14.5794&longitude=121.0359&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,precipitation_probability&timezone=Asia%2FManila&forecast_days=1';
+    $context = stream_context_create(['http' => ['timeout' => 2]]);
+    $response = file_get_contents($weather_url, false, $context);
+    if ($response) {
+        $weather_data = json_decode($response, true);
+    }
+} catch (Exception $e) {
+    // Silently fail, UI will handle null
+}
+
+$WMO_ICONS = [
+    0=>'☀️', 1=>'🌤️', 2=>'⛅', 3=>'☁️', 45=>'🌫️', 48=>'🌫️',
+    51=>'🌦️', 53=>'🌦️', 55=>'🌧️', 61=>'🌧️', 63=>'🌧️', 65=>'🌧️',
+    71=>'🌨️', 73=>'🌨️', 75=>'❄️', 80=>'🌦️', 81=>'🌧️', 82=>'⛈️',
+    95=>'⛈️', 96=>'⛈️', 99=>'⛈️'
+];
+$WMO_DESC = [
+    0=>'Clear Sky', 1=>'Mainly Clear', 2=>'Partly Cloudy', 3=>'Overcast',
+    45=>'Fog', 48=>'Icy Fog', 51=>'Light Drizzle', 53=>'Drizzle', 55=>'Heavy Drizzle',
+    61=>'Light Rain', 63=>'Rain', 65=>'Heavy Rain', 71=>'Light Snow', 73=>'Snow', 75=>'Heavy Snow',
+    80=>'Light Showers', 81=>'Showers', 82=>'Heavy Showers', 95=>'Thunderstorm', 96=>'Thunderstorm', 99=>'Thunderstorm'
+];
+
+$curr_weather = $weather_data['current'] ?? null;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -77,17 +105,18 @@ if (!isset($theme_color)) {
 <?php if(isset($_GET['login']) && $_GET['login'] === 'success'): ?>
 <div id="loginToast" style="
     position: fixed; top: 24px; right: 24px; z-index: 99999;
-    background: white; border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
+    background: var(--panel); border-radius: 16px;
+    box-shadow: var(--shadow-md);
     padding: 18px 24px; display: flex; align-items: center; gap: 16px;
-    max-width: 380px; border-left: 4px solid #10b981;
+    max-width: 380px; border-left: 4px solid var(--accent);
+    border: 1px solid var(--border);
     animation: slideInRight 0.4s cubic-bezier(0.34,1.56,0.64,1);
     font-family: 'Inter', sans-serif;
 ">
-    <div style="background: #ecfdf5; width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">👋</div>
+    <div style="background: rgba(var(--sb-accent-rgb), 0.1); width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">👋</div>
     <div style="flex: 1;">
-        <div style="font-weight: 800; color: #0f172a; font-size: 0.9rem; margin-bottom: 2px;">Welcome back, <?php echo htmlspecialchars($_SESSION['full_name'] ?? $_SESSION['username']); ?>!</div>
-        <div style="color: #64748b; font-size: 0.8rem;">You have successfully logged in.</div>
+        <div style="font-weight: 800; color: var(--text); font-size: 0.9rem; margin-bottom: 2px;">Welcome back, <?php echo htmlspecialchars($_SESSION['full_name'] ?? $_SESSION['username']); ?>!</div>
+        <div style="color: var(--dim); font-size: 0.8rem;">You have successfully logged in.</div>
     </div>
     <button onclick="document.getElementById('loginToast').style.display='none'" style="background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 18px; line-height: 1; padding: 0; flex-shrink: 0;">✕</button>
 </div>
@@ -166,69 +195,7 @@ if (!isset($theme_color)) {
         </div>
     </div>
 
-    <!-- Weather Widget -->
-    <div id="weather-widget" style="background: linear-gradient(135deg, #0f2b5b 0%, #1a4080 50%, #1565c0 100%); border-radius: 16px; padding: 20px 24px; margin-bottom: 24px; color: white; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; box-shadow: 0 4px 20px rgba(21,101,192,0.3); position: relative; overflow: hidden;">
-        <div style="position: absolute; top: -30px; right: -30px; width: 120px; height: 120px; background: rgba(255,255,255,0.05); border-radius: 50%;"></div>
-        <div style="position: absolute; bottom: -20px; left: 30%; width: 80px; height: 80px; background: rgba(255,255,255,0.04); border-radius: 50%;"></div>
-        <div id="weather-icon" style="font-size: 52px; line-height: 1; flex-shrink: 0;">⏳</div>
-        <div style="flex: 1; min-width: 140px;">
-            <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; margin-bottom: 4px;">📍 Mandaluyong City, PH</div>
-            <div style="display: flex; align-items: baseline; gap: 8px;">
-                <span id="weather-temp" style="font-size: 42px; font-weight: 800; letter-spacing: -1px;">--</span>
-                <span style="font-size: 20px; font-weight: 600; opacity: 0.8;">°C</span>
-            </div>
-            <div id="weather-desc" style="font-size: 14px; font-weight: 600; opacity: 0.9; margin-top: 2px;">Loading weather data...</div>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 10px; min-width: 160px;">
-            <div style="display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.1); border-radius: 10px; padding: 8px 12px;">
-                <span style="font-size: 16px;">💧</span>
-                <div><div style="font-size: 10px; opacity: 0.7; font-weight: 700; text-transform: uppercase;">Humidity</div><div id="weather-humidity" style="font-size: 16px; font-weight: 700;">--%</div></div>
-            </div>
-            <div style="display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.1); border-radius: 10px; padding: 8px 12px;">
-                <span style="font-size: 16px;">💨</span>
-                <div><div style="font-size: 10px; opacity: 0.7; font-weight: 700; text-transform: uppercase;">Wind Speed</div><div id="weather-wind" style="font-size: 16px; font-weight: 700;">-- km/h</div></div>
-            </div>
-        </div>
-        <div style="min-width: 130px;">
-            <div style="background: rgba(255,255,255,0.1); border-radius: 10px; padding: 12px 14px; text-align: center;">
-                <div style="font-size: 11px; opacity: 0.7; font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Rain Probability</div>
-                <div id="weather-rain" style="font-size: 28px; font-weight: 800;">--%</div>
-                <div style="height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; margin-top: 8px;"><div id="weather-rain-bar" style="height:100%; background: #38bdf8; border-radius: 2px; width: 0%; transition: width 1s ease;"></div></div>
-            </div>
-        </div>
-        <div id="weather-time" style="position: absolute; bottom: 12px; right: 16px; font-size: 11px; opacity: 0.5;"></div>
-    </div>
-    <script>
-    (function() {
-        const WMO_ICONS = {
-            0:'☀️', 1:'🌤️', 2:'⛅', 3:'☁️', 45:'🌫️', 48:'🌫️',
-            51:'🌦️', 53:'🌦️', 55:'🌧️', 61:'🌧️', 63:'🌧️', 65:'🌧️',
-            71:'🌨️', 73:'🌨️', 75:'❄️', 80:'🌦️', 81:'🌧️', 82:'⛈️',
-            95:'⛈️', 96:'⛈️', 99:'⛈️'
-        };
-        const WMO_DESC = {
-            0:'Clear Sky', 1:'Mainly Clear', 2:'Partly Cloudy', 3:'Overcast',
-            45:'Fog', 48:'Icy Fog', 51:'Light Drizzle', 53:'Drizzle', 55:'Heavy Drizzle',
-            61:'Light Rain', 63:'Rain', 65:'Heavy Rain', 71:'Light Snow', 73:'Snow', 75:'Heavy Snow',
-            80:'Light Showers', 81:'Showers', 82:'Heavy Showers', 95:'Thunderstorm', 96:'Thunderstorm', 99:'Thunderstorm'
-        };
-        fetch('https://api.open-meteo.com/v1/forecast?latitude=14.5794&longitude=121.0359&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,precipitation_probability&timezone=Asia%2FManila&forecast_days=1')
-            .then(r => r.json())
-            .then(data => {
-                const c = data.current;
-                document.getElementById('weather-temp').textContent = Math.round(c.temperature_2m);
-                document.getElementById('weather-humidity').textContent = c.relative_humidity_2m + '%';
-                document.getElementById('weather-wind').textContent = Math.round(c.wind_speed_10m) + ' km/h';
-                const rain = c.precipitation_probability ?? 0;
-                document.getElementById('weather-rain').textContent = rain + '%';
-                document.getElementById('weather-rain-bar').style.width = rain + '%';
-                document.getElementById('weather-icon').textContent = WMO_ICONS[c.weather_code] ?? '🌡️';
-                document.getElementById('weather-desc').textContent = WMO_DESC[c.weather_code] ?? 'Unknown';
-                document.getElementById('weather-time').textContent = 'Updated: ' + new Date().toLocaleTimeString('en-PH', {hour:'2-digit', minute:'2-digit'});
-            })
-            .catch(() => { document.getElementById('weather-desc').textContent = 'Weather data unavailable'; });
-    })();
-    </script>
+    <!-- Weather script removed: moved to server-side PHP for reliability -->
 
     <div class="dashboard-grid">
         <div class="panel">
@@ -265,7 +232,7 @@ if (!isset($theme_color)) {
             <?php endif; ?>
         </div>
 
-        <div>
+        <div class="dashboard-side">
             <div class="panel" style="margin-bottom: 24px;">
                 <div class="panel-header">
                     <h3>🔧 Work Orders</h3>
@@ -283,6 +250,38 @@ if (!isset($theme_color)) {
                     <div class="wo-stat">
                         <div class="wo-value completed"><?php echo $work_orders['completed_week']; ?></div>
                         <div class="wo-label">Completed</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Integrated Weather Card -->
+            <div class="weather-card">
+                <div class="weather-main">
+                    <div class="weather-icon"><?php echo $WMO_ICONS[$curr_weather['weather_code']] ?? '🌡️'; ?></div>
+                    <div class="weather-info">
+                        <div class="weather-location">📍 Mandaluyong City</div>
+                        <div class="weather-temp-row">
+                            <span class="weather-temp"><?php echo isset($curr_weather['temperature_2m']) ? round($curr_weather['temperature_2m']) : '--'; ?></span>
+                            <span class="weather-unit">°C</span>
+                        </div>
+                        <div class="weather-desc"><?php echo $WMO_DESC[$curr_weather['weather_code']] ?? 'Service Unavailable'; ?></div>
+                    </div>
+                </div>
+                <div class="weather-stats">
+                    <div class="w-stat">
+                        <span class="w-stat-icon">💧</span>
+                        <div class="w-stat-val"><?php echo $curr_weather['relative_humidity_2m'] ?? '--'; ?>%</div>
+                        <div class="w-stat-label">Humidity</div>
+                    </div>
+                    <div class="w-stat">
+                        <span class="w-stat-icon">💨</span>
+                        <div class="w-stat-val"><?php echo isset($curr_weather['wind_speed_10m']) ? round($curr_weather['wind_speed_10m']) : '--'; ?></div>
+                        <div class="w-stat-label">km/h</div>
+                    </div>
+                    <div class="w-stat">
+                        <span class="w-stat-icon">🌧️</span>
+                        <div class="w-stat-val"><?php echo $curr_weather['precipitation_probability'] ?? '--'; ?>%</div>
+                        <div class="w-stat-label">Rain</div>
                     </div>
                 </div>
             </div>
