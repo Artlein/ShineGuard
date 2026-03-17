@@ -210,13 +210,13 @@ html, body {
 .page-header h1 {
     font-size: 32px;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--text);
     margin: 0 0 8px 0;
     letter-spacing: -0.5px;
 }
 
 .page-header p {
-    color: #64748b;
+    color: var(--dim);
     font-size: 15px;
     margin: 0;
     font-weight: 500;
@@ -226,7 +226,7 @@ html, body {
     width: 100%;
     height: 600px;
     border-radius: 12px;
-    border: 3px solid var(--accent);
+    border: 3px solid var(--border);
     z-index: 1;
 }
 
@@ -239,7 +239,7 @@ html, body {
 .view-btn {
     padding: 10px 20px;
     border: 2px solid var(--accent);
-    background: white;
+    background: var(--panel);
     color: var(--text);
     border-radius: 8px;
     cursor: pointer;

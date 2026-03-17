@@ -120,31 +120,31 @@ if (!isset($theme_color)) {
 </div></center> 
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
-    <div style="background: linear-gradient(135deg, #dbeafe, #bfdbfe); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, rgba(59,130,246,0.1), rgba(59,130,246,0.2)); border: 1px solid rgba(59,130,246,0.2); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <div style="font-size: 36px; margin-bottom: 8px;">📋</div>
-        <div style="font-size: 28px; font-weight: 800; color: #1e40af; margin-bottom: 4px;"><?php echo $stats['scheduled']; ?></div>
-        <div style="color: #1e40af; font-size: 14px; font-weight: 600;">Scheduled Work Orders</div>
+        <div style="font-size: 28px; font-weight: 800; color: #3b82f6; margin-bottom: 4px;"><?php echo $stats['scheduled']; ?></div>
+        <div style="color: #3b82f6; font-size: 14px; font-weight: 600;">Scheduled Work Orders</div>
     </div>
-    <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, rgba(245,158,11,0.1), rgba(245,158,11,0.2)); border: 1px solid rgba(245,158,11,0.2); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <div style="font-size: 36px; margin-bottom: 8px;">🔧</div>
-        <div style="font-size: 28px; font-weight: 800; color: #92400e; margin-bottom: 4px;"><?php echo $stats['in_progress']; ?></div>
-        <div style="color: #92400e; font-size: 14px; font-weight: 600;">In Progress</div>
+        <div style="font-size: 28px; font-weight: 800; color: #f59e0b; margin-bottom: 4px;"><?php echo $stats['in_progress']; ?></div>
+        <div style="color: #f59e0b; font-size: 14px; font-weight: 600;">In Progress</div>
     </div>
-    <div style="background: linear-gradient(135deg, #d1fae5, #a7f3d0); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(16,185,129,0.2)); border: 1px solid rgba(16,185,129,0.2); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <div style="font-size: 36px; margin-bottom: 8px;">✓</div>
-        <div style="font-size: 28px; font-weight: 800; color: #065f46; margin-bottom: 4px;"><?php echo $stats['completed_week']; ?></div>
-        <div style="color: #065f46; font-size: 14px; font-weight: 600;">Completed This Week</div>
+        <div style="font-size: 28px; font-weight: 800; color: #10b981; margin-bottom: 4px;"><?php echo $stats['completed_week']; ?></div>
+        <div style="color: #10b981; font-size: 14px; font-weight: 600;">Completed This Week</div>
     </div>
-    <div style="background: linear-gradient(135deg, #fee2e2, #fecaca); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, rgba(239,68,68,0.1), rgba(239,68,68,0.2)); border: 1px solid rgba(239,68,68,0.2); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <div style="font-size: 36px; margin-bottom: 8px;">🚨</div>
-        <div style="font-size: 28px; font-weight: 800; color: #991b1b; margin-bottom: 4px;"><?php echo $stats['critical_alerts']; ?></div>
-        <div style="color: #991b1b; font-size: 14px; font-weight: 600;">Critical Alerts Pending</div>
+        <div style="font-size: 28px; font-weight: 800; color: #ef4444; margin-bottom: 4px;"><?php echo $stats['critical_alerts']; ?></div>
+        <div style="color: #ef4444; font-size: 14px; font-weight: 600;">Critical Alerts Pending</div>
     </div>
 </div>
 
 <div class="panel">
     <h2>🚨 Pending Alerts - Create Work Orders</h2>
-    <p style="margin-bottom: 16px; color: #64748b;">These alerts need maintenance work orders to be created.</p>
+    <p style="margin-bottom: 16px; color: var(--dim);">These alerts need maintenance work orders to be created.</p>
     
     <?php if ($pending_alerts->num_rows > 0): ?>
     <div style="overflow-x: auto;">
@@ -184,7 +184,7 @@ if (!isset($theme_color)) {
     </table>
     </div>
     <?php else: ?>
-    <div style="text-align: center; padding: 60px 20px; background: #f0fdf4; border-radius: 8px;">
+    <div style="text-align: center; padding: 60px 20px; background: rgba(16,185,129,0.1); border-radius: 8px;">
         <div style="font-size: 48px; margin-bottom: 16px;">✓</div>
         <p style="color: #10b981; font-size: 18px; font-weight: 600; margin: 0;">No pending alerts! All critical issues have work orders.</p>
     </div>

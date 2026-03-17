@@ -383,32 +383,32 @@ html, body {
 }
 
 :root {
-  --bg:             #f0f4f8;
-  --surface:        #ffffff;
-  --surface-2:      #f7f9fc;
-  --border:         #e4e9f0;
-  --border-light:   #edf1f7;
-  --text-primary:   #1a2035;
-  --text-secondary: #6b7a99;
+  --bg:             var(--bg);
+  --surface:        var(--panel);
+  --surface-2:      var(--muted);
+  --border:         var(--border);
+  --border-light:   var(--border);
+  --text-primary:   var(--text);
+  --text-secondary: var(--dim);
   --text-muted:     #a0aec0;
   --blue:           #3b82f6;
-  --blue-dim:       #eff6ff;
-  --blue-border:    #bfdbfe;
+  --blue-dim:       rgba(59, 130, 246, 0.1);
+  --blue-border:    rgba(59, 130, 246, 0.2);
   --green:          #22c55e;
-  --green-dim:      #f0fdf4;
-  --green-border:   #bbf7d0;
+  --green-dim:      rgba(34, 197, 94, 0.1);
+  --green-border:   rgba(34, 197, 94, 0.2);
   --red:            #ef4444;
-  --red-dim:        #fef2f2;
-  --red-border:     #fecaca;
+  --red-dim:        rgba(239, 68, 68, 0.1);
+  --red-border:     rgba(239, 68, 68, 0.2);
   --amber:          #f59e0b;
-  --amber-dim:      #fffbeb;
-  --amber-border:   #fde68a;
+  --amber-dim:      rgba(245, 158, 11, 0.1);
+  --amber-border:   rgba(245, 158, 11, 0.2);
   --purple:         #8b5cf6;
-  --purple-dim:     #f5f3ff;
+  --purple-dim:     rgba(139, 92, 246, 0.1);
   --radius:         16px;
   --radius-sm:      10px;
-  --shadow:         0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05);
-  --shadow-md:      0 4px 16px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
+  --shadow:         var(--shadow);
+  --shadow-md:      0 8px 30px var(--shadow);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }

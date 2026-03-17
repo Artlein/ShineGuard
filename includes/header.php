@@ -12,6 +12,15 @@ if (isset($conn)) {
     }
 }
 ?>
+<script>
+// Prevent white flash by applying dark mode class immediately
+(function() {
+    const theme = localStorage.getItem('sg_theme');
+    if (theme === 'dark') {
+        document.documentElement.classList.add('dark-mode');
+    }
+})();
+</script>
 <!-- Global mobile stylesheet — loaded after per-page styles to ensure overrides work -->
 <style><?php include __DIR__ . '/../assets/mobile.css'; ?></style>
 
@@ -774,23 +783,23 @@ header {
     });
     </script>
     <script>
-    // Dark mode: apply immediately on load
-    (function() {
-        if (localStorage.getItem('sg_theme') === 'dark') {
-            document.documentElement.classList.add('dark-mode');
-        }
-    })();
     function toggleDarkMode() {
         const isDark = document.documentElement.classList.toggle('dark-mode');
         localStorage.setItem('sg_theme', isDark ? 'dark' : 'light');
-        document.getElementById('darkModeToggle').textContent = isDark ? '☀' : '☾';
-        document.getElementById('darkModeToggle').title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+        const btn = document.getElementById('darkModeToggle');
+        if (btn) {
+            btn.textContent = isDark ? '☀' : '☾';
+            btn.title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+        }
     }
-    // Set icon state on load
-    document.addEventListener('DOMContentLoaded', function() {
+    // Update button icon on page load
+    document.addEventListener('DOMContentLoaded', () => {
         if (localStorage.getItem('sg_theme') === 'dark') {
             const btn = document.getElementById('darkModeToggle');
-            if (btn) { btn.textContent = '☀'; btn.title = 'Switch to Light Mode'; }
+            if (btn) {
+                btn.textContent = '☀';
+                btn.title = 'Switch to Light Mode';
+            }
         }
     });
     </script>

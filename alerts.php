@@ -76,7 +76,19 @@ $lights = $conn->query("SELECT light_id, node_name FROM streetlights ORDER BY no
 <?php include 'assets/style.css'; ?>
 
 :root { 
-    --theme-color: <?php echo $theme_color; ?>; 
+    --theme-color: <?php echo $theme_color; ?>;
+    --accent: <?php echo $theme_color; ?>;
+    --surface: var(--panel);
+    --surface-2: var(--muted);
+    --text-primary: var(--text);
+    --text-secondary: var(--dim);
+    --text-muted: #64748b;
+    --border: var(--border);
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 4px 20px var(--shadow);
+    --blue: #3b82f6;
+    --blue-dim: rgba(59, 130, 246, 0.1);
 }
 
 * {
@@ -101,6 +113,7 @@ body {
 .main-content {
   padding: 2.2rem 2.6rem;
   font-family: 'Inter', sans-serif;
+  background: var(--bg);
 }
 
 .page-header {

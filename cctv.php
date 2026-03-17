@@ -158,8 +158,8 @@ html, body {
 }
 
 .stat-card {
-    background: white; border-radius: 16px;
-    padding: 24px; border: 1px solid #e2e8f0;
+    background: var(--panel); border-radius: 16px;
+    padding: 24px; border: 1px solid var(--border);
     box-shadow: 0 4px 12px rgba(0,0,0,0.03);
     display: flex; align-items: center; gap: 16px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -168,7 +168,7 @@ html, body {
 
 .stat-card:hover {
     transform: translateY(-4px); 
-    box-shadow: 0 12px 24px rgba(0,0,0,0.08);
+    box-shadow: 0 12px 24px var(--shadow);
     border-color: #cbd5e1;
 }
 
@@ -176,17 +176,17 @@ html, body {
     font-size: 32px; flex-shrink: 0;
 }
 
-.stat-label { font-size: 13px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-.stat-value { font-size: 26px; font-weight: 800; color: #0f172a; line-height: 1; }
+.stat-label { font-size: 13px; color: var(--dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.stat-value { font-size: 26px; font-weight: 800; color: var(--text); line-height: 1; }
 
 .panel {
-    background: white; border: 1px solid #e2e8f0; border-radius: 16px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
     padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     margin-bottom: 2rem;
 }
 
 .panel h2 {
-    font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 16px;
+    font-size: 18px; font-weight: 700; color: var(--text); margin: 0 0 16px;
 }
 
 .badge {
@@ -197,11 +197,11 @@ html, body {
 
 .btn {
     padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 700;
-    border: 1px solid #cbd5e1; background: white; cursor: pointer;
+    border: 1px solid var(--border); background: var(--panel); cursor: pointer;
     transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    text-decoration: none; color: #475569;
+    text-decoration: none; color: var(--text);
 }
-.btn:hover { background: #f8fafc; border-color: #94a3b8; color: #0f172a; transform: translateY(-1px); }
+.btn:hover { background: var(--muted); border-color: #94a3b8; color: var(--text); transform: translateY(-1px); }
 .btn.primary {
     background: linear-gradient(135deg, #10b981, #059669);
     color: white; border: none; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
@@ -225,7 +225,7 @@ html, body {
 }
 
 .camera-card {
-    background: white;
+    background: var(--panel);
     border-radius: 12px;
     padding: 20px;
     border: 3px solid var(--border);
@@ -235,7 +235,7 @@ html, body {
 
 .camera-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    box-shadow: 0 8px 20px var(--shadow);
     border-color: var(--accent);
 }
 
@@ -369,7 +369,7 @@ html, body {
 }
 
 .settings-content {
-    background: white;
+    background: var(--panel);
     border-radius: 16px;
     padding: 30px;
     max-width: 600px;
@@ -377,6 +377,7 @@ html, body {
     max-height: 90vh;
     overflow-y: auto;
     position: relative;
+    box-shadow: var(--shadow);
 }
 
 .settings-header {
@@ -444,11 +445,11 @@ html, body {
 .form-group input,
 .form-group select {
     padding: 12px 14px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--border);
     border-radius: 8px;
     font-size: 14px;
-    background: #f8fafc;
-    color: #0f172a;
+    background: var(--muted);
+    color: var(--text);
     transition: all 0.2s;
     font-family: 'Inter', sans-serif;
     outline: none;
@@ -456,8 +457,8 @@ html, body {
 
 .form-group input:focus,
 .form-group select:focus {
-    background: #ffffff;
-    border-color: #3b82f6;
+    background: var(--panel);
+    border-color: var(--accent);
     box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 }
 

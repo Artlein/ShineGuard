@@ -393,11 +393,11 @@ body {
 }
 
 .panel {
-    background: white;
+    background: var(--panel);
     border-radius: 16px;
     padding: 24px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border);
     margin-bottom: 24px;
 }
 
@@ -407,13 +407,13 @@ body {
     align-items: center;
     margin-bottom: 20px;
     padding-bottom: 16px;
-    border-bottom: 2px solid #f1f5f9;
+    border-bottom: 2px solid var(--muted);
 }
 
 .panel-header h3 {
     font-size: 18px;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--text);
     margin: 0;
 }
 
@@ -431,25 +431,25 @@ body {
 .alert-item {
     padding: 16px;
     border-radius: 10px;
-    background: #f8fafc;
+    background: var(--muted);
     margin-bottom: 12px;
-    border-left: 4px solid #e2e8f0;
+    border-left: 4px solid var(--border);
     transition: all 0.2s;
 }
 
 .alert-item:hover {
-    background: white;
+    background: var(--panel);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .alert-item.critical {
     border-left-color: #ef4444;
-    background: #fef2f2;
+    background: rgba(239, 68, 68, 0.1);
 }
 
 .alert-item.medium {
     border-left-color: #f59e0b;
-    background: #fffbeb;
+    background: rgba(245, 158, 11, 0.1);
 }
 
 .alert-header {

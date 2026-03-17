@@ -728,30 +728,33 @@ tbody tr:hover {
    --shadow: rgba(0, 0, 0, 0.4);
    --card: #253047;
    --chip: #1e3a5f;
+   --input-bg: #0f172a;
+   --modal-bg: #1e293b;
+   --header-bg: #1e293b;
 }
 
 .dark-mode body {
-   background: linear-gradient(135deg, #0f172a 0%, #1a2035 100%);
-   color: var(--text);
+   background: var(--bg) !important;
+   color: var(--text) !important;
 }
 
 .dark-mode .main-content {
-   background: #0f172a;
+   background: var(--bg) !important;
 }
 
 /* Header */
 .dark-mode header {
-   background: #1e293b !important;
-   border-bottom-color: #334155 !important;
-   box-shadow: 0 1px 0 #334155, 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+   background: var(--header-bg) !important;
+   border-bottom-color: var(--border) !important;
+   box-shadow: 0 1px 0 var(--border), 0 4px 20px var(--shadow) !important;
 }
 
 .dark-mode .hdr-title {
-   color: #f1f5f9 !important;
+   color: var(--text) !important;
 }
 
 .dark-mode .hdr-sub {
-   color: #94a3b8 !important;
+   color: var(--dim) !important;
 }
 
 .dark-mode .hdr-sub-dot {
@@ -759,9 +762,9 @@ tbody tr:hover {
 }
 
 .dark-mode .hdr-search input {
-   background: #0f172a !important;
-   border-color: #334155 !important;
-   color: #f1f5f9 !important;
+   background: var(--input-bg) !important;
+   border-color: var(--border) !important;
+   color: var(--text) !important;
 }
 
 .dark-mode .hdr-search input::placeholder {
@@ -774,72 +777,72 @@ tbody tr:hover {
 }
 
 .dark-mode .hdr-search-shortcut {
-   background: #334155 !important;
-   color: #94a3b8 !important;
+   background: var(--border) !important;
+   color: var(--dim) !important;
 }
 
 .dark-mode .hdr-icon-btn {
-   background: #1e293b !important;
-   border-color: #334155 !important;
-   color: #94a3b8 !important;
+   background: var(--header-bg) !important;
+   border-color: var(--border) !important;
+   color: var(--dim) !important;
 }
 
 .dark-mode .hdr-icon-btn:hover {
-   background: #253047 !important;
-   color: #f1f5f9 !important;
+   background: var(--card) !important;
+   color: var(--text) !important;
 }
 
 .dark-mode .hdr-notif {
-   background: #1e293b !important;
-   border-color: #334155 !important;
+   background: var(--header-bg) !important;
+   border-color: var(--border) !important;
 }
 
 .dark-mode .hdr-user {
-   background: #1a2942 !important;
-   border-color: #334155 !important;
+   background: var(--muted) !important;
+   border-color: var(--border) !important;
 }
 
 .dark-mode .hdr-user-name {
-   color: #f1f5f9 !important;
+   color: var(--text) !important;
 }
 
 .dark-mode .hdr-user-role {
-   color: #94a3b8 !important;
+   color: var(--dim) !important;
 }
 
 .dark-mode .hdr-search-results {
-   background: #1e293b !important;
-   border-color: #334155 !important;
-   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+   background: var(--panel) !important;
+   border-color: var(--border) !important;
+   box-shadow: 0 10px 25px var(--shadow) !important;
 }
 
 .dark-mode .search-item {
-   color: #f1f5f9 !important;
+   color: var(--text) !important;
    border-bottom-color: #283550 !important;
 }
 
 .dark-mode .search-item:hover {
-   background: #253047 !important;
+   background: var(--card) !important;
 }
 
 .dark-mode .search-item .icon {
-   background: #253047 !important;
+   background: var(--card) !important;
 }
 
 /* Sidebar */
 .dark-mode aside,
 .dark-mode .sidebar {
-   background: #1e293b !important;
-   border-right-color: #334155 !important;
+   background: var(--panel) !important;
+   border-right-color: var(--border) !important;
 }
 
 .dark-mode nav a {
-   color: #94a3b8 !important;
+   color: var(--dim) !important;
 }
 
 .dark-mode nav a:hover {
-   background: #253047 !important;
-   color: #f1f5f9 !important;
+   background: var(--card) !important;
+   color: var(--text) !important;
 }
 
 .dark-mode nav a.active {
@@ -854,85 +857,53 @@ tbody tr:hover {
 
 /* Panels & Cards */
 .dark-mode .panel {
-   background: #1e293b !important;
-   border-color: #334155 !important;
+   background: var(--panel) !important;
+   border-color: var(--border) !important;
    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35) !important;
 }
 
 .dark-mode .panel h2,
-.dark-mode .panel h3 {
-   color: #f1f5f9 !important;
+.dark-mode .panel h3,
+.dark-mode .panel h4 {
+   color: var(--text) !important;
 }
 
 .dark-mode .panel-header {
-   border-bottom-color: #334155 !important;
+   border-bottom-color: var(--border) !important;
 }
 
 .dark-mode .view-all {
    color: #60a5fa !important;
 }
 
-/* Dark Mode KPI Cards - White in Light Mode, Dark Navy in Dark Mode */
-.dark-mode .kpi-card {
-   background: #1e293b !important;
-   border-color: #334155 !important;
-   color: white !important;
-   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
-}
-
+/* KPI Cards - uses internal variables in dashboard.css but we ensure text holds */
 .dark-mode .kpi-label {
-   color: #94a3b8 !important;
+   color: rgba(255, 255, 255, 0.75) !important;
 }
 
 .dark-mode .kpi-value {
-   color: #f1f5f9 !important;
+   color: white !important;
 }
 
 .dark-mode .kpi-subvalue {
-   color: #64748b !important;
+   color: rgba(255, 255, 255, 0.6) !important;
 }
 
 .dark-mode .kpi-footer {
-   background: #1a2942 !important;
-   border-color: #334155 !important;
-   color: #cbd5e1 !important;
+   background: rgba(255, 255, 255, 0.1) !important;
+   border-color: rgba(255, 255, 255, 0.1) !important;
+   color: white !important;
 }
-
-/* Dark mode glass icons */
-.dark-mode .kpi-card.success .kpi-icon {
-   background: rgba(16, 185, 129, 0.1) !important;
-   color: #10b981 !important;
-   border-color: rgba(16, 185, 129, 0.2) !important;
-}
-
-.dark-mode .kpi-card.warning .kpi-icon {
-   background: rgba(245, 158, 11, 0.1) !important;
-   color: #f59e0b !important;
-   border-color: rgba(245, 158, 11, 0.2) !important;
-}
-
-.dark-mode .kpi-card.danger .kpi-icon {
-   background: rgba(239, 68, 68, 0.1) !important;
-   color: #ef4444 !important;
-   border-color: rgba(239, 68, 68, 0.2) !important;
-}
-
-.dark-mode .kpi-card.info .kpi-icon {
-   background: rgba(59, 130, 246, 0.1) !important;
-   color: #3b82f6 !important;
-   border-color: rgba(59, 130, 246, 0.2) !important;
-}
-
 
 /* Tables */
 .dark-mode table {
-   color: #f1f5f9 !important;
+   color: var(--text) !important;
 }
 
 .dark-mode thead th {
-   background: #253047 !important;
-   border-bottom-color: #334155 !important;
-   color: #94a3b8 !important;
+   background: var(--card) !important;
+   border-bottom-color: var(--border) !important;
+   color: var(--dim) !important;
 }
 
 .dark-mode tbody tr {
@@ -940,11 +911,11 @@ tbody tr:hover {
 }
 
 .dark-mode tbody tr:hover {
-   background: #253047 !important;
+   background: var(--card) !important;
 }
 
 .dark-mode td strong {
-   color: #f1f5f9 !important;
+   color: var(--text) !important;
 }
 
 .dark-mode td {
@@ -952,13 +923,15 @@ tbody tr:hover {
 }
 
 /* Buttons */
-.dark-mode .btn {
-   background: #253047 !important;
-   border-color: #334155 !important;
-   color: #f1f5f9 !important;
+.dark-mode .btn,
+.dark-mode .btn-sm {
+   background: var(--card) !important;
+   border-color: var(--border) !important;
+   color: var(--text) !important;
 }
 
-.dark-mode .btn:hover {
+.dark-mode .btn:hover,
+.dark-mode .btn-sm:hover {
    background: #2d3f55 !important;
    border-color: #475569 !important;
 }
@@ -977,55 +950,46 @@ tbody tr:hover {
 
 /* Modals */
 .dark-mode .modal-content {
-   background: #1e293b !important;
+   background: var(--modal-bg) !important;
    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6) !important;
 }
 
 .dark-mode .modal-content h2,
 .dark-mode .modal-content h3,
 .dark-mode .modal-content label {
-   color: #f1f5f9 !important;
+   color: var(--text) !important;
 }
 
 .dark-mode .modal-content input,
 .dark-mode .modal-content select,
 .dark-mode .modal-content textarea {
-   background: #0f172a !important;
-   border-color: #334155 !important;
-   color: #f1f5f9 !important;
-}
-
-.dark-mode .close {
-   color: #94a3b8 !important;
+   background: var(--input-bg) !important;
+   border-color: var(--border) !important;
+   color: var(--text) !important;
 }
 
 /* Forms */
 .dark-mode .form-group input,
 .dark-mode .form-group select,
 .dark-mode .form-group textarea {
-   background: #0f172a !important;
-   border-color: #334155 !important;
-   color: #f1f5f9 !important;
-}
-
-/* KPI footer helper states */
-.dark-mode .kpi-footer {
-   opacity: 0.85;
+   background: var(--input-bg) !important;
+   border-color: var(--border) !important;
+   color: var(--text) !important;
 }
 
 /* Page header */
 .dark-mode .page-header h1 {
-   color: #f1f5f9 !important;
+   color: var(--text) !important;
 }
 
 .dark-mode .page-header p {
-   color: #94a3b8 !important;
+   color: var(--dim) !important;
 }
 
-/* Alert items on dashboard */
+/* Alert items */
 .dark-mode .alert-item {
-   background: #253047 !important;
-   border-color: #334155 !important;
+   background: var(--card) !important;
+   border-color: var(--border) !important;
 }
 
 .dark-mode .alert-item.critical {
@@ -1039,13 +1003,32 @@ tbody tr:hover {
 }
 
 .dark-mode .alert-node {
-   color: #f1f5f9 !important;
+   color: var(--text) !important;
 }
 
 .dark-mode .alert-description {
-   color: #94a3b8 !important;
+   color: var(--dim) !important;
 }
 
 .dark-mode .alert-time {
    color: #64748b !important;
+}
+
+/* CCTV specific */
+.dark-mode .cam-card {
+   background: var(--panel) !important;
+   border-color: var(--border) !important;
+}
+
+.dark-mode .cam-name {
+   color: var(--text) !important;
+}
+
+.dark-mode .cam-meta {
+   color: var(--dim) !important;
+}
+
+/* Weather Widget */
+.dark-mode #weather-widget {
+   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
 }
