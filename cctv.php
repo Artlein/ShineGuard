@@ -48,16 +48,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode(['error' => 'Unauthorized']);
             exit();
         }
-        $nvr_ip = $_POST['nvr_ip'];
-        $nvr_port = intval($_POST['nvr_port']);
+        $camera_ip = $_POST['camera_ip'];
+        $camera_port = intval($_POST['camera_port']);
         $channel = intval($_POST['channel']);
         $username = $_POST['username'];
         $password = $_POST['password'];
         $stream_type = $_POST['stream_type'];
         $protocol = $_POST['protocol'];
         
-        $stmt = $conn->prepare("UPDATE cameras SET nvr_ip = ?, nvr_port = ?, channel = ?, username = ?, password = ?, stream_type = ?, protocol = ? WHERE camera_id = ?");
-        $stmt->bind_param("siissssi", $nvr_ip, $nvr_port, $channel, $username, $password, $stream_type, $protocol, $camera_id);
+        $stmt = $conn->prepare("UPDATE cameras SET camera_ip = ?, camera_port = ?, channel = ?, username = ?, password = ?, stream_type = ?, protocol = ? WHERE camera_id = ?");
+        $stmt->bind_param("siissssi", $camera_ip, $camera_port, $channel, $username, $password, $stream_type, $protocol, $camera_id);
         
         if ($stmt->execute()) {
             logActivity($conn, $_SESSION['user_id'], 'Camera Config', "Updated settings for Camera #$camera_id");
@@ -68,13 +68,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'add_camera') {
         if (!canDo('manage_cctv')) {
-            header('Location: cctv.php?error=unauthorized');
+            include __DIR__ . '/includes/access_denied_ui.php';
             exit();
         }
         $camera_name = $_POST['new_camera_name'] ?? '';
         $location = $_POST['new_location'] ?? '';
-        $nvr_ip = $_POST['new_nvr_ip'] ?? '';
-        $nvr_port = intval($_POST['new_nvr_port'] ?? 554);
+        $camera_ip = $_POST['new_camera_ip'] ?? '';
+        $camera_port = intval($_POST['new_camera_port'] ?? 554);
         $channel = intval($_POST['new_channel'] ?? 1);
         $username = $_POST['new_username'] ?? 'admin';
         $password = $_POST['new_password'] ?? '';
@@ -82,9 +82,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $protocol = $_POST['new_protocol'] ?? 'rtsp';
         $status = $_POST['new_status'] ?? 'Online';
 
-        if (!empty($camera_name) && !empty($location) && !empty($nvr_ip)) {
-            $stmt = $conn->prepare("INSERT INTO cameras (camera_name, location, nvr_ip, nvr_port, channel, username, password, stream_type, protocol, status, installation_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE())");
-            $stmt->bind_param("sssiisssss", $camera_name, $location, $nvr_ip, $nvr_port, $channel, $username, $password, $stream_type, $protocol, $status);
+        if (!empty($camera_name) && !empty($location) && !empty($camera_ip)) {
+            $stmt = $conn->prepare("INSERT INTO cameras (camera_name, location, camera_ip, camera_port, channel, username, password, stream_type, protocol, status, installation_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE())");
+            $stmt->bind_param("sssiisssss", $camera_name, $location, $camera_ip, $camera_port, $channel, $username, $password, $stream_type, $protocol, $status);
             
             if ($stmt->execute()) {
                 logActivity($conn, $_SESSION['user_id'], 'Camera Added', "Added new camera: $camera_name");
@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'delete_camera' && $camera_id > 0) {
         if (!canDo('manage_cctv')) {
-            header('Location: cctv.php?error=unauthorized');
+            include __DIR__ . '/includes/access_denied_ui.php';
             exit();
         }
         $conn->query("DELETE FROM camera_snapshots WHERE camera_id = $camera_id");
@@ -132,6 +132,10 @@ if ($config_result) {
         if ($row['config_key'] == 'organization_name') $organization_name = $row['config_value'];
     }
 }
+
+$canManageCctv = canDo('manage_cctv');
+$canTakeSnapshotPermission = canDo('take_snapshots');
+$isObserver = (getUserRole() === 'System Observer');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -210,6 +214,17 @@ html, body {
     background: linear-gradient(135deg, #059669, #047857);
     box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
     transform: translateY(-2px);
+}
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+    color: white !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25) !important;
+}
+.btn-danger:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.45) !important;
+    transform: translateY(-2px) !important;
 }
 
 @media (max-width: 768px) {
@@ -321,33 +336,53 @@ html, body {
 
 .camera-card.fullscreen {
     position: fixed;
-    top: 80px; 
-    left: 280px; 
-    right: 0; 
-    bottom: 0;
-    width: calc(100vw - 280px); 
-    height: calc(100vh - 80px);
-    z-index: 999;
-    background: #ffffff;
-    margin: 0; border-radius: 0; border: none;
-    display: flex; flex-direction: column;
-    padding: 24px; box-sizing: border-box;
-    overflow-y: auto;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 80vw !important;
+    height: 80vh !important;
+    z-index: 100001 !important;
+    background: var(--panel) !important;
+    color: var(--text) !important;
+    margin: 0 !important;
+    border-radius: 20px !important;
+    border: 1px solid var(--border) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 32px !important;
+    box-sizing: border-box !important;
+    box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.7), 
+                0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+    overflow-y: auto !important;
+}
+
+.dark-mode .camera-card.fullscreen {
+    background: #1e293b !important;
+    box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.85), 
+                0 25px 50px -12px rgba(0, 0, 0, 0.9) !important;
 }
 
 @media (max-width: 768px) {
     .camera-card.fullscreen {
-        left: 0;
-        width: 100vw;
+        width: 100vw !important;
+        height: 100vh !important;
+        border-radius: 0 !important;
     }
 }
 
 .camera-card.fullscreen .camera-preview {
-    flex: 1; height: auto; min-height: 50vh; margin-bottom: 20px;
+    flex: 1; height: auto; min-height: 50vh; margin-bottom: 24px;
+    display: flex; align-items: center; justify-content: center;
 }
 .camera-card.fullscreen .camera-preview img {
     object-fit: contain !important;
     background: #000;
+}
+
+/* Ensure text visibility inside maximized card */
+.camera-card.fullscreen .camera-title,
+.camera-card.fullscreen .info-value {
+    color: var(--text) !important;
 }
 
 .settings-modal {
@@ -480,14 +515,14 @@ html, body {
     </div>
 
     <div class="stats-grid">
-        <div class="stat-card">
+        <div class="stat-card" style="border-top: 5px solid #64748b;">
             <div class="stat-icon">📹</div>
             <div class="stat-info">
                 <div class="stat-label">Total Cameras</div>
                 <div class="stat-value"><?php echo $cameras_result->num_rows; ?></div>
             </div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="border-top: 5px solid #10b981;">
             <div class="stat-icon">✅</div>
             <div class="stat-info">
                 <div class="stat-label">Online Cameras</div>
@@ -501,7 +536,7 @@ html, body {
                 ?></div>
             </div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="border-top: 5px solid #3b82f6;">
             <div class="stat-icon">📸</div>
             <div class="stat-info">
                 <div class="stat-label">Snapshots (24h)</div>
@@ -511,7 +546,7 @@ html, body {
                 </div>
             </div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="border-top: 5px solid #ef4444;">
             <div class="stat-icon">🔴</div>
             <div class="stat-info">
                 <div class="stat-label">Recording</div>
@@ -520,7 +555,7 @@ html, body {
         </div>
     </div>
 
-    <div class="panel">
+    <div class="panel" style="border-top: 5px solid #10b981;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h2 style="margin: 0;">📹 Camera Feeds</h2>
             <?php if (canDo('manage_cctv')): ?>
@@ -561,7 +596,7 @@ html, body {
                         <i style="font-size: 48px;">📹</i>
                         <div>Click Play to start stream</div>
                         <small style="color: #999; margin-top: 8px; display: block;">
-                            <?php echo $camera['nvr_ip'] ? "NVR: {$camera['nvr_ip']}:{$camera['nvr_port']}" : "Not configured"; ?>
+                            <?php echo $camera['camera_ip'] ? "IP: {$camera['camera_ip']}:{$camera['camera_port']}" : "Not configured"; ?>
                         </small>
                     </div>
                     <?php endif; ?>
@@ -596,9 +631,15 @@ html, body {
                         ▶️ Play
                     </button>
                     <?php endif; ?>
+                     <?php if ($canTakeSnapshotPermission): ?>
                     <button class="control-btn btn-snap" onclick="takeSnapshot(<?php echo $camera['camera_id']; ?>, '<?php echo addslashes($camera['camera_name']); ?>', this)">
                         📸 Snapshot
                     </button>
+                    <?php else: ?>
+                    <div style="flex: 1; display: flex; align-items: center; justify-content: center; background: #f1f5f9; border-radius: 8px; border: 1px solid #e2e8f0; color: #64748b; font-size: 11px; font-weight: 700; height: 38px;">
+                        <span>🔒 View Only</span>
+                    </div>
+                    <?php endif; ?>
                     <?php if (canDo('manage_cctv')): ?>
                     <button class="control-btn btn-settings" onclick="openSettings(<?php echo $camera['camera_id']; ?>, <?php echo htmlspecialchars(json_encode($camera)); ?>)">
                         ⚙️ Settings
@@ -627,15 +668,15 @@ html, body {
             <input type="hidden" name="camera_id" id="settings_camera_id">
             
             <div class="form-section">
-                <h3>🖥️ NVR Configuration</h3>
+                <h3>🖥️ Connectivity Configuration</h3>
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>NVR IP Address</label>
-                        <input type="text" name="nvr_ip" id="nvr_ip" placeholder="192.168.1.64" required>
+                        <label>Camera IP Address</label>
+                        <input type="text" name="camera_ip" id="camera_ip" placeholder="192.168.1.64" required>
                     </div>
                     <div class="form-group">
                         <label>RTSP Port</label>
-                        <input type="number" name="nvr_port" id="nvr_port" value="554" required>
+                        <input type="number" name="camera_port" id="camera_port" value="554" required>
                     </div>
                     <div class="form-group">
                         <label>Channel Number</label>
@@ -676,13 +717,13 @@ html, body {
                         </select>
                     </div>
                 </div>
-                <div style="background: #fef3c7; padding: 12px; border-radius: 6px; margin-top: 12px; font-size: 13px;">
+                <div class="tip-box">
                     <strong>💡 Tip:</strong> Use Sub Stream for remote viewing to save bandwidth. Main Stream for recording.
                 </div>
             </div>
 
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
-                <button type="button" class="btn" style="background: #fee2e2; color: #dc2626; border-color: #fca5a5;" onclick="openDeleteCameraModal()">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border);">
+                <button type="button" class="btn btn-danger" onclick="openDeleteCameraModal()">
                     🗑️ Remove Camera
                 </button>
                 <div style="display: flex; gap: 12px;">
@@ -697,7 +738,7 @@ html, body {
 <div id="addCameraModal" class="settings-modal" onclick="if(event.target===this) closeAddCameraModal()">
     <div class="settings-content">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-            <h2 style="font-size: 20px; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">➕ Add New Camera</h2>
+            <h2 style="font-size: 20px; color: var(--text); margin: 0; display: flex; align-items: center; gap: 8px;">➕ Add New Camera</h2>
             <button type="button" onclick="closeAddCameraModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b;">×</button>
         </div>
         
@@ -716,8 +757,8 @@ html, body {
                         <input type="text" name="new_location" placeholder="e.g. Barangay Hall Back" required>
                     </div>
                     <div class="form-group">
-                        <label>NVR IP Address <span style="color: red;">*</span></label>
-                        <input type="text" name="new_nvr_ip" placeholder="192.168.1.x" required>
+                        <label>Camera IP Address <span style="color: red;">*</span></label>
+                        <input type="text" name="new_camera_ip" placeholder="192.168.1.x" required>
                     </div>
                     <div class="form-group">
                         <label>Channel Number</label>
@@ -739,7 +780,7 @@ html, body {
                     </div>
                     <div class="form-group">
                         <label>RTSP Port</label>
-                        <input type="number" name="new_nvr_port" value="554">
+                        <input type="number" name="new_camera_port" value="554">
                     </div>
                     <div class="form-group">
                         <label>Status</label>
@@ -770,7 +811,7 @@ html, body {
             </div>
         </div>
         <p style="font-size: 0.9rem; color: #475569; line-height: 1.6; margin-bottom: 24px;">
-            The system is now connecting to the NVR RTSP stream. The live feed will be displayed in the camera preview window shortly.
+            The system is now connecting to the camera's RTSP stream. The live feed will be displayed in the camera preview window shortly.
         </p>
         <div style="display: flex; justify-content: flex-end;">
             <button onclick="closeCCTVModal('playModal')" class="btn primary" style="padding: 10px 24px;">Got it</button>
@@ -799,7 +840,7 @@ html, body {
 
 <div id="snapshotGalleryModal" class="settings-modal" onclick="if(event.target===this) closeCCTVModal('snapshotGalleryModal')">
     <div class="modal-spring settings-content" style="max-width: 900px; width: 90%; max-height: 90vh; display: flex; flex-direction: column;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div class="settings-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <div style="display: flex; align-items: center; gap: 12px;">
                 <div style="background: #f5f3ff; width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;">🔐</div>
                 <div>
@@ -808,6 +849,18 @@ html, body {
                 </div>
             </div>
             <button class="close-btn" onclick="closeCCTVModal('snapshotGalleryModal')">&times;</button>
+        </div>
+
+        <div id="galleryViewOnlyMessage" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px; text-align: center; margin: auto; width: 100%; max-width: 400px;">
+            <span style="font-size: 32px; display: block; margin-bottom: 12px;">🔒</span>
+            <h3 style="margin-top: 0; color: #0f172a; margin-bottom: 8px;">View Only Access</h3>
+            <p style="font-size: 0.875rem; color: #64748b; margin-bottom: 20px;">
+                The snapshot gallery is encrypted and restricted to administrators. Observers have view-only access to live feeds but cannot view captured evidence.
+            </p>
+            <div style="padding: 12px; background: #f1f5f9; border-radius: 8px; color: #64748b; font-weight: 600; font-size: 0.875rem; border: 1px dashed #cbd5e1;">
+                RESTRICTED ACCESS
+            </div>
+            <button onclick="closeCCTVModal('snapshotGalleryModal')" class="btn" style="width: 100%; margin-top: 20px;">Close Gallery</button>
         </div>
 
         <div id="galleryAuthGate" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px; text-align: center; margin: auto; width: 100%; max-width: 400px;">
@@ -862,7 +915,8 @@ html, body {
 <script>
 let currentCameraId = null;
 let activeStreams = {};
-
+const canSnapshot = <?php echo $canTakeSnapshotPermission ? 'true' : 'false'; ?>;
+const isObserver = <?php echo $isObserver ? 'true' : 'false'; ?>;
 function toggleStream(camId, btn) {
     const preview = document.getElementById('preview-' + camId);
     const placeholder = document.getElementById('placeholder-' + camId);
@@ -961,16 +1015,35 @@ function deleteCamera() {
     }
 }
 
+let originalParents = {};
+let originalSiblings = {};
+
 function toggleFullscreen(camId, btn) {
     const card = document.getElementById('camera-card-' + camId);
     if (!card) return;
     
     if (card.classList.contains('fullscreen')) {
         card.classList.remove('fullscreen');
+        
+        // Restore to original position
+        const p = originalParents[camId];
+        const s = originalSiblings[camId];
+        if (p) {
+            if (s) p.insertBefore(card, s);
+            else p.appendChild(card);
+        }
+        
         btn.innerHTML = '⛶ Maximize';
         document.body.style.overflow = '';
     } else {
+        // Save original position
+        originalParents[camId] = card.parentNode;
+        originalSiblings[camId] = card.nextSibling;
+        
+        // Move to body level to break out of grid/transform containers
+        document.body.appendChild(card);
         card.classList.add('fullscreen');
+        
         btn.innerHTML = '🗕 Minimize';
         document.body.style.overflow = 'hidden';
     }
@@ -978,11 +1051,19 @@ function toggleFullscreen(camId, btn) {
 
 function openGalleryModal() {
     openCCTVModal('snapshotGalleryModal');
-    document.getElementById('galleryAuthGate').style.display = 'block';
+    
     document.getElementById('galleryContent').style.display = 'none';
-    document.getElementById('galleryAdminPassword').value = '';
-    document.getElementById('galleryPasswordError').style.display = 'none';
     document.getElementById('galleryGrid').innerHTML = '';
+    
+    if (isObserver) {
+        document.getElementById('galleryAuthGate').style.display = 'none';
+        document.getElementById('galleryViewOnlyMessage').style.display = 'block';
+    } else {
+        document.getElementById('galleryAuthGate').style.display = 'block';
+        document.getElementById('galleryViewOnlyMessage').style.display = 'none';
+        document.getElementById('galleryAdminPassword').value = '';
+        document.getElementById('galleryPasswordError').style.display = 'none';
+    }
 }
 
 async function verifyGalleryPassword() {
@@ -1128,8 +1209,8 @@ function openSettings(cameraId, cameraData) {
     currentCameraId = cameraId;
     document.getElementById('settings_camera_id').value = cameraId;
 
-    document.getElementById('nvr_ip').value = cameraData.nvr_ip || '';
-    document.getElementById('nvr_port').value = cameraData.nvr_port || 554;
+    document.getElementById('camera_ip').value = cameraData.camera_ip || '';
+    document.getElementById('camera_port').value = cameraData.camera_port || 554;
     document.getElementById('channel').value = cameraData.channel || 1;
     document.getElementById('username').value = cameraData.username || 'admin';
     document.getElementById('password').value = cameraData.password || '';

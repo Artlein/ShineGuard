@@ -34,8 +34,8 @@ require_once 'firebase_config.php';
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
-    if ($_SESSION['role'] !== 'System Admin') {
-        header('Location: streetlights.php?error=unauthorized');
+    if (!canDo('control_streetlights')) {
+        include __DIR__ . '/includes/access_denied_ui.php';
         exit();
     }
     
@@ -100,8 +100,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['light_id'])) {
-    if ($_SESSION['role'] !== 'System Admin') {
-        header('Location: streetlights.php?error=unauthorized');
+    if (!canDo('control_streetlights')) {
+        include __DIR__ . '/includes/access_denied_ui.php';
         exit();
     }
     
@@ -378,15 +378,15 @@ html, body {
 
 
 
-    <div class="panel">
 
-    <div class="map-view-toggle" style="margin-bottom: 20px; display: flex; gap: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 20px;">
+
+    <div class="map-view-toggle panel" style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center; border-top: 5px solid #10b981;">
         <button class="view-btn active" onclick="switchView('map')">🗺️ Map View</button>
         <button class="view-btn" onclick="switchView('grid')">🔲 Grid View</button>
         <button class="view-btn" onclick="switchView('table')">📋 Table View</button>
     </div>
 
-    <div id="mapViewPanel">
+    <div id="mapViewPanel" class="panel">
         <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
             <div>
                 <h2 style="margin-bottom: 8px;">🗺️ Streetlight Location Map - Barangay Hulo</h2>
@@ -405,7 +405,7 @@ html, body {
         <div id="map"></div>
     </div>
 
-    <div id="gridViewPanel" class="hidden">
+    <div id="gridViewPanel" class="hidden panel">
         <h2>🗺️ Streetlight Network Grid</h2>
         <div class="grid-map">
             <?php 
@@ -426,7 +426,7 @@ html, body {
         </div>
     </div>
 
-    <div id="tableViewPanel" class="hidden">
+    <div id="tableViewPanel" class="hidden panel">
         <h2>📋 Detailed List</h2>
         <div class="table-container">
             <table>
@@ -438,7 +438,7 @@ html, body {
                         <th>Power</th>
                         <th>Dimming</th>
                         <th>Installation</th>
-                        <th style="position: sticky; right: 0; background: var(--surface-2, #f7f9fc); z-index: 2; border-left: 1px solid var(--border, #e4e9f0); text-align: center; padding-right: 20px;">Actions</th>
+                        <th style="position: sticky; right: 0; background: var(--panel); z-index: 2; border-left: 1px solid var(--border); text-align: center; padding-right: 20px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -455,13 +455,17 @@ html, body {
                             <span style="font-size: 0.75rem; font-weight: 700; color: <?php echo $color; ?>; background: <?php echo $bg; ?>; padding: 3px 10px; border-radius: 12px;"><?php echo $label; ?></span>
                         </td>
                         <td><?php echo $light['installation_date'] ? date('M d, Y', strtotime($light['installation_date'])) : 'N/A'; ?></td>
-                        <td style="position: sticky; right: 0; background: white; z-index: 1; border-left: 1px solid #e2e8f0; white-space: nowrap; text-align: center; padding: 8px 20px;">
-                            <button onclick="toggleLight(<?php echo $light['light_id']; ?>, '<?php echo $light['power_state']; ?>')" class="btn-sm" style="padding:6px 18px; <?php echo $light['power_state'] === 'ON' ? 'background:#ef4444;color:white;border-color:#ef4444;' : 'background:#10b981;color:white;border-color:#10b981;'; ?>">
-                                <?php echo $light['power_state'] === 'ON' ? '🔅 OFF' : '🔆 ON'; ?>
-                            </button>
-                            <button onclick="runDiagnostic(<?php echo $light['light_id']; ?>)" class="btn-sm" style="padding:6px 18px; background: #3b82f6; color:white; border-color:#3b82f6;">
-                                🔧 Test
-                            </button>
+                        <td style="position: sticky; right: 0; background: var(--panel); z-index: 1; border-left: 1px solid var(--border); white-space: nowrap; text-align: center; padding: 8px 20px;">
+                            <?php if (canDo('control_streetlights')): ?>
+                                <button onclick="toggleLight(<?php echo $light['light_id']; ?>, '<?php echo $light['power_state']; ?>')" class="btn-sm" style="padding:6px 18px; <?php echo $light['power_state'] === 'ON' ? 'background:#ef4444;color:white;border-color:#ef4444;' : 'background:#10b981;color:white;border-color:#10b981;'; ?>">
+                                    <?php echo $light['power_state'] === 'ON' ? '🔅 OFF' : '🔆 ON'; ?>
+                                </button>
+                                <button onclick="runDiagnostic(<?php echo $light['light_id']; ?>)" class="btn-sm" style="padding:6px 18px; background: #3b82f6; color:white; border-color:#3b82f6;">
+                                    🔧 Test
+                                </button>
+                            <?php else: ?>
+                                <span style="color: var(--dim); font-size: 0.8rem; font-weight: 700;">View Only</span>
+                            <?php endif; ?>
                         </td>
                     </tr>
                     <?php endwhile; ?>
@@ -470,7 +474,8 @@ html, body {
         </div>
     </div>
 
-    <div class="panel" style="background: linear-gradient(to right, #ffffff, #f8fafc); border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); padding: 24px; margin-top: 24px;">
+    <?php if (canDo('control_streetlights')): ?>
+    <div class="panel" style="border-top: 5px solid #3b82f6;">
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
             <div style="background: #e0e7ff; color: #4338ca; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
                 🎛️
@@ -487,19 +492,19 @@ html, body {
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                     <label style="cursor: pointer;">
                         <input type="radio" name="dimming_level" value="30" style="display:none;" id="dim_low">
-                        <span onclick="setDimLevel(this, 30)" style="display: inline-block; padding: 8px 16px; border-radius: 20px; border: 2px solid #cbd5e1; background: white; font-size: 0.8rem; font-weight: 700; color: #64748b; transition: all 0.2s; cursor: pointer;">🌒 Low</span>
+                        <span class="dim-btn" onclick="setDimLevel(this, 30)">🌒 Low</span>
                     </label>
                     <label style="cursor: pointer;">
                         <input type="radio" name="dimming_level" value="50" style="display:none;" id="dim_medium" checked>
-                        <span onclick="setDimLevel(this, 50)" style="display: inline-block; padding: 8px 16px; border-radius: 20px; border: 2px solid #3b82f6; background: #eff6ff; font-size: 0.8rem; font-weight: 700; color: #3b82f6; transition: all 0.2s; cursor: pointer;">🌓 Medium</span>
+                        <span class="dim-btn active" onclick="setDimLevel(this, 50)">🌓 Medium</span>
                     </label>
                     <label style="cursor: pointer;">
                         <input type="radio" name="dimming_level" value="75" style="display:none;" id="dim_high">
-                        <span onclick="setDimLevel(this, 75)" style="display: inline-block; padding: 8px 16px; border-radius: 20px; border: 2px solid #cbd5e1; background: white; font-size: 0.8rem; font-weight: 700; color: #64748b; transition: all 0.2s; cursor: pointer;">🌔 High</span>
+                        <span class="dim-btn" onclick="setDimLevel(this, 75)">🌔 High</span>
                     </label>
                     <label style="cursor: pointer;">
                         <input type="radio" name="dimming_level" value="100" style="display:none;" id="dim_full">
-                        <span onclick="setDimLevel(this, 100)" style="display: inline-block; padding: 8px 16px; border-radius: 20px; border: 2px solid #cbd5e1; background: white; font-size: 0.8rem; font-weight: 700; color: #64748b; transition: all 0.2s; cursor: pointer;">🌕 Full</span>
+                        <span class="dim-btn" onclick="setDimLevel(this, 100)">🌕 Full</span>
                     </label>
                 </div>
                 <small style="color: #94a3b8; display: block; margin-top: 8px;">Applicable only when turning lights ON</small>
@@ -518,8 +523,9 @@ html, body {
             <input type="hidden" name="bulk_admin_password" id="hidden_bulk_admin_password">
         </form>
     </div>
-    
-    </div> 
+    <?php endif; ?>
+
+
 </main>
 </div>
 
@@ -566,7 +572,7 @@ html, body {
     </div>
 
     <div style="display:flex; gap:12px; justify-content:flex-end;">
-      <button onclick="closeToggleModal()" style="padding:10px 22px; border-radius:10px; border:1.5px solid #e2e8f0; background:white; font-family:'Inter',sans-serif; font-size:0.875rem; font-weight:600; color:#64748b; cursor:pointer;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='white'">Cancel</button>
+      <button onclick="closeToggleModal()" class="btn">Cancel</button>
       <button id="toggleModalConfirmBtn" onclick="confirmToggle()" style="padding:10px 22px; border-radius:10px; border:none; font-family:'Inter',sans-serif; font-size:0.875rem; font-weight:700; color:white; cursor:pointer; transition:all 0.2s;">Confirm</button>
     </div>
   </div>
@@ -603,14 +609,14 @@ html, body {
 <div id="diagnosticModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
   <div class="modal-spring" style="background:white; border-radius:20px; padding:32px; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.25); font-family:'Inter',sans-serif;">
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
-      <div style="background:#eff6ff; width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">🔧</div>
+      <div style="background: rgba(59, 130, 246, 0.1); width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;">🔧</div>
       <div>
-        <div style="font-size:1.1rem; font-weight:800; color:#0f172a;">Run Self-Check Diagnostic</div>
+        <div style="font-size:1.1rem; font-weight:800; color: var(--text);">Run Self-Check Diagnostic</div>
         <div style="font-size:0.8rem; color:#64748b; margin-top:2px;" id="diagNodeLabel">Loading...</div>
       </div>
     </div>
     <p style="font-size:0.875rem; color:#475569; margin-bottom:16px; line-height:1.6;">This will automatically run tests on the selected streetlight node. The following will be checked:</p>
-    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px; margin-bottom:24px;">
+    <div class="info-box">
       <div style="display:flex; flex-direction:column; gap:10px;">
         <div style="display:flex; align-items:center; gap:10px; font-size:0.85rem; color:#1e293b; font-weight:500;"><span style="color:#10b981; font-size:1rem;">✓</span> Power Supply</div>
         <div style="display:flex; align-items:center; gap:10px; font-size:0.85rem; color:#1e293b; font-weight:500;"><span style="color:#10b981; font-size:1rem;">✓</span> Sensor Functionality</div>
@@ -633,8 +639,8 @@ html, body {
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script>
+const canControl = <?php echo canDo('control_streetlights') ? 'true' : 'false'; ?>;
 function openBulkModal(action) {
     const modal = document.getElementById('bulkControlModal');
     const icon = document.getElementById('bulkModalIcon');
@@ -776,6 +782,7 @@ function initMap() {
                 <strong>Dimming:</strong> 
                 ${(() => { const d = getDimmingLabel(light.dimming_level); return `<span style="font-weight:700;color:${d.color};">${d.label}</span>`; })()}
             </div>
+            ${canControl ? `
             <div class="popup-controls">
                 <button onclick="toggleLight(${light.light_id}, '${light.power_state}')" class="popup-btn primary">
                     ${light.power_state === 'ON' ? '🔅 Turn OFF' : '🔆 Turn ON'}
@@ -784,6 +791,9 @@ function initMap() {
                     🔧 Run Test
                 </button>
             </div>
+            ` : `
+            <div style="margin-top: 15px; color: var(--dim); font-size: 0.8rem; font-weight: 600;">View Only</div>
+            `}
         `;
         
         marker.bindPopup(popupContent, { maxWidth: 360 });
@@ -1089,12 +1099,16 @@ function openNodeModal(lightId) {
             </div>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 20px;">
+            ${canControl ? `
             <button onclick="toggleLight(${light.light_id}, '${light.power_state}')" class="btn primary">
                 ${light.power_state === 'ON' ? '🔅 Turn OFF' : '🔆 Turn ON'}
             </button>
             <button onclick="runDiagnostic(${light.light_id})" class="btn" style="background: #3b82f6; color: white;">
                 🔧 Run Diagnostic Test
             </button>
+            ` : `
+            <div style="width: 100%; text-align: center; color: var(--dim); font-weight: 700;">View Only</div>
+            `}
         </div>
     `;
     

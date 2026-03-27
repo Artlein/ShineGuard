@@ -93,7 +93,7 @@ if (!isset($theme_color)) {
 }
 ?>
 <style>:root { --theme-color: <?php echo htmlspecialchars($theme_color); ?>; }</style>
-<link rel="stylesheet" href="assets/css/dashboard.css">
+<link rel="stylesheet" href="assets/css/dashboard.css?v=<?php echo time(); ?>">
 </head>
 <body>
 <div class="layout">
@@ -128,6 +128,7 @@ if (!isset($theme_color)) {
 </script>
 <?php endif; ?>
 
+
     <div class="page-header">
                 <br>
 
@@ -137,10 +138,9 @@ if (!isset($theme_color)) {
 
     <div class="kpi-grid">
         <div class="kpi-card <?php echo $lights_color; ?>">
-            <div class="kpi-top">
-                <div class="kpi-icon">💡</div>
-                <div class="kpi-trend up">↑ 94%</div>
-            </div>
+            <a href="streetlights.php" class="kpi-icon-link">
+                <div class="kpi-icon-wrapper">💡</div>
+            </a>
             <div class="kpi-label">Streetlights Online</div>
             <div class="kpi-main">
                 <div class="kpi-value"><?php echo $stats['online']; ?></div>
@@ -154,9 +154,9 @@ if (!isset($theme_color)) {
         </div>
 
         <div class="kpi-card <?php echo $alerts_color; ?>">
-            <div class="kpi-top">
-                <div class="kpi-icon">🚨</div>
-            </div>
+            <a href="alerts.php" class="kpi-icon-link">
+                <div class="kpi-icon-wrapper">🚨</div>
+            </a>
             <div class="kpi-label">Active Alerts</div>
             <div class="kpi-main">
                 <div class="kpi-value"><?php echo $stats['open_alerts']; ?></div>
@@ -171,10 +171,9 @@ if (!isset($theme_color)) {
         </div>
 
         <div class="kpi-card info">
-            <div class="kpi-top">
-                <div class="kpi-icon">⚡</div>
-                <div class="kpi-trend down">↓ 15%</div>
-            </div>
+            <a href="reports.php" class="kpi-icon-link">
+                <div class="kpi-icon-wrapper">⚡</div>
+            </a>
             <div class="kpi-label">Energy Today (Est.)</div>
             <div class="kpi-main">
                 <div class="kpi-value"><?php echo number_format($stats['energy_today'], 1); ?></div>
@@ -184,9 +183,9 @@ if (!isset($theme_color)) {
         </div>
 
         <div class="kpi-card success">
-            <div class="kpi-top">
-                <div class="kpi-icon">🔧</div>
-            </div>
+            <a href="work_orders.php" class="kpi-icon-link">
+                <div class="kpi-icon-wrapper">🔧</div>
+            </a>
             <div class="kpi-label">Work Orders</div>
             <div class="kpi-main">
                 <div class="kpi-value"><?php echo $work_orders['scheduled'] + $work_orders['in_progress']; ?></div>
@@ -198,7 +197,7 @@ if (!isset($theme_color)) {
     <!-- Weather script removed: moved to server-side PHP for reliability -->
 
     <div class="dashboard-grid">
-        <div class="panel">
+        <div class="panel" style="border-top: 5px solid #ef4444;">
             <div class="panel-header">
                 <h3>🚨 Recent Alerts</h3>
                 <a href="alerts.php" class="view-all">View All →</a>
@@ -233,7 +232,7 @@ if (!isset($theme_color)) {
         </div>
 
         <div class="dashboard-side">
-            <div class="panel" style="margin-bottom: 24px;">
+            <div class="panel" style="margin-bottom: 24px; border-top: 5px solid #3b82f6;">
                 <div class="panel-header">
                     <h3>🔧 Work Orders</h3>
                     <a href="work_orders.php" class="view-all">Manage →</a>
@@ -286,7 +285,8 @@ if (!isset($theme_color)) {
                 </div>
             </div>
 
-            <div class="panel">
+            <?php if (canDo('view_activity_logs')): ?>
+            <div class="panel" style="border-top: 5px solid #64748b;">
                 <div class="panel-header">
                     <h3>📝 Recent Activity</h3>
                 </div>
@@ -313,10 +313,12 @@ if (!isset($theme_color)) {
                 </div>
                 <?php endwhile; ?>
             </div>
+            <?php endif; ?>
         </div>
     </div>
     <br>
  
+    <?php if (canDo('manage_firebase')): ?>
     <div class="iot-panel">
         <div class="iot-header">
             <div class="iot-title-wrapper">
@@ -359,6 +361,7 @@ if (!isset($theme_color)) {
             </div>
         </div>
     </div>
+    <?php endif; ?>
 
 </main>
 </div>

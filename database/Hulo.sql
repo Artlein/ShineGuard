@@ -361,8 +361,8 @@ CREATE TABLE `cameras` (
   `status` enum('Online','Offline','Maintenance') DEFAULT 'Online',
   `resolution` varchar(20) DEFAULT '1920x1080',
   `fps` int(11) DEFAULT 25,
-  `nvr_ip` varchar(50) DEFAULT NULL,
-  `nvr_port` int(11) DEFAULT 554,
+  `camera_ip` varchar(50) DEFAULT NULL,
+  `camera_port` int(11) DEFAULT 554,
   `channel` int(11) DEFAULT 1,
   `username` varchar(50) DEFAULT 'admin',
   `password` varchar(100) DEFAULT NULL,
@@ -379,7 +379,7 @@ CREATE TABLE `cameras` (
 -- Dumping data for table `cameras`
 --
 
-INSERT INTO `cameras` (`camera_id`, `camera_name`, `location`, `latitude`, `longitude`, `status`, `resolution`, `fps`, `nvr_ip`, `nvr_port`, `channel`, `username`, `password`, `stream_type`, `protocol`, `installation_date`, `last_maintenance`, `notes`, `created_at`, `updated_at`) VALUES
+INSERT INTO `cameras` (`camera_id`, `camera_name`, `location`, `latitude`, `longitude`, `status`, `resolution`, `fps`, `camera_ip`, `camera_port`, `channel`, `username`, `password`, `stream_type`, `protocol`, `installation_date`, `last_maintenance`, `notes`, `created_at`, `updated_at`) VALUES
 (1, 'CAM-001', 'Barangay Hall Main Entrance', 14.57940000, 121.03590000, 'Online', '1920x1080', 25, '192.168.1.64', 554, 1, 'admin', 'admin123', 'main', 'rtsp', '2024-11-15', NULL, NULL, '2026-02-24 11:29:48', '2026-02-24 11:29:48'),
 (2, 'CAM-002', 'Basketball Court Area', 14.57980000, 121.03620000, 'Online', '1920x1080', 25, '192.168.1.64', 554, 2, 'admin', 'admin123', 'main', 'rtsp', '2024-11-15', NULL, NULL, '2026-02-24 11:29:48', '2026-02-24 11:29:48'),
 (3, 'CAM-003', 'Covered Court & Stage', 14.57920000, 121.03650000, 'Online', '1920x1080', 25, '192.168.1.64', 554, 3, 'admin', 'admin123', 'main', 'rtsp', '2024-11-15', NULL, NULL, '2026-02-24 11:29:48', '2026-02-24 11:29:48'),

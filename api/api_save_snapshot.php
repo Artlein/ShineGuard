@@ -4,6 +4,11 @@ requireLogin();
 
 header('Content-Type: application/json');
 
+if (!canDo('take_snapshots')) {
+    echo json_encode(['success' => false, 'error' => 'Unauthorized: You do not have permission to take snapshots.']);
+    exit();
+}
+
 $camera_id = intval($_POST['camera_id'] ?? 0);
 
 if ($camera_id > 0 && isset($_FILES['snapshot_image']) && $_FILES['snapshot_image']['error'] === UPLOAD_ERR_OK) {

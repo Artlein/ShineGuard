@@ -15,7 +15,7 @@ body {
 body {
     background: var(--bg);
     font-family: 'Inter', sans-serif;
-    color: var(--text-primary);
+    color: var(--text);
 }
 
 .main-content {
@@ -184,7 +184,7 @@ tbody tr:hover {
 
 tbody td {
     padding: 0.9rem 1.1rem;
-    color: var(--text-primary);
+    color: var(--text);
     font-weight: 500;
     vertical-align: middle;
 }
@@ -300,11 +300,11 @@ tbody td {
 }
 
 .detail-row td {
-    background: #f8fafc;
+    background: var(--muted);
     padding: .8rem 1.1rem;
     font-size: .82rem;
-    color: #475569;
-    border-bottom: 1px solid #e2e8f0;
+    color: var(--dim);
+    border-bottom: 1px solid var(--border);
 }
 
 .detail-grid {
@@ -324,7 +324,7 @@ tbody td {
 
 .detail-item span {
     font-weight: 600;
-    color: #1e293b;
+    color: var(--text);
 }
 
 .expand-btn {

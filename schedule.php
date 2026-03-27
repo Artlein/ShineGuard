@@ -1,6 +1,6 @@
 <?php
 require_once 'dbconnect.php';
-requireLogin();
+requireLogin('System Admin');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'verify_password') {
     ob_clean();
@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_schedule'])) {
     if (!canDo('manage_schedules')) {
-        header('Location: schedule.php?error=unauthorized');
+        include __DIR__ . '/includes/access_denied_ui.php';
         exit();
     }
     $preset_name = sanitize($_POST['preset_name']);
@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_schedule'])) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_schedule'])) {
     if (!canDo('manage_schedules')) {
-        header('Location: schedule.php?error=unauthorized');
+        include __DIR__ . '/includes/access_denied_ui.php';
         exit();
     }
     $schedule_id = intval($_POST['schedule_id']);
@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_schedule'])) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_schedule'])) {
     if (!canDo('manage_schedules')) {
-        header('Location: schedule.php?error=unauthorized');
+        include __DIR__ . '/includes/access_denied_ui.php';
         exit();
     }
     $schedule_id = intval($_POST['schedule_id']);
@@ -110,7 +110,7 @@ if (!isset($theme_color)) {
 }
 ?>
 <style>:root { --theme-color: <?php echo htmlspecialchars($theme_color); ?>; }</style>
-<link rel="stylesheet" href="assets/css/schedule.css">
+<link rel="stylesheet" href="assets/css/schedule.css?v=<?php echo time(); ?>">
 </head>
 <body>
 <div class="layout">
@@ -157,7 +157,7 @@ if (!isset($theme_color)) {
         <?php endforeach; ?>
       </div>
 
-      <button type="submit" class="btn-primary" style="background: #10b981; color: white; border: none; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4); transition: all 0.2s;" onmouseover="this.style.background='#059669'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 8px -1px rgba(16, 185, 129, 0.5)';" onmouseout="this.style.background='#10b981'; this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(16, 185, 129, 0.4)';">💾 Create Schedule</button>
+      <button type="submit" class="btn-primary" style="background: #10b981; color: white; border: none; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4); transition: all 0.2s;" onmouseover="this.style.background='#059669'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 8px -1px rgba(16, 185, 129, 0.5)';" onmouseout="this.style.background='#10b981'; this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(16, 185, 129, 0.4)';">💾 Create Schedule</button>
       
       <input type="hidden" name="create_schedule" value="1">
     </form>
@@ -193,8 +193,8 @@ if (!isset($theme_color)) {
             </td>
             <td>
               <div class="actions-cell">
-                <button type="button" class="btn-sm" style="background: #10b981; color: white; border: none;" onclick='openEditModal(<?php echo json_encode($schedule); ?>)'>✏️ Edit</button>
-                <button type="button" class="btn-sm danger" style="background: #ef4444; color: white; border: none;" onclick="openDeleteModal(<?php echo $schedule['schedule_id']; ?>, '<?php echo addslashes($schedule['preset_name']); ?>')">🗑️ Delete</button>
+                <button type="button" class="btn-sm" style="background: #10b981; color: white; border: none; border-radius: 8px;" onclick='openEditModal(<?php echo json_encode($schedule); ?>)'>✏️ Edit</button>
+                <button type="button" class="btn-sm danger" style="background: #ef4444; color: white; border: none; border-radius: 8px;" onclick="openDeleteModal(<?php echo $schedule['schedule_id']; ?>, '<?php echo addslashes($schedule['preset_name']); ?>')">🗑️ Delete</button>
               </div>
             </td>
           </tr>
@@ -208,7 +208,7 @@ if (!isset($theme_color)) {
 </div>
 
 <div id="deleteModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(4px);">
-  <div class="modal-spring" style="background:var(--panel); border-radius:20px; padding:32px; max-width:400px; width:90%; box-shadow:var(--shadow-md); font-family:'Inter',sans-serif; border: 1px solid var(--border);">
+  <div class="modal-spring" style="background:var(--panel); border-radius:24px; padding:32px; max-width:400px; width:90%; box-shadow:var(--shadow-md); font-family:'Inter',sans-serif; border: 1px solid var(--border);">
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
       <div style="background:rgba(239, 68, 68, 0.1); width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">🗑️</div>
       <div>
@@ -239,7 +239,7 @@ if (!isset($theme_color)) {
 </div>
 
 <div id="editModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
-    <div style="background: var(--panel); border-radius: 16px; padding: 32px; width: 100%; max-width: 500px; box-shadow: var(--shadow-md); border: 1px solid var(--border);">
+    <div style="background: var(--panel); border-radius: 24px; padding: 32px; width: 100%; max-width: 500px; box-shadow: var(--shadow-md); border: 1px solid var(--border);">
         <h2 style="margin-top: 0; margin-bottom: 24px; color: var(--text); font-size: 1.5rem; display: flex; align-items: center; gap: 8px;">
             <span>✏️</span> Edit Schedule
         </h2>
@@ -291,7 +291,7 @@ if (!isset($theme_color)) {
 </div>
 
 <div id="createModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(4px);">
-  <div class="modal-spring" style="background:var(--panel); border-radius:20px; padding:32px; max-width:400px; width:90%; box-shadow:var(--shadow-md); font-family:'Inter',sans-serif; border: 1px solid var(--border);">
+  <div class="modal-spring" style="background:var(--panel); border-radius:24px; padding:32px; max-width:400px; width:90%; box-shadow:var(--shadow-md); font-family:'Inter',sans-serif; border: 1px solid var(--border);">
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
       <div style="background:rgba(16, 185, 129, 0.1); width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">➕</div>
       <div>

@@ -13,6 +13,11 @@ $conn->set_charset("utf8mb4");
 
 date_default_timezone_set('Asia/Manila');
 
+$baseDir = str_replace('\\', '/', dirname(__FILE__));
+$docRoot = str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']);
+$relPath = str_replace($docRoot, '', $baseDir);
+define('BASE_URL', rtrim($relPath, '/') . '/');
+
 header('X-Frame-Options: DENY');
 
 header('X-Content-Type-Options: nosniff');
@@ -77,6 +82,14 @@ function canDo(string $action): bool {
         'acknowledge_alerts'   => ['System Admin', 'Maintenance Operator'],
         
         'view_settings'        => ['System Admin'],
+        
+        'manage_firebase'      => ['System Admin', 'Maintenance Operator'],
+        
+        'view_activity_logs'   => ['System Admin', 'Maintenance Operator'],
+        
+        'control_streetlights' => ['System Admin', 'Maintenance Operator'],
+        
+        'take_snapshots'       => ['System Admin', 'Maintenance Operator'],
     ];
     return in_array(getUserRole(), $map[$action] ?? [], true);
 }
@@ -133,19 +146,56 @@ function requireLogin($require_role = null) {
 
     checkSessionTimeout();
 
-    if ($require_role !== null && getUserRole() !== $require_role) {
-        http_response_code(403);
-        die('Access denied: insufficient permissions.');
+    if ($require_role !== null) {
+        $user_role = getUserRole();
+        $authorized = false;
+        
+        if (is_array($require_role)) {
+            if (in_array($user_role, $require_role, true)) {
+                $authorized = true;
+            }
+        } else {
+            if ($user_role === $require_role) {
+                $authorized = true;
+            }
+        }
+        
+        if (!$authorized) {
+            http_response_code(403);
+            include __DIR__ . '/includes/access_denied_ui.php';
+            exit();
+        }
     }
 }
 
-function requireLoginApi() {
+function requireLoginApi($require_role = null) {
     if (!isLoggedIn()) {
         http_response_code(401);
         echo json_encode(['success' => false, 'error' => 'Unauthorized. Please log in.']);
         exit();
     }
     checkSessionTimeout();
+    
+    if ($require_role !== null) {
+        $user_role = getUserRole();
+        $authorized = false;
+        
+        if (is_array($require_role)) {
+            if (in_array($user_role, $require_role, true)) {
+                $authorized = true;
+            }
+        } else {
+            if ($user_role === $require_role) {
+                $authorized = true;
+            }
+        }
+        
+        if (!$authorized) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Access denied: insufficient permissions.']);
+            exit();
+        }
+    }
 }
 
 function logActivity($conn, $user_id, $action, $details = '') {

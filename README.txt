@@ -42,7 +42,7 @@ FEATURES IMPLEMENTED:
 ✓ Real-time streetlight monitoring (32 nodes)
 ✓ Bulk control (Turn all ON/OFF)
 ✓ Schedule presets (time-based automation)
-✓ CCTV integration with NVR storage
+✓ CCTV integration with camera storage
 ✓ Predictive maintenance alerts
 ✓ Activity logging
 ✓ Energy consumption tracking
@@ -56,7 +56,7 @@ DATABASE TABLES:
 ✓ alerts - Predictive maintenance
 ✓ maintenance_logs - Work orders
 ✓ cctv_cameras - 4 cameras configured
-✓ cctv_footage - NVR storage metadata
+✓ cctv_footage - Camera storage metadata
 ✓ schedule_presets - Time-based control
 ✓ system_config - Thresholds
 ✓ activity_logs - Audit trail

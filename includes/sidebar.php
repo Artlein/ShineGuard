@@ -12,7 +12,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     --sb-bg          : #111827;
     --sb-bg-footer   : #0d1117;
     --sb-border      : rgba(255,255,255,0.07);
-    --sb-accent      : #34d399;
+    --sb-accent      : #34d318;
     --sb-accent-deep : #10b981;
     --sb-accent-rgb  : 52,211,153;
     --sb-txt-hi      : #f1f5f9;
@@ -358,10 +358,12 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </a>
 
             <div class="sb-lbl">System</div>
+            <?php if (canDo('manage_firebase')): ?>
             <a href="firebase_dashboard.php" class="<?php echo $current_page=='firebase_dashboard.php'?'active':''; ?>">
                 <div class="sb-ico">🔥</div>
                 <span class="sb-nav-lbl">Firebase IoT</span>
             </a>
+            <?php endif; ?>
             <?php if (canDo('view_settings')): ?>
             <a href="settings.php" class="<?php echo $current_page=='settings.php'?'active':''; ?>">
                 <div class="sb-ico">⚙️</div>

@@ -1,6 +1,6 @@
 <?php
 require_once '../dbconnect.php';
-requireLogin();
+requireLogin(['System Admin', 'Maintenance Operator']);
 
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     http_response_code(400);

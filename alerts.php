@@ -4,7 +4,7 @@ requireLogin();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'acknowledge') {
     if (!canDo('acknowledge_alerts')) {
-        header('Location: alerts.php?error=unauthorized');
+        include __DIR__ . '/includes/access_denied_ui.php';
         exit();
     }
     $alert_id = intval($_POST['alert_id']);
@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'new_work_order') {
     if (!canDo('create_work_orders')) {
-        header('Location: alerts.php?error=unauthorized');
+        include __DIR__ . '/includes/access_denied_ui.php';
         exit();
     }
     $light_id = intval($_POST['light_id']);
@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 $alerts_query = "SELECT a.*, s.node_name, s.location,
                          u.full_name AS ack_by_name
                   FROM alerts a
-                  INNER JOIN streetlights s ON a.light_id = s.light_id
+                  LEFT JOIN streetlights s ON a.light_id = s.light_id
                   LEFT JOIN users u ON u.user_id = a.acknowledged_by
                   ORDER BY
                     FIELD(a.status,'Open','Acknowledged','Resolved'),
@@ -63,6 +63,14 @@ $alerts_query = "SELECT a.*, s.node_name, s.location,
 $alerts = $conn->query($alerts_query);
 
 $lights = $conn->query("SELECT light_id, node_name FROM streetlights ORDER BY node_name");
+
+if (!isset($theme_color)) {
+    $theme_color = '#10b981';
+    $tc_result = $conn->query("SELECT config_value FROM system_config WHERE config_key = 'theme_color' LIMIT 1");
+    if ($tc_result && $tc_row = $tc_result->fetch_assoc()) {
+        $theme_color = $tc_row['config_value'];
+    }
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -345,18 +353,25 @@ tbody td {
 
 .actions-cell { display: flex; gap: 0.5rem; }
 
-.btn-sm {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  color: var(--text-secondary);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.76rem;
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1.4rem;
+  border-radius: var(--radius-sm);
   font-weight: 600;
-  padding: 0.32rem 0.72rem;
+  font-size: 0.85rem;
   cursor: pointer;
-  transition: all .13s;
-  white-space: nowrap;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  text-decoration: none;
+  gap: 8px;
+}
+
+.btn-sm {
+  padding: 0.35rem 0.8rem;
+  font-size: 0.75rem;
+  border-radius: 6px;
 }
 
 .btn-sm:hover {
@@ -400,9 +415,9 @@ tbody td {
        <center> <h1>🚨 Alerts & Maintenance</h1>
         <p>Predictive maintenance alerts and work orders</p>
     </div></center> 
-    <div class="panel" style="background: linear-gradient(to right, #ffffff, #f8fafc); border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); padding: 24px; margin-top: 24px; border: 1px solid #e2e8f0;">
+    <div class="panel" style="background: linear-gradient(to right, #ffffff, #f8fafc); border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); padding: 24px; margin-top: 24px; border: 1px solid #e2e8f0; border-top: 5px solid #ef4444;">
         <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #f1f5f9;">
-            <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 16px;">
                 <div style="background: #fee2e2; color: #ef4444; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
                     🚨
                 </div>
@@ -458,46 +473,45 @@ tbody td {
                     ?>
                     
                     <tr onclick="toggleDetail('<?php echo $rowId; ?>', this)" style="cursor:pointer;">
-                        <td style="text-align:center; color:#94a3b8;">
+                        <td style="text-align:center; color:var(--dim);">
                             <span class="expand-btn" id="btn-<?php echo $rowId; ?>">▶</span>
                         </td>
-                        <td style="font-weight:700; color:#64748b;">#<?php echo $alert['alert_id']; ?></td>
+                        <td style="font-weight:700; color:var(--dim);">#<?php echo $alert['alert_id']; ?></td>
                         <td>
-                            <span class="badge badge-<?php echo $sev; ?>"><?php echo $sevIcon . ' ' . htmlspecialchars($alert['severity']); ?></span>
+                            <span class="badge <?php echo $alert['severity'] === 'High' ? 'fail' : ($alert['severity'] === 'Medium' ? 'warning' : 'ok'); ?>"><?php echo $alert['severity']; ?></span>
                         </td>
                         <td style="font-weight:600;"><?php echo htmlspecialchars($alert['alert_type']); ?></td>
-                        <td><strong><?php echo htmlspecialchars($alert['node_name']); ?></strong></td>
-                        <td style="color:#64748b; font-size:.82rem;"><?php echo htmlspecialchars($alert['location']); ?></td>
+                        <td><strong><?php echo htmlspecialchars($alert['node_name'] ?? 'System/Other'); ?></strong></td>
+                        <td style="color:var(--dim); font-size:.82rem;"><?php echo htmlspecialchars($alert['location'] ?? 'N/A'); ?></td>
                         <td style="max-width:260px;">
-                            <span title="<?php echo $desc; ?>" style="font-size:.82rem; color:#374151;"><?php echo $shortDesc; ?></span>
+                            <span title="<?php echo $desc; ?>" style="font-size:.82rem; color:var(--text);"><?php echo $shortDesc; ?></span>
                         </td>
                         <td style="white-space:nowrap; font-size:.82rem;">
                             <?php if ($alert['rul_estimate']): ?>
-                                <span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:20px; font-size:.75rem; font-weight:700;">
-                                    ⏳ <?php echo htmlspecialchars($alert['rul_estimate']); ?>
-                                </span>
+                                <span class="badge warning"><?php echo htmlspecialchars($alert['rul_estimate']); ?></span>
                             <?php else: ?>
-                                <span style="color:#cbd5e1;">—</span>
+                                <span class="text-muted">—</span>
                             <?php endif; ?>
                         </td>
                         <td>
-                            <span class="badge badge-<?php echo $statKey; ?>"><?php echo htmlspecialchars($alert['status']); ?></span>
+                            <span class="badge <?php echo ($alert['status'] === 'Open' || $alert['status'] === 'Active') ? 'fail' : ($alert['status'] === 'Acknowledged' ? 'warning' : 'ok'); ?>"><?php echo $alert['status']; ?></span>
                         </td>
-                        <td style="white-space:nowrap; font-size:.82rem; color:#64748b;"><?php echo $age; ?></td>
+                        <td style="white-space:nowrap; font-size:.82rem; color:var(--dim);"><?php echo $age; ?></td>
                         <td onclick="event.stopPropagation();">
-                            <?php if ($alert['status'] === 'Open' && canDo('acknowledge_alerts')): ?>
+                            <?php if (($alert['status'] === 'Open' || $alert['status'] === 'Active') && canDo('acknowledge_alerts')): ?>
                             <form method="POST" style="display:inline;">
                                 <input type="hidden" name="action" value="acknowledge">
                                 <input type="hidden" name="alert_id" value="<?php echo $alert['alert_id']; ?>">
-                                <button type="submit" class="btn-sm" style="background:#10b981;color:white;border:none;font-weight:600;padding:6px 16px;border-radius:6px;box-shadow:0 2px 4px rgba(16,185,129,.3);cursor:pointer;"
-                                    onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='none'">✔ Ack</button>
+                                <button type="submit" class="btn primary btn-sm" style="background: #10b981; border: none; padding: 5px 10px; font-size: 0.75rem; color: white;">
+                                    ✓ Acknowledge
+                                </button>
                             </form>
-                            <?php elseif ($alert['status'] === 'Open'): ?>
-                                <span style="font-size:.8rem;color:#94a3b8;font-weight:600;">— View only</span>
+                            <?php elseif ($alert['status'] === 'Open' || $alert['status'] === 'Active'): ?>
+                            <span style="font-size:0.75rem; color:#64748b;">— View only</span>
                             <?php elseif ($alert['status'] === 'Acknowledged'): ?>
-                                <span style="font-size:.8rem;color:#16a34a;font-weight:600;">✓ Acknowledged</span>
+                            <span class="badge warning" style="font-size:.7rem;">✓ Acknowledged</span>
                             <?php else: ?>
-                                <span style="font-size:.8rem;color:#94a3b8;font-weight:600;">✓ Resolved</span>
+                            <span class="badge ok" style="font-size:.7rem;">✓ Resolved</span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -559,8 +573,9 @@ while($a = $alerts->fetch_assoc()) {
 $alerts->data_seek(0);
 ?>
 
-<div id="woModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;">
-    <div style="background: white; border-radius: 16px; padding: 32px; width: 100%; max-width: 500px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
+<div id="woModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); align-items: center; justify-content: center;">
+    <div class="modal-content" style="background-color: #fff; padding: 32px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); position: relative; border: 1px solid #e2e8f0;">
+        <span class="close" onclick="document.getElementById('woModal').style.display='none'" style="position: absolute; right: 24px; top: 20px; font-size: 24px; color: #94a3b8; cursor: pointer;">&times;</span>
         <h2 style="margin-top: 0; margin-bottom: 24px; color: #0f172a; font-size: 1.5rem; display: flex; align-items: center; gap: 8px;">
             <span>🔧</span> New Work Order
         </h2>
@@ -594,12 +609,11 @@ $alerts->data_seek(0);
                 <input type="text" name="action_taken" id="actionTakenInput" required placeholder="e.g. Inspect relay, Replace bulb..." style="width: 100%; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 1rem; color: #1e293b; background: #f8fafc; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#cbd5e1'">
             </div>
             
-            <div style="margin-bottom: 24px; background: #f8fafc; padding: 16px; border-radius: 8px; border-left: 4px solid #cbd5e1;">
-                <label style="display: block; font-weight: 700; margin-bottom: 6px; font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Full Description</label>
-                <div id="fullDescriptionDisplay" style="font-size: 0.95rem; font-weight: 600; color: #1e293b; line-height: 1.5;">
+            <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 24px; border: 1.5px solid #e2e8f0;">
+                <label style="display: block; font-weight: 700; margin-bottom: 6px; font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Full Description</label>
+                <div id="fullDescriptionDisplay" style="font-size: 0.95rem; color: #1e293b; font-weight: 600; line-height: 1.5;">
                     <span style="color: #cbd5e1; font-weight: 400; font-style: italic;">Select an alert to view its full description...</span>
                 </div>
-                
                 <input type="hidden" name="full_description" id="fullDescriptionInput" value="">
             </div>
             
@@ -609,8 +623,8 @@ $alerts->data_seek(0);
             </div>
             
             <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                <button type="button" onclick="document.getElementById('woModal').style.display='none'" class="btn" style="background: white; color: #64748b; border: 2px solid #e2e8f0; padding: 10px 20px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f8fafc'; this.style.borderColor='#cbd5e1'" onmouseout="this.style.background='white'; this.style.borderColor='#e2e8f0'">Cancel</button>
-                <button type="submit" class="btn primary" style="background: #3b82f6; color: white; border: none; padding: 10px 24px; font-weight: 600; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.5); cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 8px -1px rgba(59, 130, 246, 0.6)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(59, 130, 246, 0.5)'">Create Order</button>
+                <button type="button" onclick="document.getElementById('woModal').style.display='none'" class="btn">Cancel</button>
+                <button type="submit" class="btn primary">Create Order</button>
             </div>
         </form>
     </div>

@@ -1,12 +1,8 @@
 <?php
 require_once 'dbconnect.php';
-requireLogin();
+requireLogin('System Admin');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_preferences'])) {
-    if ($_SESSION['role'] !== 'System Admin') {
-        header('Location: dashboard.php?error=unauthorized');
-        exit();
-    }
     verifyCsrfToken($_POST['csrf_token'] ?? '', 'settings.php?tab=preferences&error=invalid_csrf');
     $updates = [
         'system_name'      => $_POST['system_name'],
@@ -34,10 +30,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_preferences'])
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_thresholds'])) {
-    if ($_SESSION['role'] !== 'System Admin') {
-        header('Location: dashboard.php?error=unauthorized');
-        exit();
-    }
     verifyCsrfToken($_POST['csrf_token'] ?? '', 'settings.php?tab=thresholds&error=invalid_csrf');
     $thresholds = [
         'lux_threshold_min'              => $_POST['lux_threshold_min'],
@@ -62,10 +54,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_thresholds']))
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_alerts'])) {
-    if ($_SESSION['role'] !== 'System Admin') {
-        header('Location: dashboard.php?error=unauthorized');
-        exit();
-    }
     verifyCsrfToken($_POST['csrf_token'] ?? '', 'settings.php?tab=alerts&error=invalid_csrf');
     $alerts = [
         'alert_email_enabled'    => isset($_POST['alert_email_enabled'])    ? '1' : '0',
@@ -87,10 +75,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_alerts'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_automation'])) {
-    if ($_SESSION['role'] !== 'System Admin') {
-        header('Location: dashboard.php?error=unauthorized');
-        exit();
-    }
     verifyCsrfToken($_POST['csrf_token'] ?? '', 'settings.php?tab=automation&error=invalid_csrf');
     $automation = [
         'auto_dim_enabled'                => isset($_POST['auto_dim_enabled'])                ? '1' : '0',
@@ -134,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_data'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     
     if (getUserRole() !== 'System Admin') {
-        header('Location: settings.php?tab=users&error=unauthorized');
+        // Redundant role check removed - handled by requireLogin at top
         exit();
     }
 
@@ -219,10 +203,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_user'])) {
-    if (getUserRole() !== 'System Admin') {
-        header('Location: settings.php?tab=users&error=unauthorized');
-        exit();
-    }
     verifyCsrfToken($_POST['csrf_token'] ?? '', 'settings.php?tab=users&error=invalid_csrf');
 
     $target_user_id = intval($_POST['target_user_id']);
@@ -279,10 +259,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_user'])) {
 
 // ── SECURITY FEATURE: SECURE USER DELETION ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_user'])) {
-    if (getUserRole() !== 'System Admin') {
-        header('Location: settings.php?tab=users&error=unauthorized');
-        exit();
-    }
     verifyCsrfToken($_POST['csrf_token'] ?? '', 'settings.php?tab=users&error=invalid_csrf');
 
     $target_user_id = intval($_POST['target_user_id']);
@@ -1281,11 +1257,11 @@ tbody td {
         <input type="hidden" name="add_user" value="1">
         <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
         
-        <div id="addUserError" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #ef4444;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;color:#991b1b;font-size:.85rem;font-weight:600;"></div>
+        <div id="addUserError" class="danger-box" style="display:none; margin-bottom: 20px;"></div>
         <div class="modal-body-content">
           <div class="setting-row">
             <div class="setting-item">
-              <label>Username <small style="color:var(--text-muted);font-weight:400;">(letters, numbers, _ · 3–30 chars)</small></label>
+              <label>Username <small class="text-muted" style="font-weight:400;">(letters, numbers, _ · 3–30 chars)</small></label>
               <input type="text" id="new_user_username" name="username" placeholder="e.g. jdoe"
                      pattern="[a-zA-Z0-9_]{3,30}" minlength="3" maxlength="30" required
                      autocomplete="username">
@@ -1297,7 +1273,7 @@ tbody td {
           </div>
           <div class="setting-row">
             <div class="setting-item">
-              <label>Email Address <small style="color:var(--text-muted);font-weight:400;">(Must be @hulo.gov.ph)</small></label>
+              <label>Email Address <small class="text-muted" style="font-weight:400;">(Must be @hulo.gov.ph)</small></label>
               <input type="email" id="new_user_email" name="email" placeholder="e.g. jdoe@hulo.gov.ph" required autocomplete="email">
             </div>
             <div class="setting-item">
@@ -1315,7 +1291,7 @@ tbody td {
               </select>
             </div>
             <div class="setting-item">
-              <label>Initial Password <small style="color:var(--text-muted);font-weight:400;">(Upper, Number, Symbol)</small></label>
+              <label>Initial Password <small class="text-muted" style="font-weight:400;">(Upper, Number, Symbol)</small></label>
               <input type="password" id="new_user_password" name="password" placeholder="Min 8 chars, strong" required autocomplete="new-password">
             </div>
           </div>
@@ -1397,7 +1373,7 @@ tbody td {
   <div id="deleteUserModal" class="modal">
     <div class="modal-content modal-spring" style="max-width: 400px;">
       <div class="modal-header" style="border-bottom: 1px solid var(--border); margin-bottom: 20px; padding-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-        <h2 style="margin: 0; font-size: 1.25rem; color: #dc2626;">🗑️ Delete System User</h2>
+        <h2 style="margin: 0; font-size: 1.25rem;" class="text-danger">🗑️ Delete System User</h2>
         <button type="button" class="btn-sm" onclick="closeModal('deleteUserModal')" style="border: none; background: none; font-size: 1.2rem; cursor: pointer;">✕</button>
       </div>
       <form id="deleteUserForm" method="POST">
@@ -1410,7 +1386,7 @@ tbody td {
             You are about to permanently delete <strong><span id="delete_user_name_display"></span></strong> from the system. This action cannot be undone.
           </p>
           
-          <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 15px; margin-bottom: 20px; border-radius: 4px; font-size: 0.85rem; color: #991b1b;">
+          <div class="danger-box">
             <strong>Security verification required:</strong><br>
             Please enter your own Admin password to authorize this deletion.
           </div>
@@ -1424,7 +1400,7 @@ tbody td {
           
           <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 20px;">
             <button type="button" class="btn" onclick="closeModal('deleteUserModal')">Cancel</button>
-            <button type="submit" class="btn primary" style="background: #ef4444; border-color: #ef4444;">Permanently Delete</button>
+            <button type="submit" class="btn danger">Permanently Delete</button>
           </div>
         </div>
       </form>

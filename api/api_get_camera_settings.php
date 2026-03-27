@@ -1,6 +1,6 @@
 <?php
 require_once '../dbconnect.php';
-requireLogin();
+requireLogin('System Admin');
 
 header('Content-Type: application/json');
 

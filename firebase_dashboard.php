@@ -1,6 +1,8 @@
 <?php
 require_once 'dbconnect.php';
-requireLogin();
+requireLogin(['System Admin', 'Maintenance Operator']);
+
+// Access is handled by requireLogin at the top.
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'verify_password') {
     ob_clean(); 
@@ -20,6 +22,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
     exit();
 }
+
+$theme_color = '#10b981';
+$tc_result = $conn->query("SELECT config_value FROM system_config WHERE config_key = 'theme_color' LIMIT 1");
+if ($tc_result && $tc_row = $tc_result->fetch_assoc()) {
+    $theme_color = $tc_row['config_value'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -31,29 +39,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 <style>
 <?php include 'assets/style.css'; ?>
 :root { 
-    --theme-color: <?php echo $theme_color; ?>; 
-
-  --bg:           #f0f4f8;
-  --surface:      #ffffff;
-  --surface-2:    #f7f9fc;
-  --border:       #e4e9f0;
-  --border-light: #edf1f7;
-  --text-primary: #1a2035;
-  --text-secondary: #6b7a99;
-  --text-muted:   #a0aec0;
+    --theme-color: <?php echo $theme_color; ?>;
+    --surface: var(--panel);
+  --surface:      var(--panel);
+  --surface-2:    var(--muted);
+  --text-primary: var(--text);
+  --text-secondary: var(--dim);
+  --text-muted:   var(--dim);
   --accent:       #e53e3e;
   --green:        #22c55e;
-  --green-dim:    #f0fdf4;
-  --green-border: #bbf7d0;
+  --green-dim:    rgba(34, 197, 150, 0.1);
+  --green-border: rgba(34, 197, 150, 0.2);
   --red:          #ef4444;
-  --red-dim:      #fef2f2;
-  --red-border:   #fecaca;
+  --red-dim:      rgba(239, 68, 68, 0.1);
+  --red-border:   rgba(239, 68, 68, 0.2);
   --blue:         #3b82f6;
-  --blue-dim:     #eff6ff;
+  --blue-dim:     rgba(59, 130, 246, 0.1);
   --radius:       16px;
   --radius-sm:    10px;
-  --shadow:       0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05);
-  --shadow-md:    0 4px 16px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
+  --shadow:       var(--shadow);
+  --shadow-md:    var(--shadow);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -398,29 +403,29 @@ body {
 </div>
 
 <div id="securityModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-  <div style="background:white; border-radius:20px; padding:32px; max-width:400px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.25); font-family:'Inter',sans-serif;">
+  <div style="background:var(--panel); border:1px solid var(--border); border-radius:20px; padding:32px; max-width:400px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.25); font-family:'Inter',sans-serif;">
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
       <div id="secModalIcon" style="width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">💡</div>
       <div>
-        <div id="secModalTitle" style="font-size:1.1rem; font-weight:800; color:#0f172a;">Confirm Action</div>
-        <div style="font-size:0.8rem; color:#64748b; margin-top:2px;">Firebase Control Command</div>
+        <div id="secModalTitle" style="font-size:1.1rem; font-weight:800; color:var(--text-primary);">Confirm Action</div>
+        <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">Firebase Control Command</div>
       </div>
     </div>
-    <p id="secModalDesc" style="font-size:0.875rem; color:#475569; margin-bottom:24px; line-height:1.6;">Are you sure?</p>
+    <p id="secModalDesc" style="font-size:0.875rem; color:var(--text-secondary); margin-bottom:24px; line-height:1.6;">Are you sure?</p>
     <div style="background: #fffbeb; border: 1px solid #f59e0b; padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; color: #b45309;">
       <div style="font-size: 1.2rem; line-height: 1;">⏱️</div>
       <div><strong>Execution Delay:</strong> Please note there will be a 5-10 seconds delay for the command to fully execute on the physical nodes.</div>
     </div>
     
     <div style="margin-bottom: 24px;">
-        <label for="secModalPassword" style="display:block; font-size:0.875rem; font-weight:600; color:#0f172a; margin-bottom:8px;">🔐 Administrator Password <span style="color:#ef4444;">*</span></label>
+        <label for="secModalPassword" style="display:block; font-size:0.875rem; font-weight:600; color:var(--text-primary); margin-bottom:8px;">🔐 Administrator Password <span style="color:#ef4444;">*</span></label>
         <input type="password" id="secModalPassword" placeholder="Enter password to confirm" style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid #cbd5e1; font-family:'Inter',sans-serif; font-size:0.875rem; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
         <div id="secModalError" style="color:#ef4444; font-size:0.75rem; margin-top:6px; display:none;">Password is required</div>
     </div>
 
     <div style="display:flex; gap:12px; justify-content:flex-end;">
-      <button onclick="closeSecModal()" style="padding:10px 22px; border-radius:10px; border:1.5px solid #e2e8f0; background:white; font-family:'Inter',sans-serif; font-size:0.875rem; font-weight:600; color:#64748b; cursor:pointer;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='white'">Cancel</button>
-      <button id="secModalConfirmBtn" onclick="confirmSecAction()" style="padding:10px 22px; border-radius:10px; border:none; font-family:'Inter',sans-serif; font-size:0.875rem; font-weight:700; color:white; cursor:pointer; transition:all 0.2s; background:#3b82f6; box-shadow:0 4px 12px rgba(59,130,246,0.35);">Confirm</button>
+      <button onclick="closeSecModal()" class="btn">Cancel</button>
+      <button id="secModalConfirmBtn" onclick="confirmSecAction()" class="btn primary" style="background:#3b82f6; box-shadow:0 4px 12px rgba(59,130,246,0.35);">Confirm</button>
     </div>
   </div>
 </div>
@@ -662,7 +667,7 @@ window.confirmFirebaseCommand = function(actionType, param1, param2) {
         btn.style.boxShadow = '0 4px 12px rgba(16,185,129,0.35)';
         btn.textContent = '💡 Confirm ON';
     } else if (actionType === 'setMode' && param1 === 2) {
-        icon.style.background = '#fef2f2';
+        icon.style.background = 'rgba(239, 68, 68, 0.1)';
         icon.textContent = '🌙';
         title.textContent = 'FORCE OFF Mode';
         desc.textContent = 'Are you sure you want to force the streetlight OFF? This will override automatic sensor controls.';

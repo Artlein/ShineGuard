@@ -173,9 +173,9 @@ if ($success_param && isset($toast_map[$success_param])) {
 } elseif ($error_param) {
     if (isset($error_map[$error_param])) {
         [$icon, $title, $msg] = $error_map[$error_param];
-        $toast = ['type'=>'error', 'icon'=>$icon, 'title'=>$title, 'msg'=>$msg, 'color'=>'#ef4444', 'bg'=>'#fef2f2'];
+        $toast = ['type'=>'error', 'icon'=>$icon, 'title'=>$title, 'msg'=>$msg, 'color'=>'#ef4444', 'bg'=>'rgba(239, 68, 68, 0.1)'];
     } else {
-        $toast = ['type'=>'error', 'icon'=>'⚠️', 'title'=>'Something went wrong', 'msg'=>'An unexpected error occurred. Please try again.', 'color'=>'#ef4444', 'bg'=>'#fef2f2'];
+        $toast = ['type'=>'error', 'icon'=>'⚠️', 'title'=>'Something went wrong', 'msg'=>'An unexpected error occurred. Please try again.', 'color'=>'#ef4444', 'bg'=>'rgba(239, 68, 68, 0.1)'];
     }
 }
 

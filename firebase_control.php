@@ -1,6 +1,13 @@
 <?php
 
 require_once 'dbconnect.php';
+requireLogin(['System Admin', 'Maintenance Operator']);
+
+if (!canDo('manage_firebase')) {
+    http_response_code(403);
+    die('Access denied');
+}
+
 require_once 'firebase_config.php';
 
 function updateFirebase($endpoint, $data) {

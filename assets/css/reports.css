@@ -13,33 +13,24 @@ body {
 }
 
 :root {
-    --bg: #f0f4f8;
-    --surface: #ffffff;
-    --surface-2: #f7f9fc;
-    --border: #e4e9f0;
-    --border-light: #edf1f7;
-    --text-primary: #1a2035;
-    --text-secondary: #6b7a99;
-    --text-muted: #a0aec0;
-    --blue: #3b82f6;
-    --blue-dim: #eff6ff;
-    --blue-border: #bfdbfe;
-    --green: #22c55e;
-    --green-dim: #f0fdf4;
-    --green-border: #bbf7d0;
-    --red: #ef4444;
-    --red-dim: #fef2f2;
-    --red-border: #fecaca;
-    --purple: #8b5cf6;
-    --purple-dim: #f5f3ff;
-    --purple-border: #ddd6fe;
-    --amber: #f59e0b;
-    --amber-dim: #fffbeb;
-    --amber-border: #fde68a;
-    --radius: 16px;
-    --radius-sm: 10px;
-    --shadow: 0 1px 3px rgba(0, 0, 0, .07), 0 1px 2px rgba(0, 0, 0, .05);
-    --shadow-md: 0 4px 16px rgba(0, 0, 0, .08), 0 1px 4px rgba(0, 0, 0, .04);
+    --theme-color: #10b981;
+    --surface: var(--panel);
+    --surface-2: var(--muted);
+    --border: var(--border);
+    --text-primary: var(--text);
+    --text-secondary: var(--dim);
+    --text-muted: var(--dim);
+}
+
+.dark-mode {
+    --green-dim: rgba(16, 185, 129, 0.1);
+    --green-border: rgba(16, 185, 129, 0.2);
+    --red-dim: rgba(239, 68, 68, 0.1);
+    --red-border: rgba(239, 68, 68, 0.2);
+    --blue-dim: rgba(59, 130, 246, 0.1);
+    --blue-border: rgba(59, 130, 246, 0.2);
+    --purple-dim: rgba(139, 92, 246, 0.1);
+    --purple-border: rgba(139, 92, 246, 0.2);
 }
 
 body {
@@ -261,6 +252,22 @@ body {
     color: #5b21b6;
 }
 
+.dark-mode .stat-card.green .stat-card-label {
+    color: #34d399;
+}
+
+.dark-mode .stat-card.red .stat-card-label {
+    color: #f87171;
+}
+
+.dark-mode .stat-card.blue .stat-card-label {
+    color: #60a5fa;
+}
+
+.dark-mode .stat-card.purple .stat-card-label {
+    color: #a78bfa;
+}
+
 .stat-card-value {
     font-size: 2rem;
     font-weight: 800;
@@ -282,6 +289,14 @@ body {
 
 .stat-card.purple .stat-card-value {
     color: #7c3aed;
+}
+
+.dark-mode .stat-card.green .stat-card-value,
+.dark-mode .stat-card.red .stat-card-value,
+.dark-mode .stat-card.blue .stat-card-value,
+.dark-mode .stat-card.purple .stat-card-value,
+.dark-mode .stat-card-sub {
+    color: #ffffff;
 }
 
 .stat-card-sub {
@@ -340,7 +355,7 @@ tbody tr:last-child {
 }
 
 tbody tr:hover {
-    background: #f8fafc;
+    background: var(--muted);
 }
 
 tbody td {

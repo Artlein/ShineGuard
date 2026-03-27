@@ -1,7 +1,7 @@
--- Update cameras table with NVR configuration fields
+-- Update cameras table with connectivity configuration fields
 ALTER TABLE cameras 
-ADD COLUMN IF NOT EXISTS nvr_ip VARCHAR(50),
-ADD COLUMN IF NOT EXISTS nvr_port INT DEFAULT 554,
+ADD COLUMN IF NOT EXISTS camera_ip VARCHAR(50),
+ADD COLUMN IF NOT EXISTS camera_port INT DEFAULT 554,
 ADD COLUMN IF NOT EXISTS channel INT DEFAULT 1,
 ADD COLUMN IF NOT EXISTS username VARCHAR(50) DEFAULT 'admin',
 ADD COLUMN IF NOT EXISTS password VARCHAR(100),
@@ -24,16 +24,16 @@ CREATE TABLE IF NOT EXISTS camera_snapshots (
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Update existing camera records with sample NVR config
+-- Update existing camera records with sample connectivity config
 UPDATE cameras SET 
-    nvr_ip = '192.168.1.64',
-    nvr_port = 554,
+    camera_ip = '192.168.1.64',
+    camera_port = 554,
     channel = camera_id,
     username = 'admin',
     password = 'admin123',
     stream_type = 'main',
     protocol = 'rtsp'
-WHERE nvr_ip IS NULL;
+WHERE camera_ip IS NULL;
 
 -- Insert sample snapshot records
 INSERT INTO camera_snapshots (camera_id, filename, filepath, created_at) VALUES

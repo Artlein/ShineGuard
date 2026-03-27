@@ -2,11 +2,12 @@
 require_once 'dbconnect.php';
 requireLogin();
 
-// Block PDF export for System Observer
 if (isset($_GET['export']) && $_GET['export'] === 'pdf' && !canDo('export_reports')) {
-    header('Location: reports.php?error=unauthorized');
+    include __DIR__ . '/includes/access_denied_ui.php';
     exit();
 }
+
+$isObserver = (getUserRole() === 'System Observer');
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'verify_password') {
@@ -403,6 +404,19 @@ html, body {
   --shadow-md:      0 8px 30px var(--shadow);
 }
 
+.dark-mode {
+  --green-dim:      rgba(34, 197, 94, 0.1);
+  --green-border:   rgba(34, 197, 94, 0.2);
+  --red-dim:        rgba(239, 68, 68, 0.1);
+  --red-border:     rgba(239, 68, 68, 0.2);
+  --blue-dim:       rgba(59, 130, 246, 0.1);
+  --blue-border:    rgba(59, 130, 246, 0.2);
+  --purple-dim:     rgba(139, 92, 246, 0.1);
+  --purple-border:  rgba(139, 92, 246, 0.2);
+  --amber-dim:      rgba(245, 158, 11, 0.1);
+  --amber-border:   rgba(245, 158, 11, 0.2);
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
@@ -571,6 +585,11 @@ body {
 .stat-card.blue   { background: linear-gradient(135deg, var(--blue-dim), #bfdbfe); border: 1px solid var(--blue-border); }
 .stat-card.purple { background: linear-gradient(135deg, var(--purple-dim), #ddd6fe); border: 1px solid var(--purple-border); }
 
+.dark-mode .stat-card.green  { background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05)); }
+.dark-mode .stat-card.red    { background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05)); }
+.dark-mode .stat-card.blue   { background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05)); }
+.dark-mode .stat-card.purple { background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(139,92,246,0.05)); }
+
 .stat-card-label {
   font-size: 0.68rem;
   font-weight: 700;
@@ -584,6 +603,11 @@ body {
 .stat-card.blue   .stat-card-label { color: #1e40af; }
 .stat-card.purple .stat-card-label { color: #5b21b6; }
 
+.dark-mode .stat-card.green  .stat-card-label { color: #34d399; }
+.dark-mode .stat-card.red    .stat-card-label { color: #f87171; }
+.dark-mode .stat-card.blue   .stat-card-label { color: #60a5fa; }
+.dark-mode .stat-card.purple .stat-card-label { color: #a78bfa; }
+
 .stat-card-value {
   font-size: 2rem;
   font-weight: 800;
@@ -595,6 +619,14 @@ body {
 .stat-card.red    .stat-card-value { color: #dc2626; }
 .stat-card.blue   .stat-card-value { color: #2563eb; }
 .stat-card.purple .stat-card-value { color: #7c3aed; }
+
+.dark-mode .stat-card.green  .stat-card-value,
+.dark-mode .stat-card.red    .stat-card-value,
+.dark-mode .stat-card.blue   .stat-card-value,
+.dark-mode .stat-card.purple .stat-card-value,
+.dark-mode .stat-card-sub {
+    color: #ffffff;
+}
 
 .stat-card-sub {
   font-size: 0.72rem;
@@ -848,10 +880,17 @@ tbody td {
       You are about to download a comprehensive system audit report in PDF format. Please confirm your administrator password to proceed.
     </p>
 
-    <div style="margin-bottom: 24px; text-align: left;">
-        <label for="exportAdminPassword" style="display:block; font-size:0.875rem; font-weight:600; color:#0f172a; margin-bottom:8px;">🔐 Administrator Password <span style="color:#ef4444;">*</span></label>
-        <input type="password" id="exportAdminPassword" placeholder="Enter password to confirm export" style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid #cbd5e1; font-family:'Inter',sans-serif; font-size:0.875rem; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
-        <div id="exportPasswordError" style="color:#ef4444; font-size:0.75rem; margin-top:6px; display:none;">Password is required</div>
+    <div id="exportViewOnlyMessage" style="display:none; text-align:center; padding:10px; border-radius:12px; border:1.5px dashed #cbd5e1; background:#f8fafc; margin-bottom:24px;">
+        <p style="font-size:0.875rem; color:#64748b; font-weight:600; margin-bottom:0;">🔒 View Only Access Restricted</p>
+        <p style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">Report export is restricted to Administrators only.</p>
+    </div>
+
+    <div id="exportPasswordSection">
+        <div style="margin-bottom: 24px; text-align: left;">
+            <label for="exportAdminPassword" style="display:block; font-size:0.875rem; font-weight:600; color:#0f172a; margin-bottom:8px;">🔐 Administrator Password <span style="color:#ef4444;">*</span></label>
+            <input type="password" id="exportAdminPassword" placeholder="Enter password to confirm export" style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid #cbd5e1; font-family:'Inter',sans-serif; font-size:0.875rem; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
+            <div id="exportPasswordError" style="color:#ef4444; font-size:0.75rem; margin-top:6px; display:none;">Password is required</div>
+        </div>
     </div>
 
     <div style="display:flex; gap:12px; justify-content:flex-end;">
@@ -875,10 +914,17 @@ tbody td {
       This will process and display a detailed visual report containing all system metrics, sensor data, and alerts for the selected period.
     </p>
 
-    <div style="margin-bottom: 24px; text-align: left;">
-        <label for="generateAdminPassword" style="display:block; font-size:0.875rem; font-weight:600; color:#0f172a; margin-bottom:8px;">🔐 Administrator Password <span style="color:#ef4444;">*</span></label>
-        <input type="password" id="generateAdminPassword" placeholder="Enter password to confirm generation" style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid #cbd5e1; font-family:'Inter',sans-serif; font-size:0.875rem; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
-        <div id="generatePasswordError" style="color:#ef4444; font-size:0.75rem; margin-top:6px; display:none;">Password is required</div>
+    <div id="generateViewOnlyMessage" style="display:none; text-align:center; padding:10px; border-radius:12px; border:1.5px dashed #cbd5e1; background:#f8fafc; margin-bottom:24px;">
+        <p style="font-size:0.875rem; color:#64748b; font-weight:600; margin-bottom:0;">🔒 View Only Access Restricted</p>
+        <p style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">Report generation is restricted to Administrators only.</p>
+    </div>
+
+    <div id="generatePasswordSection">
+        <div style="margin-bottom: 24px; text-align: left;">
+            <label for="generateAdminPassword" style="display:block; font-size:0.875rem; font-weight:600; color:#0f172a; margin-bottom:8px;">🔐 Administrator Password <span style="color:#ef4444;">*</span></label>
+            <input type="password" id="generateAdminPassword" placeholder="Enter password to confirm generation" style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid #cbd5e1; font-family:'Inter',sans-serif; font-size:0.875rem; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
+            <div id="generatePasswordError" style="color:#ef4444; font-size:0.75rem; margin-top:6px; display:none;">Password is required</div>
+        </div>
     </div>
 
     <div style="display:flex; gap:12px; justify-content:flex-end;">
@@ -889,6 +935,8 @@ tbody td {
 </div>
 
 <script>
+const isObserver = <?php echo $isObserver ? 'true' : 'false'; ?>;
+
 function openGenerateModal() {
     const start = document.getElementById('start_date').value;
     const end = document.getElementById('end_date').value;
@@ -902,6 +950,16 @@ function openGenerateModal() {
     
     const modal = document.getElementById('generateModal');
     modal.style.display = 'flex';
+
+    if (isObserver) {
+        document.getElementById('generatePasswordSection').style.display = 'none';
+        document.getElementById('generateViewOnlyMessage').style.display = 'block';
+        document.getElementById('generateConfirmBtn').style.display = 'none';
+    } else {
+        document.getElementById('generatePasswordSection').style.display = 'block';
+        document.getElementById('generateViewOnlyMessage').style.display = 'none';
+        document.getElementById('generateConfirmBtn').style.display = 'inline-flex';
+    }
 
     const content = modal.querySelector('.modal-spring');
     if (content) {
@@ -982,6 +1040,16 @@ function openExportModal() {
     
     const modal = document.getElementById('exportModal');
     modal.style.display = 'flex';
+
+    if (isObserver) {
+        document.getElementById('exportPasswordSection').style.display = 'none';
+        document.getElementById('exportViewOnlyMessage').style.display = 'block';
+        document.getElementById('exportConfirmBtn').style.display = 'none';
+    } else {
+        document.getElementById('exportPasswordSection').style.display = 'block';
+        document.getElementById('exportViewOnlyMessage').style.display = 'none';
+        document.getElementById('exportConfirmBtn').style.display = 'inline-flex';
+    }
 
     const content = modal.querySelector('.modal-spring');
     if (content) {

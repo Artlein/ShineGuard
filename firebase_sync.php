@@ -1,6 +1,14 @@
 <?php
 
 require_once 'dbconnect.php';
+
+if (php_sapi_name() !== 'cli') {
+    requireLogin(['System Admin', 'Maintenance Operator']);
+    if (!canDo('manage_firebase')) {
+        die('Access denied');
+    }
+}
+
 require_once 'firebase_config.php';
 
 

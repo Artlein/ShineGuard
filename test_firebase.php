@@ -1,5 +1,8 @@
 <?php
 require_once 'dbconnect.php';
+requireLogin('System Admin');
+
+// Access is handled by requireLogin at the top.
 ?>
 <!DOCTYPE html>
 <html>

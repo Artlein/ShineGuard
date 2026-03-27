@@ -37,6 +37,31 @@
     </script>
     <?php endif; ?>
 
+    <?php if(isset($_GET['success']) && $_GET['success'] === 'password_reset'): ?>
+    <div id="resetToast" style="
+        position: fixed; top: 24px; right: 24px; z-index: 99999;
+        background: white; border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
+        padding: 18px 24px; display: flex; align-items: center; gap: 16px;
+        max-width: 380px; border-left: 4px solid #10b981;
+        animation: slideInRight 0.4s cubic-bezier(0.34,1.56,0.64,1);
+        font-family: 'Inter', sans-serif;
+    ">
+        <div style="background: #ecfdf5; width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">🗝️</div>
+        <div style="flex: 1;">
+            <div style="font-weight: 800; color: #0f172a; font-size: 0.9rem; margin-bottom: 2px;">Password updated</div>
+            <div style="color: #64748b; font-size: 0.8rem;">You can now sign in with your new password.</div>
+        </div>
+        <button onclick="document.getElementById('resetToast').style.display='none'" style="background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 18px; line-height: 1; padding: 0; flex-shrink: 0;">✕</button>
+    </div>
+    <script>
+        setTimeout(() => {
+            const t = document.getElementById('resetToast');
+            if (t) { t.style.transition = 'opacity 0.4s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }
+        }, 6000);
+    </script>
+    <?php endif; ?>
+
     <div class="login-container">
         <div class="login-left">
             <div class="logo-wrapper">
@@ -102,7 +127,7 @@
                         <input type="checkbox" name="remember" id="remember">
                         <span>Remember me</span>
                     </label>
-                    <a href="#" class="forgot-password">Forgot password?</a>
+                    <a href="forgot_password.php" class="forgot-password">Forgot password?</a>
                 </div>
                 
                 <button type="submit" class="login-button">
