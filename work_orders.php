@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_work_order']))
 
     $conn->query("UPDATE alerts SET status = 'Acknowledged', acknowledged_at = NOW(), acknowledged_by = {$_SESSION['user_id']} 
                   WHERE alert_id = $alert_id");
-    
+
     logActivity($conn, $_SESSION['user_id'], 'Work Order Created', "Work order created for alert #$alert_id");
     header('Location: work_orders.php?success=created');
     exit();
@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     $status = $_POST['status'];
     $parts = isset($_POST['parts_replaced']) ? $conn->real_escape_string($_POST['parts_replaced']) : null;
     $completion_time = isset($_POST['completion_time']) ? intval($_POST['completion_time']) : null;
-    
+
     $stmt = $conn->prepare("UPDATE maintenance_logs SET status = ?, parts_replaced = ?, completion_time = ? 
                            WHERE log_id = ?");
     $stmt->bind_param("ssii", $status, $parts, $completion_time, $log_id);
@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
         $conn->query("UPDATE streetlights SET status = 'Active' 
                       WHERE light_id = (SELECT light_id FROM maintenance_logs WHERE log_id = $log_id)");
     }
-    
+
     logActivity($conn, $_SESSION['user_id'], 'Work Order Updated', "Work order #$log_id status changed to $status");
     header('Location: work_orders.php?success=updated');
     exit();
@@ -193,21 +193,26 @@ if (!isset($theme_color)) {
                     <button onclick="showWorkOrderForm(<?php echo $alert['alert_id']; ?>, <?php echo $alert['light_id']; ?>, '<?php echo addslashes($alert['description']); ?>', '<?php echo $alert['node_name']; ?>')" class="btn primary" style="white-space: nowrap;">
                         Create Work Order
                     </button>
-                    <?php else: ?>
+                    <?php
+        else: ?>
                     <span style="font-size:0.8rem;color:#94a3b8;font-weight:600;">View only</span>
-                    <?php endif; ?>
+                    <?php
+        endif; ?>
                 </td>
             </tr>
-            <?php endwhile; ?>
+            <?php
+    endwhile; ?>
         </tbody>
     </table>
     </div>
-    <?php else: ?>
+    <?php
+else: ?>
     <div style="text-align: center; padding: 60px 20px; background: rgba(16,185,129,0.1); border-radius: 8px;">
         <div style="font-size: 48px; margin-bottom: 16px;">✓</div>
         <p style="color: #10b981; font-size: 18px; font-weight: 600; margin: 0;">No pending alerts! All critical issues have work orders.</p>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 </div>
 
 <div class="panel" style="border-top: 5px solid #3b82f6;">
@@ -241,20 +246,24 @@ if (!isset($theme_color)) {
                 <td style="white-space: nowrap;">
                     <?php if (canDo('update_work_orders')): ?>
                     <button onclick="showUpdateForm(<?php echo $order['log_id']; ?>)" class="btn-sm update">Update</button>
-                    <?php endif; ?>
+                    <?php
+        endif; ?>
                     <button onclick="viewDetails(<?php echo $order['log_id']; ?>, '<?php echo addslashes($order['action_taken']); ?>', '<?php echo addslashes($order['notes'] ?? ''); ?>', '<?php echo addslashes($order['node_name']); ?>', '<?php echo addslashes($order['location']); ?>', <?php echo floatval($order['latitude']); ?>, <?php echo floatval($order['longitude']); ?>)" class="btn-sm info">Details</button>
                 </td>
             </tr>
-            <?php endwhile; ?>
+            <?php
+    endwhile; ?>
         </tbody>
     </table>
     </div>
-    <?php else: ?>
+    <?php
+else: ?>
     <div style="text-align: center; padding: 60px 20px; background: #f9fafb; border-radius: 8px;">
         <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
         <p style="color: #64748b; font-size: 16px; margin: 0;">No active work orders at this time.</p>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 </div>
 
 <div class="panel" style="border-top: 5px solid #10b981;">
@@ -285,16 +294,19 @@ if (!isset($theme_color)) {
                 <td><?php echo $order['completion_time'] ?? 'N/A'; ?></td>
                 <td><?php echo $order['parts_replaced'] ?? 'None'; ?></td>
             </tr>
-            <?php endwhile; ?>
+            <?php
+    endwhile; ?>
         </tbody>
     </table>
     </div>
-    <?php else: ?>
+    <?php
+else: ?>
     <div style="text-align: center; padding: 60px 20px; background: #f9fafb; border-radius: 8px;">
         <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
         <p style="color: #64748b; font-size: 16px; margin: 0;">No completed work orders in the last 30 days.</p>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 </div>
 
 </main>
@@ -317,7 +329,7 @@ if (!isset($theme_color)) {
             </div>
             
             <div class="form-group">
-                <label style="color: var(--text);">Action to be Taken*</label>
+                <label style="color: var(--text);">Action to be Taken</label>
                 <textarea id="action_taken" name="action_taken" required rows="4" placeholder="Describe the maintenance action to be performed..." style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; background: var(--input-bg); color: var(--text); resize: vertical;"></textarea>
             </div>
             
@@ -327,7 +339,7 @@ if (!isset($theme_color)) {
             </div>
             
             <div class="form-group">
-                <label style="color: var(--text);">Scheduled Date & Time*</label>
+                <label style="color: var(--text);">Scheduled Date & Time</label>
                 <input type="datetime-local" name="scheduled_date" required value="<?php echo date('Y-m-d\TH:i'); ?>" style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--input-bg); color: var(--text);">
             </div>
             
