@@ -1234,8 +1234,23 @@ document.getElementById('settingsModal').addEventListener('click', function(e) {
     }
 });
 
-console.log('Settings modal element:', document.getElementById('settingsModal'));
-console.log('Settings form element:', document.getElementById('settingsForm'));
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const camId = urlParams.get('id');
+    if (camId) {
+        const el = document.getElementById('camera-card-' + camId);
+        if (el) {
+            setTimeout(() => {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.style.borderColor = 'var(--accent)';
+                el.style.boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.2)';
+                setTimeout(() => {
+                    el.style.boxShadow = '';
+                }, 3000);
+            }, 500);
+        }
+    }
+});
 </script>
 
 <?php include 'assets/app_alert.php'; ?>

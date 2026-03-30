@@ -63,7 +63,7 @@ function canDo(string $action): bool {
         
         'view_reports'         => ['System Admin', 'Maintenance Operator', 'System Observer'],
         
-        'export_reports'       => ['System Admin', 'Maintenance Operator'],
+        'export_reports'       => ['System Admin'],
         
         'manage_schedules'     => ['System Admin'],
         
@@ -75,21 +75,21 @@ function canDo(string $action): bool {
         
         'manage_users'         => ['System Admin'],
         
-        'create_work_orders'   => ['System Admin', 'Maintenance Operator'],
+        'create_work_orders'   => ['System Admin'],
         
-        'update_work_orders'   => ['System Admin', 'Maintenance Operator'],
+        'update_work_orders'   => ['System Admin'],
         
-        'acknowledge_alerts'   => ['System Admin', 'Maintenance Operator'],
+        'acknowledge_alerts'   => ['System Admin'],
         
         'view_settings'        => ['System Admin'],
         
-        'manage_firebase'      => ['System Admin', 'Maintenance Operator'],
+        'manage_firebase'      => ['System Admin'],
         
-        'view_activity_logs'   => ['System Admin', 'Maintenance Operator'],
+        'view_activity_logs'   => ['System Admin'],
         
-        'control_streetlights' => ['System Admin', 'Maintenance Operator'],
+        'control_streetlights' => ['System Admin'],
         
-        'take_snapshots'       => ['System Admin', 'Maintenance Operator'],
+        'take_snapshots'       => ['System Admin'],
     ];
     return in_array(getUserRole(), $map[$action] ?? [], true);
 }

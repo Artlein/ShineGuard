@@ -9,13 +9,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_work_order']))
     }
     $alert_id = intval($_POST['alert_id']);
     $light_id = intval($_POST['light_id']);
+    $technician_id = intval($_POST['technician_id']);
     $action_taken = $conn->real_escape_string($_POST['action_taken']);
     $notes = $conn->real_escape_string($_POST['notes']);
     $scheduled_date = $_POST['scheduled_date'];
 
     $stmt = $conn->prepare("INSERT INTO maintenance_logs (light_id, alert_id, user_id, action_taken, notes, maintenance_date, status) 
                            VALUES (?, ?, ?, ?, ?, ?, 'Scheduled')");
-    $stmt->bind_param("iiisss", $light_id, $alert_id, $_SESSION['user_id'], $action_taken, $notes, $scheduled_date);
+    $stmt->bind_param("iiisss", $light_id, $alert_id, $technician_id, $action_taken, $notes, $scheduled_date);
     $stmt->execute();
 
     $conn->query("UPDATE alerts SET status = 'Acknowledged', acknowledged_at = NOW(), acknowledged_by = {$_SESSION['user_id']} 
@@ -61,12 +62,15 @@ $pending_alerts_query = "SELECT a.*, s.node_name, s.location, s.status as light_
                          ORDER BY a.severity DESC, a.created_at ASC";
 $pending_alerts = $conn->query($pending_alerts_query);
 
+$filter_tech_id = isset($_GET['tech_id']) ? intval($_GET['tech_id']) : 0;
+$tech_filter_sql = $filter_tech_id > 0 ? " AND ml.user_id = $filter_tech_id" : "";
+
 $active_work_orders = "SELECT ml.*, s.node_name, s.location, s.latitude, s.longitude, u.full_name as technician_name, a.description as alert_description 
                        FROM maintenance_logs ml 
                        INNER JOIN streetlights s ON ml.light_id = s.light_id 
                        INNER JOIN users u ON ml.user_id = u.user_id 
                        LEFT JOIN alerts a ON ml.alert_id = a.alert_id 
-                       WHERE ml.status IN ('Scheduled', 'In Progress') 
+                       WHERE ml.status IN ('Scheduled', 'In Progress') $tech_filter_sql
                        ORDER BY ml.maintenance_date ASC";
 $active_orders = $conn->query($active_work_orders);
 
@@ -74,7 +78,7 @@ $completed_orders = "SELECT ml.*, s.node_name, s.location, s.latitude, s.longitu
                      FROM maintenance_logs ml 
                      INNER JOIN streetlights s ON ml.light_id = s.light_id 
                      INNER JOIN users u ON ml.user_id = u.user_id 
-                     WHERE ml.status = 'Completed' AND ml.maintenance_date >= DATE_SUB(NOW(), INTERVAL 30 DAY) 
+                     WHERE ml.status = 'Completed' AND ml.maintenance_date >= DATE_SUB(NOW(), INTERVAL 30 DAY) $tech_filter_sql
                      ORDER BY ml.maintenance_date DESC";
 $completed = $conn->query($completed_orders);
 
@@ -83,6 +87,8 @@ $stats = $conn->query("SELECT
     (SELECT COUNT(*) FROM maintenance_logs WHERE status = 'In Progress') as in_progress,
     (SELECT COUNT(*) FROM maintenance_logs WHERE status = 'Completed' AND maintenance_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as completed_week,
     (SELECT COUNT(*) FROM alerts WHERE status = 'Open' AND severity = 'High') as critical_alerts")->fetch_assoc();
+
+$technicians = $conn->query("SELECT user_id, full_name, role FROM users WHERE role IN ('System Admin', 'Maintenance Operator') ORDER BY full_name ASC");
 ?>
 <!DOCTYPE html>
 <html>
@@ -216,7 +222,26 @@ endif; ?>
 </div>
 
 <div class="panel" style="border-top: 5px solid #3b82f6;">
-    <h2>🔧 Active Work Orders</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+        <h2 style="margin: 0;">🔧 Active Work Orders</h2>
+        
+        <div style="display: flex; align-items: center; gap: 10px; background: var(--muted); padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border);">
+            <label style="font-size: 0.85rem; font-weight: 700; color: var(--dim);">Technician:</label>
+            <select onchange="location.href='work_orders.php?tech_id=' + this.value" style="background: transparent; border: none; font-size: 0.85rem; font-weight: 600; color: var(--text); outline: none; cursor: pointer;">
+                <option value="0">All Personnel</option>
+                <?php 
+                $technicians->data_seek(0);
+                while($tech = $technicians->fetch_assoc()): ?>
+                    <option value="<?php echo $tech['user_id']; ?>" <?php echo ($filter_tech_id == $tech['user_id']) ? 'selected' : ''; ?>>
+                        <?php echo htmlspecialchars($tech['full_name']); ?>
+                    </option>
+                <?php endwhile; ?>
+            </select>
+            <?php if ($filter_tech_id > 0): ?>
+                <a href="work_orders.php" style="color: #ef4444; font-size: 0.85rem; font-weight: 700; text-decoration: none;">✕ Clear</a>
+            <?php endif; ?>
+        </div>
+    </div>
     
     <?php if ($active_orders->num_rows > 0): ?>
     <div style="overflow-x: auto;">
@@ -246,8 +271,9 @@ endif; ?>
                 <td style="white-space: nowrap;">
                     <?php if (canDo('update_work_orders')): ?>
                     <button onclick="showUpdateForm(<?php echo $order['log_id']; ?>)" class="btn-sm update">Update</button>
-                    <?php
-        endif; ?>
+                    <?php else: ?>
+                    <span style="font-size:0.75rem; color:#64748b;">— View only</span>
+                    <?php endif; ?>
                     <button onclick="viewDetails(<?php echo $order['log_id']; ?>, '<?php echo addslashes($order['action_taken']); ?>', '<?php echo addslashes($order['notes'] ?? ''); ?>', '<?php echo addslashes($order['node_name']); ?>', '<?php echo addslashes($order['location']); ?>', <?php echo floatval($order['latitude']); ?>, <?php echo floatval($order['longitude']); ?>)" class="btn-sm info">Details</button>
                 </td>
             </tr>
@@ -328,6 +354,20 @@ endif; ?>
                 </div>
             </div>
             
+            <div class="form-group">
+                <label style="color: var(--text);">Assign Technician (System Operator) <span style="color: #ef4444;">*</span></label>
+                <select name="technician_id" required style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--input-bg); color: var(--text); font-family: inherit;">
+                    <option value="">-- Select Technician --</option>
+                    <?php 
+                    $technicians->data_seek(0);
+                    while($tech = $technicians->fetch_assoc()): ?>
+                        <option value="<?php echo $tech['user_id']; ?>" <?php echo ($tech['user_id'] == $_SESSION['user_id']) ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($tech['full_name']); ?> (<?php echo $tech['role']; ?>)
+                        </option>
+                    <?php endwhile; ?>
+                </select>
+            </div>
+
             <div class="form-group">
                 <label style="color: var(--text);">Action to be Taken</label>
                 <textarea id="action_taken" name="action_taken" required rows="4" placeholder="Describe the maintenance action to be performed..." style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; background: var(--input-bg); color: var(--text); resize: vertical;"></textarea>

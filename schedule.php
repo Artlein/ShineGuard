@@ -111,6 +111,7 @@ if (!isset($theme_color)) {
 ?>
 <style>:root { --theme-color: <?php echo htmlspecialchars($theme_color); ?>; }</style>
 <link rel="stylesheet" href="assets/css/schedule.css?v=<?php echo time(); ?>">
+<link rel="stylesheet" href="assets/css/schedule_calendar.css?v=<?php echo time(); ?>">
 </head>
 <body>
 <div class="layout">
@@ -119,52 +120,49 @@ if (!isset($theme_color)) {
 <main class="main-content">
 
   <div class="page-header">
-    <br>
-    <h1>⏰ Schedule Presets</h1>
-    <p>Automate streetlight ON/OFF times</p>
+    <h1 style="margin: 0;">⏰ Schedule Presets</h1>
+    <p style="margin: 0; color: var(--dim);">Automate streetlight ON/OFF times</p>
   </div>
 
-  <div class="panel panel-create">
-    <h2>➕ Create New Schedule</h2>
-    <form id="createScheduleForm" method="POST" onsubmit="event.preventDefault(); openCreateModal();">
 
-      <div class="form-grid-2">
-        <div class="form-group">
-          <label>Preset Name</label>
-          <input type="text" name="preset_name" required placeholder="e.g., Night Mode">
+  <div class="calendar-panel">
+    <div class="calendar-header">
+        <h2 style="margin:0;">🗓️ Weekly Schedule Visualizer</h2>
+        <div style="display:flex; gap:12px; align-items:center; font-size:0.85rem; color:var(--dim);">
+            <div style="display:flex; align-items:center; gap:6px;"><span style="width:12px; height:12px; background:#10b981; border-radius:3px;"></span> Active</div>
+            <div style="display:flex; align-items:center; gap:6px;"><span style="width:12px; height:12px; background:#94a3b8; border-radius:3px;"></span> Inactive</div>
         </div>
-        <div class="form-group">
-          <label>Dimming Level (%)</label>
-          <input type="number" name="dimming_level" value="70" min="0" max="100" required>
-        </div>
-        <div class="form-group">
-          <label>Turn ON Time</label>
-          <input type="time" name="time_on" value="18:00" required>
-        </div>
-        <div class="form-group">
-          <label>Turn OFF Time</label>
-          <input type="time" name="time_off" value="06:00" required>
-        </div>
-      </div>
-
-      <div class="form-days-label">Days of Week</div>
-      <div class="days-grid">
+    </div>
+    
+    <div class="calendar-grid">
+        <div class="calendar-time-col" style="background:var(--muted); border-bottom:1.5px solid var(--border);">Time</div>
         <?php foreach(['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] as $day): ?>
-        <label class="day-chip">
-          <input type="checkbox" name="days[]" value="<?php echo $day; ?>" checked>
-          <?php echo $day; ?>
-        </label>
+            <div class="calendar-day-header"><?php echo $day; ?></div>
         <?php endforeach; ?>
-      </div>
-
-      <button type="submit" class="btn-primary" style="background: #10b981; color: white; border: none; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4); transition: all 0.2s;" onmouseover="this.style.background='#059669'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 8px -1px rgba(16, 185, 129, 0.5)';" onmouseout="this.style.background='#10b981'; this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(16, 185, 129, 0.4)';">💾 Create Schedule</button>
-      
-      <input type="hidden" name="create_schedule" value="1">
-    </form>
+        
+        <div id="calendarContent" class="calendar-content" style="grid-column: span 8; position: relative;">
+            <?php for ($h = 0; $h < 24; $h++): ?>
+                <div class="time-row">
+                    <div class="calendar-time-col">
+                        <?php echo $h === 0 ? '12 AM' : ($h === 12 ? '12 PM' : ($h > 12 ? ($h-12) . ' PM' : $h . ' AM')); ?>
+                    </div>
+                    <?php for ($d = 0; $d < 7; $d++): ?>
+                        <div class="calendar-cell"></div>
+                    <?php endfor; ?>
+                </div>
+            <?php endfor; ?>
+            <!-- Blocks will be rendered here by JS -->
+        </div>
+    </div>
   </div>
 
   <div class="panel panel-list">
-    <h2>📋 Existing Schedules</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin:0;">📋 Existing Schedules</h2>
+        <button type="button" onclick="openCreateFormModal()" class="btn-primary" style="background: #10b981; color: white; border: none; border-radius: 10px; padding: 8px 16px; font-size: 0.85rem; font-weight: 700; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;">
+            <span>➕</span> Create New Schedule
+        </button>
+    </div>
     <div class="table-wrapper">
       <table>
         <thead>
@@ -290,6 +288,53 @@ if (!isset($theme_color)) {
     </div>
 </div>
 
+<div id="createFormModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9000; align-items:center; justify-content:center; backdrop-filter: blur(4px);">
+  <div class="modal-spring" style="background:var(--panel); border-radius:24px; padding:32px; max-width:600px; width:90%; box-shadow:var(--shadow-md); font-family:'Inter',sans-serif; border: 1px solid var(--border);">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;">
+        <h2 style="margin:0; font-size:1.5rem; display:flex; align-items:center; gap:8px;"><span>➕</span> Create New Schedule</h2>
+        <button onclick="closeCreateFormModal()" style="background:none; border:none; color:var(--dim); font-size:1.5rem; cursor:pointer;">&times;</button>
+    </div>
+    
+    <form id="createScheduleForm" method="POST" onsubmit="event.preventDefault(); openCreateModal();">
+      <div class="form-grid-2">
+        <div class="form-group" style="margin-bottom:15px;">
+          <label style="display:block; font-size:0.875rem; font-weight:600; color:var(--text); margin-bottom:6px;">Preset Name</label>
+          <input type="text" name="preset_name" required placeholder="e.g., Night Mode" style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid var(--border); background:var(--muted); color:var(--text);">
+        </div>
+        <div class="form-group" style="margin-bottom:15px;">
+          <label style="display:block; font-size:0.875rem; font-weight:600; color:var(--text); margin-bottom:6px;">Dimming Level (%)</label>
+          <input type="number" name="dimming_level" value="70" min="0" max="100" required style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid var(--border); background:var(--muted); color:var(--text);">
+        </div>
+        <div class="form-group" style="margin-bottom:15px;">
+          <label style="display:block; font-size:0.875rem; font-weight:600; color:var(--text); margin-bottom:6px;">Turn ON Time</label>
+          <input type="time" name="time_on" value="18:00" required style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid var(--border); background:var(--muted); color:var(--text);">
+        </div>
+        <div class="form-group" style="margin-bottom:15px;">
+          <label style="display:block; font-size:0.875rem; font-weight:600; color:var(--text); margin-bottom:6px;">Turn OFF Time</label>
+          <input type="time" name="time_off" value="06:00" required style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid var(--border); background:var(--muted); color:var(--text);">
+        </div>
+      </div>
+
+      <div class="form-days-label" style="font-weight:600; margin-top:10px; margin-bottom:10px; color:var(--text);">Days of Week</div>
+      <div class="days-grid" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:24px;">
+        <?php foreach(['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] as $day): ?>
+        <label class="day-chip">
+          <input type="checkbox" name="days[]" value="<?php echo $day; ?>" checked>
+          <?php echo $day; ?>
+        </label>
+        <?php endforeach; ?>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:12px;">
+          <button type="button" onclick="closeCreateFormModal()" class="btn-sm" style="padding:10px 20px;">Cancel</button>
+          <button type="submit" class="btn-primary" style="padding:10px 24px; background:#10b981; color:white; border:none; border-radius:10px;">💾 Create Schedule</button>
+      </div>
+      
+      <input type="hidden" name="create_schedule" value="1">
+    </form>
+  </div>
+</div>
+
 <div id="createModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(4px);">
   <div class="modal-spring" style="background:var(--panel); border-radius:24px; padding:32px; max-width:400px; width:90%; box-shadow:var(--shadow-md); font-family:'Inter',sans-serif; border: 1px solid var(--border);">
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
@@ -331,7 +376,6 @@ function openEditModal(schedule) {
     
     let daysHtml = '';
     allDays.forEach(day => {
-        const isChecked = activeDays.includes(day) ? 'checked' : '';
         daysHtml += `
             <label class="day-chip">
                 <input type="checkbox" name="days[]" value="${day}" ${isChecked}>
@@ -341,7 +385,6 @@ function openEditModal(schedule) {
     });
     
     document.getElementById('edit_days_grid').innerHTML = daysHtml;
-
     document.getElementById('editModal').style.display = 'flex';
 }
 
@@ -357,24 +400,84 @@ function validateCheckboxes(formId) {
     return false;
 }
 
-function openCreateModal() {
+let pendingAction = null; // Store data for "Proceed Anyway"
 
-    if (!validateCheckboxes('createScheduleForm')) {
-        return;
-    }
+async function openCreateModal() {
+    if (!validateCheckboxes('createScheduleForm')) return;
 
-    const presetName = document.querySelector('#createScheduleForm input[name="preset_name"]').value;
-    document.getElementById('createModalTitle').textContent = `Preset: ${presetName || 'New Schedule'}`;
+    const form = document.getElementById('createScheduleForm');
+    const presetName = form.querySelector('input[name="preset_name"]').value;
+    const timeOn = form.querySelector('input[name="time_on"]').value;
+    const timeOff = form.querySelector('input[name="time_off"]').value;
+    const daysArr = Array.from(form.querySelectorAll('input[name="days[]"]:checked')).map(cb => cb.value);
     
+    // Check for conflicts
+    const formData = new URLSearchParams();
+    formData.append('time_on', timeOn);
+    formData.append('time_off', timeOff);
+    formData.append('days', daysArr.join(','));
+    
+    try {
+        const response = await fetch('api/check_schedule_conflict.php', {
+            method: 'POST',
+            body: formData,
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+        const data = await response.json();
+        
+        if (data.success && data.has_conflict) {
+            showConflicts(data.conflicts, () => {
+                showCreateConfirmation(presetName);
+            });
+            return;
+        }
+    } catch (err) { console.error("Conflict check failed:", err); }
+
+    showCreateConfirmation(presetName);
+}
+
+function showCreateConfirmation(presetName) {
+    document.getElementById('createModalTitle').textContent = `Preset: ${presetName || 'New Schedule'}`;
     const modal = document.getElementById('createModal');
     modal.style.display = 'flex';
-
     const content = modal.querySelector('.modal-spring');
     if (content) {
         content.classList.remove('modal-spring');
         void content.offsetWidth;
         content.classList.add('modal-spring');
     }
+}
+
+function showConflicts(conflicts, onProceed) {
+    const list = document.getElementById('conflictList');
+    list.innerHTML = conflicts.map(c => `
+        <div style="margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid rgba(0,0,0,0.05); font-size:0.85rem;">
+            <strong style="color:var(--text);">${c.name}</strong><br>
+            <span style="color:var(--dim);">${c.on} - ${c.off}</span><br>
+            <span style="color:#f59e0b; font-weight:600;">Days: ${c.days}</span>
+        </div>
+    `).join('');
+    
+    pendingAction = onProceed;
+    document.getElementById('conflictModal').style.display = 'flex';
+}
+
+function closeConflictModal() {
+    document.getElementById('conflictModal').style.display = 'none';
+    pendingAction = null;
+}
+
+function proceedWithConflict() {
+    if (pendingAction) pendingAction();
+    closeConflictModal();
+}
+
+function openCreateFormModal() {
+    document.getElementById('createFormModal').style.display = 'flex';
+}
+
+function closeCreateFormModal() {
+    document.getElementById('createFormModal').style.display = 'none';
 }
 
 function closeCreateModal() {
@@ -420,6 +523,7 @@ async function confirmCreate() {
         const data = await response.json();
         if (data.success) {
             document.getElementById('createModal').style.display = 'none';
+            document.getElementById('createFormModal').style.display = 'none';
             document.getElementById('createScheduleForm').submit();
         } else {
             pwdError.textContent = 'Incorrect password. Try again.';
@@ -465,10 +569,59 @@ async function confirmEdit() {
     btn.innerHTML = 'Verifying...';
     btn.disabled = true;
     
+    // Check for conflicts before saving edit
+    const form = document.getElementById('editModal').querySelector('form');
+    const scheduleId = document.getElementById('edit_schedule_id').value;
+    const timeOn = document.getElementById('edit_time_on').value;
+    const timeOff = document.getElementById('edit_time_off').value;
+    const daysArr = Array.from(form.querySelectorAll('input[name="days[]"]:checked')).map(cb => cb.value);
+    
+    if (daysArr.length === 0) {
+        showAppAlert("Please select at least one day.", "warning");
+        btn.innerHTML = '💾 Save Changes';
+        btn.disabled = false;
+        return;
+    }
+
+    const conflictData = new URLSearchParams();
+    conflictData.append('time_on', timeOn);
+    conflictData.append('time_off', timeOff);
+    conflictData.append('days', daysArr.join(','));
+    conflictData.append('exclude_id', scheduleId);
+
+    try {
+        const cResponse = await fetch('api/check_schedule_conflict.php', {
+            method: 'POST',
+            body: conflictData,
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+        const cData = await cResponse.json();
+        
+        if (cData.success && cData.has_conflict) {
+            showConflicts(cData.conflicts, () => {
+                executeActualEdit(pwdInput.value);
+            });
+            btn.innerHTML = '💾 Save Changes';
+            btn.disabled = false;
+            return;
+        }
+    } catch (err) { console.error("Edit conflict check fail:", err); }
+
+    executeActualEdit(pwdInput.value);
+}
+
+async function executeActualEdit(password) {
+    const pwdInput = document.getElementById('editAdminPassword');
+    const pwdError = document.getElementById('editPasswordError');
+    const btn = document.getElementById('editConfirmBtn');
+    
+    btn.innerHTML = 'Verifying...';
+    btn.disabled = true;
+
     try {
         const formData = new URLSearchParams();
         formData.append('action', 'verify_password');
-        formData.append('admin_password', pwdInput.value);
+        formData.append('admin_password', password);
         
         const response = await fetch('schedule.php', {
             method: 'POST',
@@ -478,7 +631,6 @@ async function confirmEdit() {
         
         const data = await response.json();
         if (data.success) {
-
             document.getElementById('editModal').querySelector('form').submit();
         } else {
             pwdError.textContent = 'Incorrect password. Try again.';
@@ -489,7 +641,7 @@ async function confirmEdit() {
         }
     } catch(err) {
         console.error(err);
-        pwdError.textContent = 'Error verifying password. Check connection.';
+        pwdError.textContent = 'Error verifying password.';
         pwdError.style.display = 'block';
         btn.disabled = false;
     }
@@ -573,6 +725,7 @@ window.onclick = function(event) {
     const editModal = document.getElementById('editModal');
     const createModal = document.getElementById('createModal');
     const deleteModal = document.getElementById('deleteModal');
+    const createFormModal = document.getElementById('createFormModal');
     
     if (event.target == editModal) {
         closeEditModal();
@@ -580,8 +733,104 @@ window.onclick = function(event) {
         closeCreateModal();
     } else if (event.target == deleteModal) {
         closeDeleteModal();
+    } else if (event.target == createFormModal) {
+        closeCreateFormModal();
     }
 }
+
+// Calendar Rendering
+const allSchedules = <?php 
+    $schedules->data_seek(0);
+    $arr = [];
+    while($row = $schedules->fetch_assoc()) $arr[] = $row;
+    echo json_encode($arr);
+?>;
+
+function renderCalendar() {
+    const container = document.getElementById('calendarContent');
+    
+    const dayMap = { 'Mon': 0, 'Tue': 1, 'Wed': 2, 'Thu': 3, 'Fri': 4, 'Sat': 5, 'Sun': 6 };
+    
+    allSchedules.forEach(s => {
+        const days = s.days_of_week.split(',');
+        const [onH, onM] = s.time_on.split(':').map(Number);
+        const [offH, offM] = s.time_off.split(':').map(Number);
+        
+        const startMin = onH * 60 + onM;
+        const endMin = offH * 60 + offM;
+        
+        const duration = endMin < startMin ? (1440 - startMin + endMin) : (endMin - startMin);
+        
+        days.forEach(dayStr => {
+            const dIdx = dayMap[dayStr];
+            if (dIdx === undefined) return;
+            
+            // If overnight, split the block
+            if (endMin < startMin) {
+                // Today part: start to midnight
+                addBlock(container, dIdx, startMin, 1440 - startMin, s);
+                // Tomorrow part: midnight to end
+                const nextDayIdx = (dIdx + 1) % 7;
+                addBlock(container, nextDayIdx, 0, endMin, s);
+            } else {
+                addBlock(container, dIdx, startMin, duration, s);
+            }
+        });
+    });
+    
+    updateCurrentTimeLine();
+    setTimeout(updateCurrentTimeLine, 60000);
+}
+
+function addBlock(container, dayIdx, startMin, durationMin, schedule) {
+    const block = document.createElement('div');
+    block.className = 'schedule-block';
+    
+    // Calculate position
+    // Total height = 24 rows * 45px = 1080px. 
+    // Each row is 1 hour (45px). 1 min is 45/60 = 0.75px.
+    const top = (startMin * 0.75); 
+    const height = (durationMin * 0.75);
+    
+    // Calculate width & left
+    const colWidth = (container.offsetWidth - 80) / 7;
+    const left = 80 + (dayIdx * colWidth);
+    
+    block.style.top = top + 'px';
+    block.style.height = height + 'px';
+    block.style.left = left + 'px';
+    block.style.width = (colWidth - 4) + 'px';
+    
+    block.style.background = schedule.is_active == 1 ? '#10b981' : '#94a3b8';
+    block.style.opacity = schedule.is_active == 1 ? (0.4 + (schedule.dimming_level / 200)) : 0.4;
+    
+    block.innerHTML = `<div style="font-size: 0.6rem; opacity: 0.8;">${schedule.dimming_level}%</div> ${schedule.preset_name}`;
+    block.title = `${schedule.preset_name}\n${schedule.time_on} - ${schedule.time_off}\nDimming: ${schedule.dimming_level}%`;
+    
+    block.onclick = (e) => {
+        e.stopPropagation();
+        openEditModal(schedule);
+    };
+    
+    container.appendChild(block);
+}
+
+function updateCurrentTimeLine() {
+    let line = document.getElementById('currentTimeLine');
+    if (!line) {
+        line = document.createElement('div');
+        line.id = 'currentTimeLine';
+        line.className = 'current-time-line';
+        document.getElementById('calendarContent').appendChild(line);
+    }
+    
+    const now = new Date();
+    const mins = now.getHours() * 60 + now.getMinutes();
+    line.style.top = (mins * 0.75) + 'px';
+}
+
+document.addEventListener('DOMContentLoaded', renderCalendar);
+window.addEventListener('resize', renderCalendar);
 </script>
 
 </body>

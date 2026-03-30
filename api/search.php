@@ -25,7 +25,7 @@ if ($stmt && $stmt->num_rows > 0) {
             'icon'  => '💡',
             'title' => $row['node_name'],
             'sub'   => $row['location'] . ' · ' . ucfirst($status),
-            'url'   => 'dashboard.php?highlight=' . $row['light_id'],
+            'url'   => 'streetlights.php?id=' . $row['light_id'],
             'badge' => $status === 'active' ? 'online' : 'offline'
         ];
     }
@@ -43,7 +43,7 @@ if ($stmt && $stmt->num_rows > 0) {
             'icon'  => '📹',
             'title' => $row['camera_name'],
             'sub'   => $row['location'] . ' · ' . ucfirst($status),
-            'url'   => 'cctv.php?highlight=' . $row['camera_id'],
+            'url'   => 'cctv.php?id=' . $row['camera_id'],
             'badge' => $status === 'online' ? 'online' : 'offline'
         ];
     }
@@ -61,7 +61,7 @@ if ($stmt && $stmt->num_rows > 0) {
             'icon'  => '🚨',
             'title' => $row['alert_type'],
             'sub'   => mb_strimwidth($row['description'], 0, 40, "...") . ' · ' . ucfirst($row['status']),
-            'url'   => 'dashboard.php?highlight=' . $row['alert_id'],
+            'url'   => 'alerts.php?id=' . $row['alert_id'],
             'badge' => $badge
         ];
     }
@@ -78,7 +78,7 @@ if ($stmt && $stmt->num_rows > 0) {
             'icon'  => '👤',
             'title' => $row['full_name'],
             'sub'   => '@' . $row['username'] . ' · ' . ucfirst($row['role']),
-            'url'   => 'dashboard.php?highlight=' . $row['user_id'],
+            'url'   => 'settings.php?tab=users&id=' . $row['user_id'],
             'badge' => 'user'
         ];
     }

@@ -252,7 +252,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_user'])) {
             exit();
         }
     } catch (mysqli_sql_exception $e) {
-        header('Location: settings.php?tab=users&error=db_error');
+        if ($e->getCode() == 1062) {
+            $msg = $e->getMessage();
+            if (stripos($msg, 'username') !== false) {
+                header('Location: settings.php?tab=users&error=duplicate_username');
+            } elseif (stripos($msg, 'email') !== false) {
+                header('Location: settings.php?tab=users&error=duplicate_email');
+            } else {
+                header('Location: settings.php?tab=users&error=duplicate_entry');
+            }
+        } else {
+            header('Location: settings.php?tab=users&error=db_error');
+        }
         exit();
     }
 }
@@ -1511,17 +1522,39 @@ if (colorInput && colorPreview) {
 
 (function() {
   const params = new URLSearchParams(window.location.search);
-  const addErrors = ['missing_fields','invalid_username','invalid_email','weak_password',
-                     'password_mismatch','invalid_role','invalid_csrf',
-                     'duplicate_username','duplicate_email','duplicate_entry','db_error'];
   
+  const errorMap = {
+    'missing_fields': 'Please fill in all required fields.',
+    'invalid_username': 'Username must be 3–30 chars (letters, numbers, underscores).',
+    'invalid_email': 'Please enter a valid email address.',
+    'weak_password': 'Password must be at least 8 characters long.',
+    'password_mismatch': 'The passwords provided do not match.',
+    'invalid_role': 'The selected role is not valid.',
+    'invalid_csrf': 'Security token mismatch. Please refresh and try again.',
+    'duplicate_username': 'This username is already in use by another account.',
+    'duplicate_email': 'This email address is already registered.',
+    'duplicate_entry': 'A user with this information already exists.',
+    'db_error': 'There was a problem processing your request.',
+    'self_delete': 'Security Error: You cannot delete your own active Admin account.',
+    'invalid_admin_password': 'Authorization Failed: The Admin password you entered was incorrect.',
+    'self_deactivate': 'Security Error: You cannot deactivate your own account.',
+    'self_demote': 'Security Error: You cannot change your own role away from System Admin.'
+  };
+
+  const successMap = {
+    'user_deleted': 'User successfully deleted.',
+    'user_added': 'New user account has been created successfully.',
+    'user_updated': 'User account details have been updated successfully.'
+  };
+
   if (params.get('tab') === 'users') {
-    if (params.get('success') === 'user_deleted') {
-      showToast('User successfully deleted.', 'success');
-    } else if (params.get('error') === 'self_delete') {
-      showToast('Security Error: You cannot delete your own active Admin account.', 'error');
-    } else if (params.get('error') === 'invalid_admin_password') {
-      showToast('Authorization Failed: The Admin password you entered was incorrect. Deletion aborted.', 'error');
+    const error = params.get('error');
+    const success = params.get('success');
+
+    if (error && errorMap[error]) {
+      showToast(errorMap[error], 'error');
+    } else if (success && successMap[success]) {
+      showToast(successMap[success], 'success');
     }
   }
 })();
@@ -1562,6 +1595,30 @@ function showToast(message, type = 'success') {
     setTimeout(() => toast.remove(), 400); // Wait for exit animation
   }, 4000);
 }
+const allUsers = <?php 
+    $users_result->data_seek(0);
+    $users_arr = [];
+    while($u = $users_result->fetch_assoc()) {
+        unset($u['password_hash']); // Security: don't expose hashes to frontend JS
+        $users_arr[] = $u;
+    }
+    echo json_encode($users_arr); 
+?>;
+
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tab = urlParams.get('tab');
+    const userId = urlParams.get('id');
+    
+    if (tab === 'users' && userId) {
+        const user = allUsers.find(u => u.user_id == userId);
+        if (user) {
+            setTimeout(() => {
+                openEditModal(user);
+            }, 500);
+        }
+    }
+});
 </script>
 </body>
 </html>

@@ -672,17 +672,31 @@ function toggleDetail(rowId, mainRow) {
     btn.classList.toggle('open', !isOpen);
 }
 
-window.onclick = function(event) {
-    const modal = document.getElementById('woModal');
-    if (event.target == modal) {
-        modal.style.display = 'none';
-
-        document.getElementById('alertSelect').value = '';
-        autoFillAlertData('');
-        const pwdInput = document.getElementById('adminPasswordInput');
-        if (pwdInput) pwdInput.value = '';
     }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const alertId = urlParams.get('id');
+    if (alertId) {
+        const rowId = 'detail-' + alertId;
+        const detailRow = document.getElementById(rowId);
+        if (detailRow) {
+            // Find the main row (the one before it)
+            const mainRow = detailRow.previousElementSibling;
+            if (mainRow) {
+                setTimeout(() => {
+                    mainRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    toggleDetail(rowId, mainRow);
+                    mainRow.style.background = 'rgba(59, 130, 246, 0.1)';
+                    setTimeout(() => {
+                        mainRow.style.background = '';
+                    }, 3000);
+                }, 500);
+            }
+        }
+    }
+});
 </script>
 
 </body>

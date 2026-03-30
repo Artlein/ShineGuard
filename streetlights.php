@@ -2,6 +2,15 @@
 require_once 'dbconnect.php';
 requireLogin();
 
+// Retrieve Theme Color from System Configuration
+$theme_color = '#3b82f6'; // Default brand color
+if (isset($conn)) {
+    $theme_result = $conn->query("SELECT config_value FROM system_config WHERE config_key = 'theme_color' LIMIT 1");
+    if ($theme_result && $row = $theme_result->fetch_assoc()) {
+        $theme_color = $row['config_value'];
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'verify_password') {
     ob_clean();
     header('Content-Type: application/json');
@@ -42,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
     $action = $_POST['bulk_action'];
     $dimming = intval($_POST['dimming_level'] ?? 70);
     $admin_password = $_POST['bulk_admin_password'] ?? '';
+    $range_val = $_POST['bulk_range'] ?? '';
 
     $user_id = $_SESSION['user_id'];
     $stmt = $conn->prepare("SELECT password_hash FROM users WHERE user_id = ?");
@@ -53,11 +63,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
         header('Location: streetlights.php?error=invalid_password');
         exit();
     }
+
+    $where_clause = "";
+    $scope_desc = "all streetlights";
+    
+    if (!empty($range_val) && strpos($range_val, '-') !== false) {
+        $parts = explode('-', $range_val);
+        $start = intval(trim($parts[0]));
+        $end = intval(trim($parts[1]));
+        if ($start > 0 && $end >= $start) {
+            $where_clause = " WHERE light_id BETWEEN $start AND $end";
+            $scope_desc = "streetlights #$start to #$end";
+        }
+    }
     
     if ($action === 'ON') {
-        $conn->query("UPDATE streetlights SET power_state = 'ON', dimming_level = $dimming");
-        logActivity($conn, $_SESSION['user_id'], 'Bulk Control', "Turned all streetlights ON at $dimming%");
+        $conn->query("UPDATE streetlights SET power_state = 'ON', dimming_level = $dimming" . $where_clause);
+        logActivity($conn, $_SESSION['user_id'], 'Bulk Control', "Turned $scope_desc ON at $dimming%");
 
+        // Note: IoT sync currently targets first node demo
         $firebaseUpdate = [
             'mode' => 1, 
             'targetBrightness' => $dimming,
@@ -75,8 +99,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
         curl_close($ch);
         
     } elseif ($action === 'OFF') {
-        $conn->query("UPDATE streetlights SET power_state = 'OFF'");
-        logActivity($conn, $_SESSION['user_id'], 'Bulk Control', 'Turned all streetlights OFF');
+        $conn->query("UPDATE streetlights SET power_state = 'OFF'" . $where_clause);
+        logActivity($conn, $_SESSION['user_id'], 'Bulk Control', "Turned $scope_desc OFF");
 
         $firebaseUpdate = [
             'mode' => 2, 
@@ -98,6 +122,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
     header('Location: streetlights.php?success=bulk_success');
     exit();
 }
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_streetlight') {
+    if (!canDo('manage_streetlights')) {
+        include __DIR__ . '/includes/access_denied_ui.php';
+        exit();
+    }
+    
+    verifyCsrfToken($_POST['csrf_token'] ?? '', 'streetlights.php?error=invalid_csrf');
+    
+    $node_name = sanitize($_POST['node_name']);
+    $location = sanitize($_POST['location']);
+    $lat = floatval($_POST['latitude']);
+    $lng = floatval($_POST['longitude']);
+    $install_date = !empty($_POST['installation_date']) ? $_POST['installation_date'] : date('Y-m-d');
+    
+    $stmt = $conn->prepare("INSERT INTO streetlights (node_name, location, latitude, longitude, installation_date, status, power_state, dimming_level) VALUES (?, ?, ?, ?, ?, 'Active', 'OFF', 70)");
+    $stmt->bind_param("ssdds", $node_name, $location, $lat, $lng, $install_date);
+    
+    if ($stmt->execute()) {
+        logActivity($conn, $_SESSION['user_id'], 'Add Streetlight', "Added new streetlight: $node_name at $location");
+        header('Location: streetlights.php?success=add_success');
+    } else {
+        header('Location: streetlights.php?error=db_error');
+    }
+    $stmt->close();
+    exit();
+}
+
+
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['light_id'])) {
     if (!canDo('control_streetlights')) {
@@ -360,6 +413,11 @@ html, body {
 .diagnostic-item.fail .result {
     color: #991b1b;
 }
+.dim-btn { padding: 8px 16px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-weight: 600; color: #64748b; background: white; transition: all 0.2s; user-select: none; }
+.dim-btn.active { border-color: #3b82f6; background: #eff6ff; color: #3b82f6; }
+.scope-radio { display: none; }
+.scope-btn { padding: 8px 16px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-weight: 600; color: #64748b; background: white; transition: all 0.2s; cursor: pointer; }
+.scope-radio:checked + .scope-btn { border-color: #3b82f6; background: #eff6ff; color: #3b82f6; }
 </style>
 </head>
 <body>
@@ -373,8 +431,30 @@ html, body {
                 <br>
 
        <center><h1>💡 STREETLIGHT MANAGEMENT</h1>
-        <p>Monitor and control all 32 streetlight nodes in Barangay Hulo, Mandaluyong City</p></center> 
+        <p>Monitor and control streetlight nodes in Barangay Hulo, Mandaluyong City</p></center> 
     </div>
+
+    <?php if (isset($_GET['success'])): ?>
+    <div style="background: #d1fae5; border: 1px solid #10b981; color: #065f46; padding: 15px; border-radius: 12px; margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 12px; animation: slideInDown 0.4s ease-out;">
+        <span style="font-size: 1.2rem;">✅</span>
+        <?php 
+            if ($_GET['success'] === 'add_success') echo "Streetlight registered successfully! The network has been updated.";
+            elseif ($_GET['success'] === 'bulk_success') echo "Bulk command executed successfully.";
+            else echo "Action completed successfully.";
+        ?>
+    </div>
+    <?php endif; ?>
+
+    <?php if (isset($_GET['error'])): ?>
+    <div style="background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 15px; border-radius: 12px; margin-bottom: 25px; font-weight: 700; display: flex; align-items: center; gap: 12px; animation: slideInDown 0.4s ease-out;">
+        <span style="font-size: 1.2rem;">❌</span>
+        <?php 
+            if ($_GET['error'] === 'invalid_password') echo "Authentication failed: Invalid administrator password.";
+            elseif ($_GET['error'] === 'db_error') echo "Database error: Unable to process the request.";
+            else echo "An error occurred while processing your request.";
+        ?>
+    </div>
+    <?php endif; ?>
 
 
 
@@ -482,40 +562,66 @@ html, body {
             </div>
             <div>
                 <h2 style="margin: 0; font-size: 1.25rem; color: #1e293b; font-weight: 700;">Bulk Control</h2>
-                <p style="margin: 4px 0 0 0; font-size: 0.875rem; color: #64748b;">Manage all 32 streetlights simultaneously</p>
+                <p style="margin: 4px 0 0 0; font-size: 0.875rem; color: #64748b;">Manage total network or custom ranges</p>
             </div>
+            <?php if (canDo('manage_streetlights')): ?>
+            <div style="margin-left: auto;">
+                <button onclick="openModal('addNodeModal')" class="btn primary" style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; padding: 10px 20px; font-weight: 700; border-radius: 12px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); transition: all 0.2s;">
+                    ➕ Add Streetlight
+                </button>
+            </div>
+            <?php endif; ?>
         </div>
         
-        <form id="bulkControlForm" method="POST" style="display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; background: #f1f5f9; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;" onsubmit="return validateBulkForm(this);">
-            <div class="form-group" style="margin: 0; flex: 1; min-width: 300px;">
-                <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #475569; margin-bottom: 10px;">Target Dimming Level</label>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <label style="cursor: pointer;">
-                        <input type="radio" name="dimming_level" value="30" style="display:none;" id="dim_low">
-                        <span class="dim-btn" onclick="setDimLevel(this, 30)">🌒 Low</span>
-                    </label>
-                    <label style="cursor: pointer;">
-                        <input type="radio" name="dimming_level" value="50" style="display:none;" id="dim_medium" checked>
-                        <span class="dim-btn active" onclick="setDimLevel(this, 50)">🌓 Medium</span>
-                    </label>
-                    <label style="cursor: pointer;">
-                        <input type="radio" name="dimming_level" value="75" style="display:none;" id="dim_high">
-                        <span class="dim-btn" onclick="setDimLevel(this, 75)">🌔 High</span>
-                    </label>
-                    <label style="cursor: pointer;">
-                        <input type="radio" name="dimming_level" value="100" style="display:none;" id="dim_full">
-                        <span class="dim-btn" onclick="setDimLevel(this, 100)">🌕 Full</span>
-                    </label>
+        <form id="bulkControlForm" method="POST" style="display: flex; flex-direction: column; gap: 20px; background: #f1f5f9; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0;" onsubmit="return validateBulkForm(this);">
+            <div style="display: flex; gap: 30px; flex-wrap: wrap;">
+                <div class="form-group" style="margin: 0; flex: 1; min-width: 300px;">
+                    <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #475569; margin-bottom: 10px;">🎯 Control Scope</label>
+                    <div style="display: flex; gap: 10px;">
+                        <label>
+                            <input type="radio" name="bulk_scope" value="all" class="scope-radio" checked onclick="toggleRangeInput(false)">
+                            <span class="scope-btn">🌐 Total Network (All 32)</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="bulk_scope" value="range" class="scope-radio" onclick="toggleRangeInput(true)">
+                            <span class="scope-btn">🔢 Custom Range (e.g. 1-10)</span>
+                        </label>
+                    </div>
+                    <div id="rangeInputContainer" style="display:none; margin-top: 15px;">
+                        <input type="text" name="bulk_range" id="bulk_range_field" placeholder="Enter range, e.g. 1-10" style="padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; width: 220px; font-size: 14px;">
+                        <small style="display:block; color: #64748b; margin-top: 5px;">Specify node sequence IDs separated by a dash.</small>
+                    </div>
                 </div>
-                <small style="color: #94a3b8; display: block; margin-top: 8px;">Applicable only when turning lights ON</small>
+
+                <div class="form-group" style="margin: 0; flex: 1; min-width: 300px;">
+                    <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #475569; margin-bottom: 10px;">🔆 Target Dimming Level</label>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <label style="cursor: pointer;">
+                            <input type="radio" name="dimming_level" value="30" style="display:none;" id="dim_low">
+                            <span class="dim-btn" onclick="setDimLevel(this, 30)">🌒 Low</span>
+                        </label>
+                        <label style="cursor: pointer;">
+                            <input type="radio" name="dimming_level" value="50" style="display:none;" id="dim_medium" checked>
+                            <span class="dim-btn active" onclick="setDimLevel(this, 50)">🌓 Medium</span>
+                        </label>
+                        <label style="cursor: pointer;">
+                            <input type="radio" name="dimming_level" value="75" style="display:none;" id="dim_high">
+                            <span class="dim-btn" onclick="setDimLevel(this, 75)">🌔 High</span>
+                        </label>
+                        <label style="cursor: pointer;">
+                            <input type="radio" name="dimming_level" value="100" style="display:none;" id="dim_full">
+                            <span class="dim-btn" onclick="setDimLevel(this, 100)">🌕 Full</span>
+                        </label>
+                    </div>
+                </div>
             </div>
             
-            <div style="display: flex; gap: 12px; margin-left: auto; align-items: center;">
-                <button type="button" class="btn" onclick="openBulkModal('OFF')" style="background: #ef4444; color: white; border: none; padding: 12px 24px; font-weight: 600; border-radius: 8px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.5); transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 8px -1px rgba(239, 68, 68, 0.6)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(239, 68, 68, 0.5)'">
-                    <span style="font-size: 1.25rem;"></span> Turn All OFF
+            <div style="display: flex; gap: 15px; border-top: 1px solid #e2e8f0; padding-top: 20px; justify-content: flex-end;">
+                <button type="button" class="btn" onclick="openBulkModal('OFF')" style="background: #ef4444; color: white; border: none; padding: 12px 28px; font-weight: 700; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.4);">
+                    Turn Selected OFF
                 </button>
-                <button type="button" class="btn" onclick="openBulkModal('ON')" style="background: #10b981; color: white; border: none; padding: 12px 24px; font-weight: 600; border-radius: 8px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.5); transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 8px -1px rgba(16, 185, 129, 0.6)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(16, 185, 129, 0.5)'">
-                    <span style="font-size: 1.25rem;"></span> Turn All ON
+                <button type="button" class="btn" onclick="openBulkModal('ON')" style="background: #10b981; color: white; border: none; padding: 12px 28px; font-weight: 700; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4);">
+                    Turn Selected ON
                 </button>
             </div>
             
@@ -549,6 +655,54 @@ html, body {
         </div>
     </div>
 </div>
+
+<?php if (canDo('manage_streetlights')): ?>
+<!-- Add Streetlight Modal -->
+<div id="addNodeModal" class="modal">
+    <div class="modal-content modal-spring" style="max-width: 600px;">
+        <div class="modal-header" style="border-bottom: 1px solid var(--border); margin-bottom: 24px; padding-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin: 0; font-size: 1.4rem; color: #1e293b;">🏗️ Register New Streetlight</h2>
+            <button type="button" class="btn-sm" onclick="closeModal('addNodeModal')" style="border: none; background: none; font-size: 1.2rem; cursor: pointer; color: #64748b;">✕</button>
+        </div>
+        <form method="POST">
+            <input type="hidden" name="action" value="add_streetlight">
+            <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+                <div class="form-group">
+                    <label style="display: block; font-weight: 700; font-size: 0.8rem; color: #64748b; margin-bottom: 8px; text-transform: uppercase;">Node Identifier</label>
+                    <input type="text" name="node_name" placeholder="e.g. SL-033" required style="width: 100%; padding: 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; font-size: 1rem; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e2e8f0'">
+                </div>
+                <div class="form-group">
+                    <label style="display: block; font-weight: 700; font-size: 0.8rem; color: #64748b; margin-bottom: 8px; text-transform: uppercase;">Location Descriptor</label>
+                    <input type="text" name="location" placeholder="e.g. Coronado St. Entrance" required style="width: 100%; padding: 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; font-size: 1rem; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e2e8f0'">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+                <div class="form-group">
+                    <label style="display: block; font-weight: 700; font-size: 0.8rem; color: #64748b; margin-bottom: 8px; text-transform: uppercase;">Latitude</label>
+                    <input type="number" step="any" name="latitude" placeholder="e.14.568..." required style="width: 100%; padding: 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; font-size: 1rem; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e2e8f0'">
+                </div>
+                <div class="form-group">
+                    <label style="display: block; font-weight: 700; font-size: 0.8rem; color: #64748b; margin-bottom: 8px; text-transform: uppercase;">Longitude</label>
+                    <input type="number" step="any" name="longitude" placeholder="e.g. 121.033..." required style="width: 100%; padding: 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; font-size: 1rem; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e2e8f0'">
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 30px;">
+                <label style="display: block; font-weight: 700; font-size: 0.8rem; color: #64748b; margin-bottom: 8px; text-transform: uppercase;">Installation Date</label>
+                <input type="date" name="installation_date" value="<?php echo date('Y-m-d'); ?>" style="width: 100%; padding: 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; font-size: 1rem; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e2e8f0'">
+            </div>
+
+            <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top: 20px; border-top: 1px solid #f1f5f9;">
+                <button type="button" class="btn-sm" onclick="closeModal('addNodeModal')" style="padding: 10px 24px; background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; border-radius: 10px; font-weight: 600; cursor: pointer;">Cancel</button>
+                <button type="submit" class="btn primary" style="padding: 10px 24px; background: #3b82f6; color: white; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);">Register Node</button>
+            </div>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
 
 <div id="toggleModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
   <div class="modal-spring" style="background:white; border-radius:20px; padding:32px; max-width:400px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.25); font-family:'Inter',sans-serif;">
@@ -649,22 +803,30 @@ function openBulkModal(action) {
     const btn = document.getElementById('bulkModalConfirmBtn');
     
     if (action === 'OFF') {
+        const scope = document.querySelector('input[name="bulk_scope"]:checked').value;
+        const range = document.getElementById('bulk_range_field').value;
         icon.style.background = '#fef2f2';
         icon.textContent = '🔅';
-        title.textContent = 'Turn All Streetlights OFF';
-        desc.textContent = 'Are you sure you want to completely turn off all 32 streetlights?';
+        title.textContent = 'Turn Selected Streetlights OFF';
+        desc.textContent = scope === 'all' 
+            ? 'Are you sure you want to completely turn off all 32 streetlights?' 
+            : `Are you sure you want to turn off streetlights in the range: ${range}?`;
         btn.style.background = '#ef4444';
         btn.style.boxShadow = '0 4px 12px rgba(239,68,68,0.35)';
-        btn.textContent = '🔅 Turn All OFF';
+        btn.textContent = '🔅 Turn OFF';
     } else {
         const dimmingLevel = document.querySelector('input[name="dimming_level"]:checked').value;
+        const scope = document.querySelector('input[name="bulk_scope"]:checked').value;
+        const range = document.getElementById('bulk_range_field').value;
         icon.style.background = '#f0fdf4';
         icon.textContent = '🔆';
-        title.textContent = 'Turn All Streetlights ON';
-        desc.textContent = `Are you sure you want to turn on all 32 streetlights at ${dimmingLevel}% dimming level?`;
+        title.textContent = 'Turn Selected Streetlights ON';
+        desc.textContent = scope === 'all'
+            ? `Are you sure you want to turn on all 32 streetlights at ${dimmingLevel}% dimming level?`
+            : `Are you sure you want to turn on streetlights in the range: ${range} at ${dimmingLevel}%?`;
         btn.style.background = '#10b981';
         btn.style.boxShadow = '0 4px 12px rgba(16,185,129,0.35)';
-        btn.textContent = '🔆 Turn All ON';
+        btn.textContent = '🔆 Turn ON';
     }
     
     modal._action = action;
@@ -679,6 +841,24 @@ function closeBulkModal() {
         pwdInput.style.borderColor = '#cbd5e1';
         document.getElementById('bulkModalPasswordError').style.display = 'none';
     }
+}
+
+function toggleRangeInput(show) {
+    const container = document.getElementById('rangeInputContainer');
+    container.style.display = show ? 'block' : 'none';
+    if (show) document.getElementById('bulk_range_field').focus();
+}
+
+function validateBulkForm(form) {
+    const scope = form.querySelector('input[name="bulk_scope"]:checked').value;
+    if (scope === 'range') {
+        const range = document.getElementById('bulk_range_field').value;
+        if (!range.includes('-')) {
+            alert('Please enter a valid range (e.g. 1-10)');
+            return false;
+        }
+    }
+    return true;
 }
 
 function confirmBulkAction() {
@@ -929,19 +1109,37 @@ async function confirmDiagnostic() {
     }
     
     pwdError.style.display = 'none';
-    btn.innerHTML = 'Testing...';
-    btn.disabled = true;
     
+    // 1. Verify password FIRST before any animation
+    btn.innerHTML = 'Verifying...';
+    btn.disabled = true;
+
     try {
-        const formData = new URLSearchParams();
-        formData.append('light_id', modal._lightId);
-        formData.append('admin_password', pwdInput.value);
-        
-        // Save original HTML in case of password failure
+        const verifyData = new URLSearchParams();
+        verifyData.append('action', 'verify_password');
+        verifyData.append('admin_password', pwdInput.value);
+
+        const verifyRes = await fetch('streetlights.php', {
+            method: 'POST',
+            body: verifyData,
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+        const verifyJson = await verifyRes.json();
+
+        if (!verifyJson.success) {
+            pwdError.textContent = 'Invalid password.';
+            pwdError.style.display = 'block';
+            pwdInput.style.borderColor = '#ef4444';
+            pwdInput.value = '';
+            btn.innerHTML = '🔧 Run Test';
+            btn.disabled = false;
+            return;
+        }
+
+        // 2. If pass ok, capture originalHTML and show animation
         const inner = modal.querySelector('.modal-spring');
-        const originalHTML = inner.innerHTML;
+        const originalHTML = inner.innerHTML; // Current state with password etc.
         
-        // Show progress view
         inner.innerHTML = `
             <div style="text-align: center; padding: 20px 0;">
                 <div style="font-size: 30px; margin-bottom: 10px;">⏳</div>
@@ -967,6 +1165,11 @@ async function confirmDiagnostic() {
         document.getElementById('diag-step-4').innerHTML = '<b>[✔] Auditing Maintenance History... DONE</b>';
         await new Promise(r => setTimeout(r, 400));
         
+        // 3. Run the ACTUAL diagnostic API
+        const formData = new URLSearchParams();
+        formData.append('light_id', modal._lightId);
+        formData.append('admin_password', pwdInput.value);
+
         const response = await fetch('api/run_diagnostic.php', {
             method: 'POST',
             body: formData,
@@ -977,7 +1180,6 @@ async function confirmDiagnostic() {
         
         if (data.success) {
             const res = data.results;
-            
             let healthColor = res.health === 'Excellent' ? '#10b981' : (res.health === 'Warning' ? '#f59e0b' : '#ef4444');
             
             inner.innerHTML = `
@@ -1026,9 +1228,10 @@ async function confirmDiagnostic() {
             `;
             
         } else {
-            inner.innerHTML = originalHTML;
+            inner.innerHTML = originalHTML; // Restore exactly as it was
             const restoredPwdInput = document.getElementById('diagAdminPassword');
             const restoredPwdError = document.getElementById('diagPasswordError');
+            const restoredBtn = document.getElementById('diagConfirmBtn');
             if (restoredPwdInput) {
                 restoredPwdInput.value = '';
                 restoredPwdInput.style.borderColor = '#ef4444';
@@ -1037,10 +1240,27 @@ async function confirmDiagnostic() {
                 restoredPwdError.textContent = data.error || 'Diagnostic failed to run.';
                 restoredPwdError.style.display = 'block';
             }
+            if (restoredBtn) {
+                restoredBtn.innerHTML = '🔧 Run Test';
+                restoredBtn.disabled = false;
+            }
         }
     } catch(err) {
         console.error(err);
-        window.location.reload();
+        // On fatal JS error, restore modal or reload
+        const inner = modal.querySelector('.modal-spring');
+        if (inner) {
+            inner.innerHTML = `
+                <div style="text-align: center; padding: 20px 0;">
+                    <div style="font-size: 30px; margin-bottom: 10px;">❌</div>
+                    <h3 style="margin: 0 0 10px 0; color: #ef4444;">Connection Error</h3>
+                    <p style="color: #64748b; font-size: 14px; margin-bottom: 25px;">Failed to connect to diagnostic service. Please try again.</p>
+                    <button onclick="window.location.reload()" class="btn">Reload Page</button>
+                </div>
+            `;
+        } else {
+            window.location.reload();
+        }
     }
 }
 
@@ -1118,8 +1338,21 @@ function openNodeModal(lightId) {
     if (mc) { mc.classList.remove('modal-spring'); void mc.offsetWidth; mc.classList.add('modal-spring'); }
 }
 
-function closeModal() {
-    document.getElementById('nodeModal').classList.remove('open');
+function closeModal(modalId) {
+    const id = modalId || 'nodeModal';
+    document.getElementById(id).classList.remove('open');
+}
+
+function openModal(id) {
+    const m = document.getElementById(id);
+    if (!m) return;
+    m.classList.add('open');
+    const mc = m.querySelector('.modal-content');
+    if (mc) { 
+        mc.classList.remove('modal-spring'); 
+        void mc.offsetWidth; 
+        mc.classList.add('modal-spring'); 
+    }
 }
 
 function refreshIoTData() {
@@ -1148,13 +1381,37 @@ setInterval(refreshIoTData, 10000);
 window.onload = function() {
     initMap();
     refreshIoTData();
+    
+    // Deep-linking from search
+    const urlParams = new URLSearchParams(window.location.search);
+    const lightId = urlParams.get('id');
+    if (lightId) {
+        // Find node data
+        const node = streetlightData.find(n => n.light_id == lightId);
+        if (node) {
+            openModal(node);
+            
+            // Pan map to node if possible
+            if (map && markerMap[lightId]) {
+                const marker = markerMap[lightId];
+                map.setView(marker.getLatLng(), 18);
+            }
+        }
+    }
 };
 
 document.getElementById('nodeModal').addEventListener('click', function(e) {
     if (e.target === this) {
-        closeModal();
+        closeModal('nodeModal');
     }
 });
+
+const addModal = document.getElementById('addNodeModal');
+if (addModal) {
+    addModal.addEventListener('click', function(e) {
+        if (e.target === this) closeModal('addNodeModal');
+    });
+}
 </script>
 </body>
 </html>

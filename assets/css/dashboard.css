@@ -199,22 +199,30 @@ body {
 }
 
 .kpi-card.success .kpi-label,
-.kpi-card.success .kpi-value {
+.kpi-card.success .kpi-value,
+.kpi-card.success .kpi-subvalue,
+.kpi-card.success .kpi-unit {
     color: #10b981;
 }
 
 .kpi-card.warning .kpi-label,
-.kpi-card.warning .kpi-value {
+.kpi-card.warning .kpi-value,
+.kpi-card.warning .kpi-subvalue,
+.kpi-card.warning .kpi-unit {
     color: #f59e0b;
 }
 
 .kpi-card.danger .kpi-label,
-.kpi-card.danger .kpi-value {
+.kpi-card.danger .kpi-value,
+.kpi-card.danger .kpi-subvalue,
+.kpi-card.danger .kpi-unit {
     color: #ef4444;
 }
 
 .kpi-card.info .kpi-label,
-.kpi-card.info .kpi-value {
+.kpi-card.info .kpi-value,
+.kpi-card.info .kpi-subvalue,
+.kpi-card.info .kpi-unit {
     color: #3b82f6;
 }
 
@@ -236,13 +244,11 @@ body {
 
 .kpi-subvalue {
     font-size: 20px;
-    opacity: 0.7;
     font-weight: 600;
 }
 
 .kpi-unit {
     font-size: 18px;
-    opacity: 0.7;
     font-weight: 600;
     margin-left: 4px;
 }

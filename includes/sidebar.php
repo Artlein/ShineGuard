@@ -357,6 +357,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 <span class="sb-nav-lbl">Reports</span>
             </a>
 
+            <?php if (canDo('manage_firebase') || canDo('view_settings')): ?>
             <div class="sb-lbl">System</div>
             <?php if (canDo('manage_firebase')): ?>
             <a href="firebase_dashboard.php" class="<?php echo $current_page=='firebase_dashboard.php'?'active':''; ?>">
@@ -369,6 +370,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 <div class="sb-ico">⚙️</div>
                 <span class="sb-nav-lbl">Settings</span>
             </a>
+            <?php endif; ?>
             <?php endif; ?>
         </nav>
 
