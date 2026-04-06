@@ -3,7 +3,10 @@ require_once 'dbconnect.php';
 requireLogin('System Admin');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_preferences'])) {
-    verifyCsrfToken($_POST['csrf_token'] ?? '', 'settings.php?tab=preferences&error=invalid_csrf');
+if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+    header('Location: settings.php?tab=preferences&error=invalid_csrf');
+    exit();
+}
     $updates = [
         'system_name'      => $_POST['system_name'],
         'organization_name'=> $_POST['organization_name'],
@@ -30,7 +33,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_preferences'])
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_thresholds'])) {
-    verifyCsrfToken($_POST['csrf_token'] ?? '', 'settings.php?tab=thresholds&error=invalid_csrf');
+if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+    header('Location: settings.php?tab=thresholds&error=invalid_csrf');
+    exit();
+}
     $thresholds = [
         'lux_threshold_min'              => $_POST['lux_threshold_min'],
         'lux_threshold_critical'         => $_POST['lux_threshold_critical'],
@@ -54,7 +60,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_thresholds']))
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_alerts'])) {
-    verifyCsrfToken($_POST['csrf_token'] ?? '', 'settings.php?tab=alerts&error=invalid_csrf');
+if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+    header('Location: settings.php?tab=alerts&error=invalid_csrf');
+    exit();
+}
     $alerts = [
         'alert_email_enabled'    => isset($_POST['alert_email_enabled'])    ? '1' : '0',
         'alert_sms_enabled'      => isset($_POST['alert_sms_enabled'])      ? '1' : '0',
@@ -75,7 +84,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_alerts'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_automation'])) {
-    verifyCsrfToken($_POST['csrf_token'] ?? '', 'settings.php?tab=automation&error=invalid_csrf');
+if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+    header('Location: settings.php?tab=automation&error=invalid_csrf');
+    exit();
+}
     $automation = [
         'auto_dim_enabled'                => isset($_POST['auto_dim_enabled'])                ? '1' : '0',
         'default_dimming_level'           => $_POST['default_dimming_level'],
@@ -96,7 +108,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_automation']))
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_data'])) {
-    verifyCsrfToken($_POST['csrf_token'] ?? '', 'settings.php?tab=data&error=invalid_csrf');
+if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+    header('Location: settings.php?tab=data&error=invalid_csrf');
+    exit();
+}
     $data = [
         'data_retention_days'     => $_POST['data_retention_days'],
         'footage_retention_days'  => $_POST['footage_retention_days'],
@@ -122,7 +137,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
         exit();
     }
 
-    verifyCsrfToken($_POST['csrf_token'] ?? '', 'settings.php?tab=users&error=invalid_csrf');
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        header('Location: settings.php?tab=users&error=invalid_csrf');
+        exit();
+    }
+
 
     $username   = sanitize($_POST['username']   ?? '');
     $full_name  = sanitize($_POST['full_name']  ?? '');
@@ -203,7 +222,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_user'])) {
-    verifyCsrfToken($_POST['csrf_token'] ?? '', 'settings.php?tab=users&error=invalid_csrf');
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        header('Location: settings.php?tab=users&error=invalid_csrf');
+        exit();
+    }
+
 
     $target_user_id = intval($_POST['target_user_id']);
     $full_name  = sanitize($_POST['full_name']);
@@ -270,7 +293,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_user'])) {
 
 // ── SECURITY FEATURE: SECURE USER DELETION ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_user'])) {
-    verifyCsrfToken($_POST['csrf_token'] ?? '', 'settings.php?tab=users&error=invalid_csrf');
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        header('Location: settings.php?tab=users&error=invalid_csrf');
+        exit();
+    }
+
 
     $target_user_id = intval($_POST['target_user_id']);
     $entered_pass   = $_POST['admin_password'] ?? '';
@@ -295,6 +322,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_user'])) {
         header('Location: settings.php?tab=users&error=invalid_admin_password');
         exit();
     }
+    setAuthorized();
 
     // 4. Password verified. Proceed with destructive deletion.
     $del_stmt = $conn->prepare("DELETE FROM users WHERE user_id = ?");
@@ -1520,81 +1548,6 @@ if (colorInput && colorPreview) {
   colorInput.addEventListener('input', e => colorPreview.style.background = e.target.value);
 }
 
-(function() {
-  const params = new URLSearchParams(window.location.search);
-  
-  const errorMap = {
-    'missing_fields': 'Please fill in all required fields.',
-    'invalid_username': 'Username must be 3–30 chars (letters, numbers, underscores).',
-    'invalid_email': 'Please enter a valid email address.',
-    'weak_password': 'Password must be at least 8 characters long.',
-    'password_mismatch': 'The passwords provided do not match.',
-    'invalid_role': 'The selected role is not valid.',
-    'invalid_csrf': 'Security token mismatch. Please refresh and try again.',
-    'duplicate_username': 'This username is already in use by another account.',
-    'duplicate_email': 'This email address is already registered.',
-    'duplicate_entry': 'A user with this information already exists.',
-    'db_error': 'There was a problem processing your request.',
-    'self_delete': 'Security Error: You cannot delete your own active Admin account.',
-    'invalid_admin_password': 'Authorization Failed: The Admin password you entered was incorrect.',
-    'self_deactivate': 'Security Error: You cannot deactivate your own account.',
-    'self_demote': 'Security Error: You cannot change your own role away from System Admin.'
-  };
-
-  const successMap = {
-    'user_deleted': 'User successfully deleted.',
-    'user_added': 'New user account has been created successfully.',
-    'user_updated': 'User account details have been updated successfully.'
-  };
-
-  if (params.get('tab') === 'users') {
-    const error = params.get('error');
-    const success = params.get('success');
-
-    if (error && errorMap[error]) {
-      showToast(errorMap[error], 'error');
-    } else if (success && successMap[success]) {
-      showToast(successMap[success], 'success');
-    }
-  }
-})();
-
-function showToast(message, type = 'success') {
-  let container = document.getElementById('toast-container');
-  if (!container) {
-    container = document.createElement('div');
-    container.id = 'toast-container';
-    document.body.appendChild(container);
-  }
-
-  const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  
-  const iconHtml = type === 'success' ? '✅' : '❌';
-  const titleHtml = type === 'success' ? 'Success' : 'Action Failed';
-
-  toast.innerHTML = `
-    <div class="toast-icon">${iconHtml}</div>
-    <div class="toast-content">
-      <div class="toast-title">${titleHtml}</div>
-      <div class="toast-msg">${message}</div>
-    </div>
-  `;
-
-  container.appendChild(toast);
-  
-  // Trigger animation
-  requestAnimationFrame(() => {
-    toast.classList.add('show');
-  });
-
-  // Auto remove
-  setTimeout(() => {
-    toast.classList.remove('show');
-    toast.classList.add('removing');
-    setTimeout(() => toast.remove(), 400); // Wait for exit animation
-  }, 4000);
-}
 const allUsers = <?php 
     $users_result->data_seek(0);
     $users_arr = [];

@@ -3,6 +3,7 @@ require_once 'dbconnect.php';
 requireLogin();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'acknowledge') {
+    checkCsrf();
     if (!canDo('acknowledge_alerts')) {
         include __DIR__ . '/includes/access_denied_ui.php';
         exit();
@@ -21,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'new_work_order') {
+    checkCsrf();
     if (!canDo('create_work_orders')) {
         include __DIR__ . '/includes/access_denied_ui.php';
         exit();
@@ -32,14 +34,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $admin_password = $_POST['admin_password'] ?? '';
     $user_id = $_SESSION['user_id'];
 
-    $stmt = $conn->prepare("SELECT password_hash FROM users WHERE user_id = ?");
-    $stmt->bind_param("i", $user_id);
-    $stmt->execute();
-    $user_data = $stmt->get_result()->fetch_assoc();
-    
-    if (!$user_data || !password_verify($admin_password, $user_data['password_hash'])) {
-        header('Location: alerts.php?error=invalid_password');
-        exit();
+    if (!isRecentlyAuthorized()) {
+        $stmt = $conn->prepare("SELECT password_hash FROM users WHERE user_id = ?");
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+        $user_data = $stmt->get_result()->fetch_assoc();
+        
+        if (!$user_data || !password_verify($admin_password, $user_data['password_hash'])) {
+            header('Location: alerts.php?error=invalid_password');
+            exit();
+        }
+        setAuthorized();
     }
     
     $stmt = $conn->prepare("INSERT INTO maintenance_logs (light_id, alert_id, user_id, action_taken, notes, status) VALUES (?, ?, ?, ?, ?, 'Scheduled')");
@@ -432,6 +437,7 @@ tbody td {
             </button>
             <?php endif; ?>
         </div>
+
         <div class="table-container">
             <table>
                 <thead>
@@ -554,6 +560,12 @@ tbody td {
                 </tbody>
             </table>
         </div>
+
+        <div id="noResults" class="no-results">
+            <span class="no-results-icon">🔎</span>
+            <div class="no-results-text">No alerts matching your search criteria</div>
+            <p style="color: var(--text-muted); margin-top: 10px; font-size: 0.9rem;">Try adjusting your keywords or clearing the search</p>
+        </div>
     </div>
 </main>
 </div>
@@ -617,9 +629,9 @@ $alerts->data_seek(0);
                 <input type="hidden" name="full_description" id="fullDescriptionInput" value="">
             </div>
             
-            <div style="margin-bottom: 28px;">
+            <div id="woModalPasswordContainer" style="margin-bottom: 28px;">
                 <label style="display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.875rem; color: #0f172a;">🔐 Administrator Password <span style="color: #ef4444;">*</span></label>
-                <input type="password" name="admin_password" id="adminPasswordInput" required placeholder="Enter password to confirm creation" style="width: 100%; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 1rem; color: #1e293b; background: #fff; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
+                <input type="password" name="admin_password" id="adminPasswordInput" placeholder="Enter password to confirm creation" style="width: 100%; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 1rem; color: #1e293b; background: #fff; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
             </div>
             
             <div style="display: flex; gap: 12px; justify-content: flex-end;">
@@ -630,9 +642,34 @@ $alerts->data_seek(0);
     </div>
 </div>
 
+<?php $isAuthorized = isRecentlyAuthorized() ? 'true' : 'false'; ?>
 <script>
-
+const isAuthorized = <?php echo $isAuthorized; ?>;
 const alertData = <?php echo json_encode($alerts_js); ?>;
+
+function openWorkOrderModal(alertId = null) {
+    const modal = document.getElementById('woModal');
+    const pwdContainer = document.getElementById('woModalPasswordContainer');
+    const pwdInput = document.getElementById('adminPasswordInput');
+    const btn = modal.querySelector('button[type="submit"]');
+
+    if (isAuthorized) {
+        if (pwdContainer) pwdContainer.style.display = 'none';
+        if (pwdInput) pwdInput.required = false;
+        btn.innerHTML = '🔧 Create Order (Authorized)';
+    } else {
+        if (pwdContainer) pwdContainer.style.display = 'block';
+        if (pwdInput) pwdInput.required = true;
+        btn.innerHTML = 'Create Order';
+    }
+
+    if (alertId) {
+        document.getElementById('alertSelect').value = alertId;
+        autoFillAlertData(alertId);
+    }
+    
+    modal.style.display = 'flex';
+}
 
 function autoFillAlertData(alertId) {
     if (!alertId || !alertData[alertId]) {
@@ -670,9 +707,6 @@ function toggleDetail(rowId, mainRow) {
     const isOpen = detail.classList.contains('open');
     detail.classList.toggle('open', !isOpen);
     btn.classList.toggle('open', !isOpen);
-}
-
-    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

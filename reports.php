@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $user_data = $stmt->get_result()->fetch_assoc();
     
     if ($user_data && password_verify($admin_password, $user_data['password_hash'])) {
+        setAuthorized();
         echo json_encode(['success' => true]);
     } else {
         echo json_encode(['success' => false]);
@@ -887,7 +888,7 @@ tbody td {
 
     <div id="exportPasswordSection">
         <div style="margin-bottom: 24px; text-align: left;">
-            <label for="exportAdminPassword" style="display:block; font-size:0.875rem; font-weight:600; color:#0f172a; margin-bottom:8px;">🔐 Administrator Password <span style="color:#ef4444;">*</span></label>
+            <label for="exportAdminPassword" style="display:block; font-size:0.875rem; font-weight:600; color:#0f172a; margin-bottom:8px;">🔐 Your Password <span style="color:#ef4444;">*</span></label>
             <input type="password" id="exportAdminPassword" placeholder="Enter password to confirm export" style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid #cbd5e1; font-family:'Inter',sans-serif; font-size:0.875rem; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
             <div id="exportPasswordError" style="color:#ef4444; font-size:0.75rem; margin-top:6px; display:none;">Password is required</div>
         </div>
@@ -921,7 +922,7 @@ tbody td {
 
     <div id="generatePasswordSection">
         <div style="margin-bottom: 24px; text-align: left;">
-            <label for="generateAdminPassword" style="display:block; font-size:0.875rem; font-weight:600; color:#0f172a; margin-bottom:8px;">🔐 Administrator Password <span style="color:#ef4444;">*</span></label>
+            <label for="generateAdminPassword" style="display:block; font-size:0.875rem; font-weight:600; color:#0f172a; margin-bottom:8px;">🔐 Your Password <span style="color:#ef4444;">*</span></label>
             <input type="password" id="generateAdminPassword" placeholder="Enter password to confirm generation" style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid #cbd5e1; font-family:'Inter',sans-serif; font-size:0.875rem; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
             <div id="generatePasswordError" style="color:#ef4444; font-size:0.75rem; margin-top:6px; display:none;">Password is required</div>
         </div>
@@ -951,15 +952,9 @@ function openGenerateModal() {
     const modal = document.getElementById('generateModal');
     modal.style.display = 'flex';
 
-    if (isObserver) {
-        document.getElementById('generatePasswordSection').style.display = 'none';
-        document.getElementById('generateViewOnlyMessage').style.display = 'block';
-        document.getElementById('generateConfirmBtn').style.display = 'none';
-    } else {
-        document.getElementById('generatePasswordSection').style.display = 'block';
-        document.getElementById('generateViewOnlyMessage').style.display = 'none';
-        document.getElementById('generateConfirmBtn').style.display = 'inline-flex';
-    }
+    document.getElementById('generatePasswordSection').style.display = 'block';
+    document.getElementById('generateViewOnlyMessage').style.display = 'none';
+    document.getElementById('generateConfirmBtn').style.display = 'inline-flex';
 
     const content = modal.querySelector('.modal-spring');
     if (content) {
@@ -1041,15 +1036,9 @@ function openExportModal() {
     const modal = document.getElementById('exportModal');
     modal.style.display = 'flex';
 
-    if (isObserver) {
-        document.getElementById('exportPasswordSection').style.display = 'none';
-        document.getElementById('exportViewOnlyMessage').style.display = 'block';
-        document.getElementById('exportConfirmBtn').style.display = 'none';
-    } else {
-        document.getElementById('exportPasswordSection').style.display = 'block';
-        document.getElementById('exportViewOnlyMessage').style.display = 'none';
-        document.getElementById('exportConfirmBtn').style.display = 'inline-flex';
-    }
+    document.getElementById('exportPasswordSection').style.display = 'block';
+    document.getElementById('exportViewOnlyMessage').style.display = 'none';
+    document.getElementById('exportConfirmBtn').style.display = 'inline-flex';
 
     const content = modal.querySelector('.modal-spring');
     if (content) {

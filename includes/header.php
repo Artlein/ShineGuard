@@ -1,3 +1,4 @@
+<meta name="csrf-token" content="<?php echo generateCsrfToken(); ?>">
 <?php
 $system_name = 'Shine Guard Hulo';
 $organization_name = 'Barangay Hulo';
@@ -163,6 +164,9 @@ $error_map = [
     'weak_password'      => ['🔑', 'Weak Password',      'Password must be at least 8 characters long.'],
     'password_mismatch'  => ['🔑', 'Password Mismatch',  'The passwords provided do not match.'],
     'invalid_role'       => ['⚠️', 'Invalid Role',       'The selected role is not valid.'],
+    'invalid_domain'     => ['📧', 'Invalid Domain',     'Email must belong to the official @hulo.gov.ph domain.'],
+    'self_delete'        => ['⚠️', 'Action Blocked',     'Security policy: You cannot delete your own administrative account.'],
+    'invalid_admin_password' => ['🔑', 'Auth Failed',      'The administrator password you entered is incorrect.'],
     'self_deactivate'    => ['⚠️', 'Action Blocked',     'You cannot deactivate your own account.'],
     'self_demote'        => ['⚠️', 'Action Blocked',     'You cannot change your own role away from System Admin.'],
 ];
@@ -731,6 +735,16 @@ header {
             <?php endif; ?>
         </a>
 
+        <?php if (isRecentlyAuthorized()): ?>
+        <button id="lockSessionBtn" class="hdr-icon-btn" onclick="revokeAuth()" title="Secure Session Active — Click to Cancel" style="background: #3b82f6; color: #fff; border: none; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);">
+            🔓
+        </button>
+        <?php else: ?>
+        <button id="lockSessionBtn" class="hdr-icon-btn" title="Session Locked" style="color: #94a3b8; border-color: rgba(148, 163, 184, 0.2); background: rgba(148, 163, 184, 0.05); cursor: default;" disabled>
+            🔒
+        </button>
+        <?php endif; ?>
+
         <div class="hdr-user-container">
             <div class="hdr-user" onclick="toggleUserDropdown(event)" title="<?php echo htmlspecialchars($_SESSION['full_name'] ?? 'User Profile'); ?>">
                 <div class="hdr-av">
@@ -958,12 +972,166 @@ header {
         );
 
         resetIdleTimer(); // start the clock
-
-        setInterval(() => {
-            fetch('firebase_sync_silent.php')
-                .catch(err => console.error("Sync heartbeat missed:", err));
-        }, 15000);
-        
     })();
+    </script>
+    <div id="globalAuthModal" style="display:none; position:fixed; inset:0; z-index:999999; background:rgba(15,23,42,0.55); backdrop-filter:blur(6px); align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:20px; padding:2.5rem; max-width:440px; width:90%; box-shadow:0 24px 60px rgba(0,0,0,0.2); font-family:'Inter',sans-serif; text-align:center;">
+            <div style="font-size:3rem; margin-bottom:1rem;">🔐</div>
+            <h2 style="font-size:1.5rem; font-weight:800; color:#0f172a; margin-bottom:0.5rem;">Secure Session Authorization</h2>
+            <p style="color:#64748b; font-size:1rem; margin-bottom:2rem;">Enter your administrator password to unlock sensitive controls for 5 minutes.</p>
+            <div style="text-align:left; margin-bottom:1.5rem;">
+                <label style="display:block; font-size:0.875rem; font-weight:600; color:#0f172a; margin-bottom:8px;">Administrator Password</label>
+                <input type="password" id="globalAuthPwd" placeholder="••••••••" style="width:100%; padding:12px 16px; border-radius:10px; border:1px solid #cbd5e1; font-size:1rem; outline:none; transition:all 0.2s;">
+                <div id="globalAuthError" style="color:#ef4444; font-size:0.875rem; margin-top:8px; display:none;">Invalid password.</div>
+            </div>
+            <div style="display:flex; gap:12px;">
+                <button onclick="closeAuthModal()" style="flex:1; padding:12px; border-radius:10px; border:1px solid #e2e8f0; background:#fff; font-weight:600; color:#64748b; cursor:pointer;">Cancel</button>
+                <button onclick="confirmAuth()" id="confirmAuthBtn" style="flex:2; padding:12px; border-radius:10px; border:none; background:#3b82f6; color:#fff; font-weight:600; cursor:pointer; box-shadow:0 4px 12px rgba(59,130,246,0.3);">Unlock Features</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Revoke Confirmation Modal -->
+    <div id="globalRevokeModal" style="display:none; position:fixed; inset:0; z-index:999999; background:rgba(15,23,42,0.55); backdrop-filter:blur(6px); align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:20px; padding:2.5rem; max-width:400px; width:90%; box-shadow:0 24px 60px rgba(0,0,0,0.2); font-family:'Inter',sans-serif; text-align:center;">
+            <div style="font-size:3rem; margin-bottom:1rem;">🔒</div>
+            <h2 style="font-size:1.5rem; font-weight:800; color:#0f172a; margin-bottom:0.5rem;">Lock Secure Session?</h2>
+            <p style="color:#64748b; font-size:1rem; margin-bottom:1.5rem;">Please confirm your administrator password to end the secure session.</p>
+            <div style="text-align:left; margin-bottom:1.5rem;">
+                <label style="display:block; font-size:0.875rem; font-weight:600; color:#0f172a; margin-bottom:8px;">Administrator Password</label>
+                <input type="password" id="globalRevokePwd" placeholder="••••••••" style="width:100%; padding:12px 16px; border-radius:10px; border:1px solid #cbd5e1; font-size:1rem; outline:none; transition:all 0.2s;">
+                <div id="globalRevokeError" style="color:#ef4444; font-size:0.875rem; margin-top:8px; display:none;">Invalid password.</div>
+            </div>
+            <div style="display:flex; gap:12px;">
+                <button onclick="closeRevokeModal()" style="flex:1; padding:12px; border-radius:10px; border:1px solid #e2e8f0; background:#fff; font-weight:600; color:#64748b; cursor:pointer;">Cancel</button>
+                <button onclick="confirmRevokeAction()" id="confirmRevokeBtn" style="flex:1; padding:12px; border-radius:10px; border:none; background:#ef4444; color:#fff; font-weight:600; cursor:pointer; box-shadow:0 4px 12px rgba(239,68,68,0.3);">End Session</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const csrfToken = '<?php echo generateCsrfToken(); ?>';
+    const isAuthorized = <?php echo isRecentlyAuthorized() ? 'true' : 'false'; ?>;
+
+    function openAuthModal() {
+        document.getElementById('globalAuthModal').style.display = 'flex';
+        const input = document.getElementById('globalAuthPwd');
+        input.value = '';
+        input.focus();
+    }
+
+    function closeAuthModal() {
+        document.getElementById('globalAuthModal').style.display = 'none';
+        document.getElementById('globalAuthError').style.display = 'none';
+        document.getElementById('globalAuthPwd').style.borderColor = '#cbd5e1';
+    }
+
+    async function confirmAuth() {
+        const pwd = document.getElementById('globalAuthPwd').value;
+        const btn = document.getElementById('confirmAuthBtn');
+        const err = document.getElementById('globalAuthError');
+        
+        if (!pwd) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Verifying...';
+
+        try {
+            const formData = new URLSearchParams();
+            formData.append('admin_password', pwd);
+            formData.append('csrf_token', csrfToken);
+
+            const response = await fetch('api/auth_session.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+                body: formData.toString()
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                location.reload();
+            } else {
+                err.style.display = 'block';
+                err.textContent = data.error || 'Invalid password.';
+                document.getElementById('globalAuthPwd').style.borderColor = '#ef4444';
+            }
+        } catch (e) {
+            err.style.display = 'block';
+            err.textContent = 'Connection error.';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Unlock Features';
+        }
+    }
+
+    function openRevokeModal() {
+        document.getElementById('globalRevokeModal').style.display = 'flex';
+        const input = document.getElementById('globalRevokePwd');
+        input.value = '';
+        input.focus();
+    }
+
+    function closeRevokeModal() {
+        document.getElementById('globalRevokeModal').style.display = 'none';
+        document.getElementById('globalRevokeError').style.display = 'none';
+        document.getElementById('globalRevokePwd').style.borderColor = '#cbd5e1';
+    }
+
+    function revokeAuth() {
+        openRevokeModal();
+    }
+
+    async function confirmRevokeAction() {
+        const pwd = document.getElementById('globalRevokePwd').value;
+        const btn = document.getElementById('confirmRevokeBtn');
+        const err = document.getElementById('globalRevokeError');
+        
+        if (!pwd) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Verifying...';
+        
+        try {
+            const formData = new URLSearchParams();
+            formData.append('admin_password', pwd);
+            formData.append('action', 'revoke');
+            formData.append('csrf_token', csrfToken);
+
+            const response = await fetch('api/auth_session.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+                body: formData.toString()
+            });
+            const data = await response.json();
+            if (data.success) {
+                location.reload();
+            } else {
+                err.style.display = 'block';
+                err.textContent = data.error || 'Invalid password.';
+                document.getElementById('globalRevokePwd').style.borderColor = '#ef4444';
+            }
+        } catch (e) {
+            err.style.display = 'block';
+            err.textContent = 'Connection error.';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'End Session';
+        }
+    }
+
+    // Header Lock Button Handling
+    document.addEventListener('DOMContentLoaded', () => {
+        const lockBtn = document.getElementById('lockSessionBtn');
+        if (lockBtn && lockBtn.hasAttribute('disabled')) {
+            lockBtn.removeAttribute('disabled');
+            lockBtn.style.cursor = 'pointer';
+            lockBtn.onclick = openAuthModal;
+        }
+    });
+
+    // Enter key support
+    document.getElementById('globalAuthPwd').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') confirmAuth();
+    });
     </script>
 </header>

@@ -49,9 +49,16 @@ if ($stmt && $stmt->num_rows > 0) {
     }
 }
 
-$stmt = $conn->query("SELECT a.id as alert_id, a.type as alert_type, a.severity, a.status, a.message as description
+// Special case for ID search (e.g., #5)
+$id_search = null;
+if (preg_match('/^#(\d+)$/', $q, $matches)) {
+    $id_search = intval($matches[1]);
+}
+
+$stmt = $conn->query("SELECT a.alert_id, a.alert_type, a.severity, a.status, a.description
                        FROM alerts a 
-                       WHERE a.type LIKE '$like' OR a.message LIKE '$like'
+                       WHERE " . ($id_search ? "a.alert_id = $id_search OR " : "") . "
+                             a.alert_type LIKE '$like' OR a.description LIKE '$like'
                        ORDER BY a.created_at DESC LIMIT 5");
 if ($stmt && $stmt->num_rows > 0) {
     while ($row = $stmt->fetch_assoc()) {
@@ -59,8 +66,8 @@ if ($stmt && $stmt->num_rows > 0) {
         $results[] = [
             'type'  => 'alert',
             'icon'  => '🚨',
-            'title' => $row['alert_type'],
-            'sub'   => mb_strimwidth($row['description'], 0, 40, "...") . ' · ' . ucfirst($row['status']),
+            'title' => '#' . $row['alert_id'] . ' - ' . $row['alert_type'],
+            'sub'   => mb_strimwidth($row['description'], 0, 45, "...") . ' · ' . ucfirst($row['status']),
             'url'   => 'alerts.php?id=' . $row['alert_id'],
             'badge' => $badge
         ];

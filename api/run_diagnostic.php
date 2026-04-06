@@ -9,19 +9,24 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
+checkCsrf();
+
 $light_id = intval($_POST['light_id']);
 $admin_password = $_POST['admin_password'] ?? '';
 
 // Verify password
-$user_id = $_SESSION['user_id'];
-$stmt = $conn->prepare("SELECT password_hash FROM users WHERE user_id = ?");
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$user_data = $stmt->get_result()->fetch_assoc();
+if (!isRecentlyAuthorized()) {
+    $user_id = $_SESSION['user_id'];
+    $stmt = $conn->prepare("SELECT password_hash FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $user_data = $stmt->get_result()->fetch_assoc();
 
-if (!$user_data || !password_verify($admin_password, $user_data['password_hash'])) {
-    echo json_encode(['success' => false, 'error' => 'Invalid password.']);
-    exit();
+    if (!$user_data || !password_verify($admin_password, $user_data['password_hash'])) {
+        echo json_encode(['success' => false, 'error' => 'Invalid password.']);
+        exit();
+    }
+    setAuthorized();
 }
 
 // Get Light data

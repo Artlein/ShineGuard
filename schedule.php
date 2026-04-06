@@ -14,6 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $user_data = $stmt->get_result()->fetch_assoc();
     
     if ($user_data && password_verify($admin_password, $user_data['password_hash'])) {
+        setAuthorized();
         echo json_encode(['success' => true]);
     } else {
         echo json_encode(['success' => false]);
@@ -31,6 +32,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_schedule'])) {
     $time_off = $_POST['time_off'];
     $dimming_level = intval($_POST['dimming_level']);
     $days_of_week = implode(',', $_POST['days'] ?? []);
+    
+    // Check for duplicate time
+    $check = $conn->prepare("SELECT COUNT(*) FROM schedule_presets WHERE time_on = ? AND time_off = ?");
+    $check->bind_param("ss", $time_on, $time_off);
+    $check->execute();
+    if ($check->get_result()->fetch_row()[0] > 0) {
+        header('Location: schedule.php?error=duplicate_time');
+        exit();
+    }
     
     $stmt = $conn->prepare("INSERT INTO schedule_presets (preset_name, time_on, time_off, dimming_level, days_of_week, created_by) VALUES (?, ?, ?, ?, ?, ?)");
     $stmt->bind_param("sssisi", $preset_name, $time_on, $time_off, $dimming_level, $days_of_week, $_SESSION['user_id']);
@@ -54,6 +64,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_schedule'])) {
     $dimming_level = intval($_POST['dimming_level']);
     $is_active = isset($_POST['is_active']) ? 1 : 0;
     $days_of_week = implode(',', $_POST['days'] ?? []);
+    
+    // Check for duplicate time (excluding this schedule)
+    $check = $conn->prepare("SELECT COUNT(*) FROM schedule_presets WHERE time_on = ? AND time_off = ? AND schedule_id != ?");
+    $check->bind_param("ssi", $time_on, $time_off, $schedule_id);
+    $check->execute();
+    if ($check->get_result()->fetch_row()[0] > 0) {
+        header('Location: schedule.php?error=duplicate_time');
+        exit();
+    }
     
     $stmt = $conn->prepare("UPDATE schedule_presets SET preset_name=?, time_on=?, time_off=?, dimming_level=?, days_of_week=?, is_active=? WHERE schedule_id=?");
     $stmt->bind_param("sssisii", $preset_name, $time_on, $time_off, $dimming_level, $days_of_week, $is_active, $schedule_id);
@@ -118,6 +137,58 @@ if (!isset($theme_color)) {
 <?php include 'includes/sidebar.php'; ?>
 <?php include 'includes/header.php'; ?>
 <main class="main-content">
+
+<?php if(isset($_GET['error']) && $_GET['error'] === 'duplicate_time'): ?>
+<div id="errorToast" style="
+    position: fixed; top: 24px; right: 24px; z-index: 99999;
+    background: #fff1f2; border-radius: 16px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    padding: 18px 24px; display: flex; align-items: center; gap: 16px;
+    max-width: 420px; border-left: 4px solid #ef4444;
+    border: 1px solid #fecaca;
+    animation: slideInRight 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    font-family: 'Inter', sans-serif;
+">
+    <div style="background: rgba(239, 68, 68, 0.1); width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">⚠️</div>
+    <div style="flex: 1;">
+        <div style="font-weight: 800; color: #991b1b; font-size: 0.9rem; margin-bottom: 2px;">Schedule Conflict</div>
+        <div style="color: #b91c1c; font-size: 0.8rem;">A schedule with these exact ON/OFF times already exists.</div>
+    </div>
+    <button onclick="document.getElementById('errorToast').style.display='none'" style="background: none; border: none; cursor: pointer; color: #ef4444; font-size: 18px; line-height: 1; padding: 0; flex-shrink: 0;">✕</button>
+</div>
+<script>
+    setTimeout(() => {
+        const t = document.getElementById('errorToast');
+        if (t) { t.style.transition = 'opacity 0.4s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }
+    }, 5000);
+</script>
+<?php endif; ?>
+
+<?php if(isset($_GET['success']) && $_GET['success'] === 'schedule_created'): ?>
+<div id="successToast" style="
+    position: fixed; top: 24px; right: 24px; z-index: 99999;
+    background: #f0fdf4; border-radius: 16px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    padding: 18px 24px; display: flex; align-items: center; gap: 16px;
+    max-width: 380px; border-left: 4px solid #10b981;
+    border: 1px solid #bbf7d0;
+    animation: slideInRight 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    font-family: 'Inter', sans-serif;
+">
+    <div style="background: rgba(16, 185, 129, 0.1); width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">✅</div>
+    <div style="flex: 1;">
+        <div style="font-weight: 800; color: #166534; font-size: 0.9rem; margin-bottom: 2px;">Success!</div>
+        <div style="color: #15803d; font-size: 0.8rem;">New schedule preset has been created.</div>
+    </div>
+    <button onclick="document.getElementById('successToast').style.display='none'" style="background: none; border: none; cursor: pointer; color: #10b981; font-size: 18px; line-height: 1; padding: 0; flex-shrink: 0;">✕</button>
+</div>
+<script>
+    setTimeout(() => {
+        const t = document.getElementById('successToast');
+        if (t) { t.style.transition = 'opacity 0.4s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }
+    }, 4000);
+</script>
+<?php endif; ?>
 
   <div class="page-header">
     <h1 style="margin: 0;">⏰ Schedule Presets</h1>

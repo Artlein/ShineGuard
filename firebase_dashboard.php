@@ -5,6 +5,7 @@ requireLogin(['System Admin', 'Maintenance Operator']);
 // Access is handled by requireLogin at the top.
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'verify_password') {
+    checkCsrf();
     ob_clean(); 
     header('Content-Type: application/json');
     $admin_password = $_POST['admin_password'] ?? '';
@@ -16,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $user_data = $stmt->get_result()->fetch_assoc();
     
     if ($user_data && password_verify($admin_password, $user_data['password_hash'])) {
+        setAuthorized();
         echo json_encode(['success' => true]);
     } else {
         echo json_encode(['success' => false]);
@@ -430,7 +432,9 @@ body {
   </div>
 </div>
 
+<?php $isAuthorized = isRecentlyAuthorized() ? 'true' : 'false'; ?>
 <script type="module">
+const isAuthorized = <?php echo $isAuthorized; ?>;
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
 import { getDatabase, ref, onValue, set, update } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
@@ -687,6 +691,20 @@ window.confirmFirebaseCommand = function(actionType, param1, param2) {
     modal._actionType = actionType;
     modal._param1 = param1;
     modal._param2 = param2;
+
+    const pwdField = document.getElementById('secModalPassword');
+    const pwdLabel = pwdField.previousElementSibling;
+    if (pwdField && pwdLabel) {
+        if (isAuthorized) {
+            pwdField.style.display = 'none';
+            pwdLabel.style.display = 'none';
+            btn.innerHTML = btn.innerHTML.replace('Confirm', 'Execute (Authorized)');
+        } else {
+            pwdField.style.display = 'block';
+            pwdLabel.style.display = 'block';
+        }
+    }
+
     modal.style.display = 'flex';
 };
 
@@ -709,6 +727,16 @@ window.confirmSecAction = async function() {
     const modal = document.getElementById('securityModal');
     const btn = document.getElementById('secModalConfirmBtn');
     
+    if (isAuthorized) {
+        closeSecModal();
+        if (modal._actionType === 'setMode') {
+            setMode(modal._param1);
+        } else if (modal._actionType === 'controlLight') {
+            controlLight(modal._param1, modal._param2);
+        }
+        return;
+    }
+
     if (!pwdInput.value.trim()) {
         pwdError.textContent = 'Password is required';
         pwdError.style.display = 'block';
