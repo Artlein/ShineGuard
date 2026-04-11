@@ -12,6 +12,9 @@ if (isset($_GET['proxy_stream']) && isset($_GET['cam'])) {
     if (!$row || empty($row['stream_url'])) { http_response_code(404); exit(); }
     $url = $row['stream_url'];
 
+    // Log the surveillance access
+    logActivity($conn, $_SESSION['user_id'], 'CCTV Stream', "Started live stream for Camera #$cam_id");
+
     session_write_close();
     
     $ch = curl_init($url);
@@ -1087,6 +1090,7 @@ async function verifyGalleryPassword() {
         const formData = new URLSearchParams();
         formData.append('action', 'verify_password');
         formData.append('admin_password', pwdInput.value);
+        formData.append('source', 'gallery');
 
         const response = await fetch('streetlights.php', {
             method: 'POST',

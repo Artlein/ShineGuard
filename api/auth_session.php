@@ -17,8 +17,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($result && password_verify($password, $result['password_hash'])) {
         if ($action === 'revoke') {
             revokeAuthorization();
+            logActivity($conn, $user_id, 'Access Revocation', 'Elevated session access revoked manually');
         } else {
             setAuthorized();
+            logActivity($conn, $user_id, 'Elevated Access', 'User successfully elevated session access');
         }
         echo json_encode(['success' => true]);
     } else {

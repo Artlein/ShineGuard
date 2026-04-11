@@ -461,6 +461,9 @@ function runSync($conn) {
 }
 
 if (php_sapi_name() === 'cli' || !empty($_GET['run'])) {
+    if (!empty($_GET['run'])) {
+        logActivity($conn, $_SESSION['user_id'] ?? 0, 'Manual Sync', 'Triggered manual Firebase ⇄ MySQL synchronization');
+    }
     runSync($conn);
     $conn->close();
 }

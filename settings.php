@@ -131,6 +131,7 @@ if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
+    checkRateLimit('add_user', 10, 1);
     
     if (getUserRole() !== 'System Admin') {
         // Redundant role check removed - handled by requireLogin at top
@@ -222,6 +223,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_user'])) {
+    checkRateLimit('update_user', 10, 1);
     if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
         header('Location: settings.php?tab=users&error=invalid_csrf');
         exit();
@@ -293,6 +295,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_user'])) {
 
 // ── SECURITY FEATURE: SECURE USER DELETION ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_user'])) {
+    checkRateLimit('delete_user', 5, 2);
     if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
         header('Location: settings.php?tab=users&error=invalid_csrf');
         exit();

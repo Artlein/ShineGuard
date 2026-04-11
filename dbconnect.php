@@ -69,6 +69,60 @@ if (!function_exists('checkCsrf')) {
     }
 }
 
+if (!function_exists('checkRateLimit')) {
+    function checkRateLimit($action_key, $max_attempts = 10, $window_minutes = 1) {
+        global $conn;
+        $ip = $_SERVER['REMOTE_ADDR'];
+        
+        // 1. Clean up old entries (older than 1 hour to keep table small)
+        if (rand(1, 100) <= 5) { // 5% chance to run cleanup on call
+            $conn->query("DELETE FROM rate_limits WHERE attempted_at < DATE_SUB(NOW(), INTERVAL 1 HOUR)");
+        }
+
+        // 2. Count recent attempts
+        $stmt = $conn->prepare("SELECT COUNT(*) FROM rate_limits WHERE ip_address = ? AND action_key = ? AND attempted_at > DATE_SUB(NOW(), INTERVAL ? MINUTE)");
+        if ($stmt) {
+            $stmt->bind_param("ssi", $ip, $action_key, $window_minutes);
+            $stmt->execute();
+            $count = 0;
+            $stmt->bind_result($count);
+            $stmt->fetch();
+            $stmt->close();
+            
+            if ($count >= $max_attempts) {
+                // Log the security alert
+                $user_id = $_SESSION['user_id'] ?? 0;
+                logActivity($conn, $user_id, 'Security Alert', "Rate Limit Exceeded: $action_key from IP $ip");
+
+                if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                    http_response_code(429);
+                    exit(json_encode(['success' => false, 'error' => 'rate_limit', 'message' => 'Too many requests. Cooling period active.']));
+                }
+
+                header('HTTP/1.1 429 Too Many Requests');
+                $current_page = basename($_SERVER['PHP_SELF']);
+                $query = $_SERVER['QUERY_STRING'] ?? '';
+                
+                // Reconstruct URL with error=rate_limit
+                if (str_contains($query, 'error=')) {
+                    $new_query = preg_replace('/error=[^&]*/', 'error=rate_limit', $query);
+                } else {
+                    $new_query = $query . (empty($query) ? '' : '&') . 'error=rate_limit';
+                }
+                
+                header('Location: ' . $current_page . '?' . $new_query);
+                exit("Too many requests. Cooling period active.");
+            }
+
+            // 3. Record this attempt
+            $ins = $conn->prepare("INSERT INTO rate_limits (ip_address, action_key) VALUES (?, ?)");
+            $ins->bind_param("ss", $ip, $action_key);
+            $ins->execute();
+            $ins->close();
+        }
+    }
+}
+
 if (!function_exists('setAuthorized')) {
     function setAuthorized() {
         $_SESSION['last_auth_time'] = time();
@@ -129,6 +183,11 @@ function checkSessionTimeout() {
         exit();
     }
     $_SESSION['last_activity'] = time(); 
+    
+    // Clear standalone activity logs auth if navigating away
+    if (basename($_SERVER['PHP_SELF']) !== 'activity_logs.php' && isset($_SESSION['activity_logs_authorized'])) {
+        unset($_SESSION['activity_logs_authorized']);
+    }
 }
 
 function requireLogin($require_role = null) {

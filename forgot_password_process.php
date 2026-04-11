@@ -34,6 +34,9 @@ $stmt = $conn->prepare("INSERT INTO password_resets (email, token_hash, expires_
 $stmt->bind_param("sss", $email, $token_hash, $expires_at);
 
 if ($stmt->execute()) {
+    // Log the request
+    logActivity($conn, 0, 'Password Reset Request', "Password reset link generated for email: $email");
+
     // 5. MOCK EMAIL DELIVERY
     // In a real app, you'd use mail() or a library.
     // For local dev, we save the link to a file and tell the user.

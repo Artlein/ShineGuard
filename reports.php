@@ -123,6 +123,8 @@ if (isset($_GET['export']) && $_GET['export'] === 'pdf') {
     $generator_name = $_SESSION['full_name'] ?? $_SESSION['username'] ?? 'Unknown User';
     $current_time = date('F j, Y, g:i a T');
     $range_str = date('M j, Y', strtotime($start_date)) . ' to ' . date('M j, Y', strtotime($end_date));
+    
+    logActivity($conn, $_SESSION['user_id'], 'Report Export', "Exported PDF audit report for period: $range_str");
 
 $html = <<<EOD
 <style>

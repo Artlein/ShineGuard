@@ -28,6 +28,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
     if ($user_data && password_verify($admin_password, $user_data['password_hash'])) {
         setAuthorized();
+        
+        $source = $_POST['source'] ?? 'general';
+        $log_action = ($source === 'gallery') ? 'Gallery Access' : 'Elevated Access';
+        $log_details = ($source === 'gallery') ? 'User authorized access to encrypted snapshot gallery' : 'User successfully elevated session access';
+        
+        logActivity($conn, $user_id, $log_action, $log_details);
+        
         echo json_encode(['success' => true]);
     }
     else {
@@ -809,10 +816,10 @@ while ($light = $streetlights_result->fetch_assoc()):
                             <div class="node-id">
                                 <?php echo htmlspecialchars($light['node_name']); ?>
                             </div>
-                            <?php[$label, $color, $bg] = getDimmingLabel($light['dimming_level']); ?>
+                            <?php list($label, $color, $bg) = getDimmingLabel($light['dimming_level']); ?>
                             <small
                                 style="font-size: 10px; font-weight: 700; color: <?php echo $color; ?>; background: <?php echo $bg; ?>; padding: 2px 8px; border-radius: 10px;">
-                                <?php echo $label; ?>
+                                <?php echo htmlspecialchars($label); ?>
                             </small>
                         </div>
                         <?php
@@ -876,10 +883,10 @@ while ($light = $streetlights_result->fetch_assoc()):
                                             <?php echo $light['power_state']; ?>
                                         </span></td>
                                     <td>
-                                        <?php[$label, $color, $bg] = getDimmingLabel($light['dimming_level']); ?>
+                                        <?php list($label, $color, $bg) = getDimmingLabel($light['dimming_level']); ?>
                                         <span
                                             style="font-size: 0.75rem; font-weight: 700; color: <?php echo $color; ?>; background: <?php echo $bg; ?>; padding: 3px 10px; border-radius: 12px;">
-                                            <?php echo $label; ?>
+                                            <?php echo htmlspecialchars($label); ?>
                                         </span>
                                     </td>
                                     <td>

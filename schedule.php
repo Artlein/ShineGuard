@@ -23,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_schedule'])) {
+    checkRateLimit('manage_schedule', 10, 1);
     if (!canDo('manage_schedules')) {
         include __DIR__ . '/includes/access_denied_ui.php';
         exit();
@@ -53,6 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_schedule'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_schedule'])) {
+    checkRateLimit('manage_schedule', 10, 1);
     if (!canDo('manage_schedules')) {
         include __DIR__ . '/includes/access_denied_ui.php';
         exit();
@@ -85,6 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_schedule'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_schedule'])) {
+    checkRateLimit('manage_schedule', 5, 1);
     if (!canDo('manage_schedules')) {
         include __DIR__ . '/includes/access_denied_ui.php';
         exit();

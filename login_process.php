@@ -28,6 +28,7 @@ $result = $stmt->get_result();
 
 if ($result->num_rows !== 1) {
     recordFailedAttempt($conn, $ip, $email);
+    logActivity($conn, 0, 'Security Alert', "Failed login attempt for email: $email from IP: $ip");
     header('Location: login.php?error=1');
     exit();
 }
@@ -63,6 +64,7 @@ if (!password_verify($password, $user['password_hash'])) {
         $fail_stmt->execute();
         $fail_stmt->close();
         
+        logActivity($conn, $user['user_id'], 'Security Alert', "Failed password attempt from IP: $ip");
         header('Location: login.php?error=1');
         exit();
     }

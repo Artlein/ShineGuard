@@ -169,6 +169,7 @@ $error_map = [
     'invalid_admin_password' => ['🔑', 'Auth Failed',      'The administrator password you entered is incorrect.'],
     'self_deactivate'    => ['⚠️', 'Action Blocked',     'You cannot deactivate your own account.'],
     'self_demote'        => ['⚠️', 'Action Blocked',     'You cannot change your own role away from System Admin.'],
+    'rate_limit'         => ['❄️', 'Cooling Period',      'Too many requests. Please wait a moment before trying again.'],
 ];
 
 if ($success_param && isset($toast_map[$success_param])) {
@@ -736,14 +737,43 @@ header {
         </a>
 
         <?php if (isRecentlyAuthorized()): ?>
-        <button id="lockSessionBtn" class="hdr-icon-btn" onclick="revokeAuth()" title="Secure Session Active — Click to Cancel" style="background: #3b82f6; color: #fff; border: none; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);">
-            🔓
-        </button>
+        <div style="display:flex; align-items:center; gap:6px; position:relative;">
+            <button id="lockSessionBtn" class="hdr-icon-btn" onclick="revokeAuth()" title="Secure Session Active — Click to Cancel" style="background: #3b82f6; color: #fff; border: none; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);">
+                🔓
+            </button>
+            <div id="sbaTimerBadge" style="
+                background: linear-gradient(135deg, #3b82f6, #2563eb);
+                color: #fff;
+                font-family: 'Inter', monospace;
+                font-size: 12px;
+                font-weight: 700;
+                padding: 4px 10px;
+                border-radius: 8px;
+                letter-spacing: 0.5px;
+                white-space: nowrap;
+                box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+                animation: sbaTimerPulse 2s ease-in-out infinite;
+                cursor: default;
+                user-select: none;
+            " title="Time remaining in secure session">
+                <span id="sbaTimerText">5:00</span>
+            </div>
+        </div>
         <?php else: ?>
         <button id="lockSessionBtn" class="hdr-icon-btn" title="Session Locked" style="color: #94a3b8; border-color: rgba(148, 163, 184, 0.2); background: rgba(148, 163, 184, 0.05); cursor: default;" disabled>
             🔒
         </button>
         <?php endif; ?>
+        <style>
+            @keyframes sbaTimerPulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.85; }
+            }
+            @keyframes sbaTimerUrgent {
+                0%, 100% { opacity: 1; transform: scale(1); }
+                50% { opacity: 0.9; transform: scale(1.05); }
+            }
+        </style>
 
         <div class="hdr-user-container">
             <div class="hdr-user" onclick="toggleUserDropdown(event)" title="<?php echo htmlspecialchars($_SESSION['full_name'] ?? 'User Profile'); ?>">
@@ -1012,6 +1042,49 @@ header {
     <script>
     const csrfToken = '<?php echo generateCsrfToken(); ?>';
     const isAuthorized = <?php echo isRecentlyAuthorized() ? 'true' : 'false'; ?>;
+    const sbaAuthTime = <?php echo isset($_SESSION['last_auth_time']) ? (int)$_SESSION['last_auth_time'] : '0'; ?>;
+    const SBA_WINDOW = 300; // 5 minutes in seconds
+
+    // SBA Countdown Timer
+    (function() {
+        if (!isAuthorized || !sbaAuthTime) return;
+
+        const timerText  = document.getElementById('sbaTimerText');
+        const timerBadge = document.getElementById('sbaTimerBadge');
+        if (!timerText || !timerBadge) return;
+
+        const expiresAt = sbaAuthTime + SBA_WINDOW;
+
+        function updateTimer() {
+            const now       = Math.floor(Date.now() / 1000);
+            const remaining = expiresAt - now;
+
+            if (remaining <= 0) {
+                timerText.textContent = '0:00';
+                clearInterval(sbaInterval);
+                // Auto-reload to reflect locked state
+                location.reload();
+                return;
+            }
+
+            const mins = Math.floor(remaining / 60);
+            const secs = remaining % 60;
+            timerText.textContent = mins + ':' + String(secs).padStart(2, '0');
+
+            // Visual urgency when under 60 seconds
+            if (remaining <= 60) {
+                timerBadge.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                timerBadge.style.boxShadow  = '0 2px 8px rgba(239, 68, 68, 0.4)';
+                timerBadge.style.animation   = 'sbaTimerUrgent 1s ease-in-out infinite';
+            } else if (remaining <= 120) {
+                timerBadge.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+                timerBadge.style.boxShadow  = '0 2px 8px rgba(245, 158, 11, 0.35)';
+            }
+        }
+
+        updateTimer(); // run immediately
+        const sbaInterval = setInterval(updateTimer, 1000);
+    })();
 
     function openAuthModal() {
         document.getElementById('globalAuthModal').style.display = 'flex';
@@ -1128,6 +1201,42 @@ header {
             lockBtn.onclick = openAuthModal;
         }
     });
+
+    // Global Rate Limit Modal (Cooling Period)
+    <?php if ($error_param === 'rate_limit'): ?>
+    document.addEventListener('DOMContentLoaded', () => {
+        const modalHtml = `
+        <div id="rateLimitModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); backdrop-filter:blur(8px); z-index:999999; display:flex; align-items:center; justify-content:center; font-family:'Inter',sans-serif;">
+            <div style="background:white; border-radius:24px; padding:40px; max-width:400px; text-align:center; box-shadow:0 20px 50px rgba(0,0,0,0.2); animation:modalPop 0.4s cubic-bezier(0.34,1.56,0.64,1);">
+                <div style="font-size:64px; margin-bottom:20px; animation:iconFloat 3s ease-in-out infinite;">❄️</div>
+                <h2 style="color:#0f172a; margin-bottom:12px; font-weight:800;">Cooling Period</h2>
+                <p style="color:#64748b; line-height:1.6; margin-bottom:24px;">The system has detected too many requests from your connection. For security, this action is temporarily frozen.</p>
+                <div id="coolingTimer" style="background:#eff6ff; color:#3b82f6; font-weight:700; padding:12px 24px; border-radius:12px; display:inline-block; font-size:1.1rem; margin-bottom:24px;">Please wait 60s</div>
+                <button onclick="document.getElementById('rateLimitModal').remove()" style="display:block; width:100%; background:#f1f5f9; color:#475569; border:none; padding:12px; border-radius:12px; font-weight:700; cursor:pointer; transition:all 0.2s;">Dismiss</button>
+            </div>
+        </div>
+        <style>
+            @keyframes modalPop { from { opacity:0; transform:scale(0.9); } to { opacity:1; transform:scale(1); } }
+            @keyframes iconFloat { 0%, 100% { transform:translateY(0); } 50% { transform:translateY(-10px); } }
+        </style>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        let seconds = 60;
+        const timerText = document.getElementById('coolingTimer');
+        const interval = setInterval(() => {
+            seconds--;
+            if (seconds <= 0) {
+                clearInterval(interval);
+                timerText.textContent = "You can try again now";
+                timerText.style.background = "#ecfdf5";
+                timerText.style.color = "#10b981";
+            } else {
+                timerText.textContent = "Please wait " + seconds + "s";
+            }
+        }, 1000);
+    });
+    <?php endif; ?>
 
     // Enter key support
     document.getElementById('globalAuthPwd').addEventListener('keypress', (e) => {

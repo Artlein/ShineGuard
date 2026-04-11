@@ -371,6 +371,18 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 <span class="sb-nav-lbl">Settings</span>
             </a>
             <?php endif; ?>
+            <?php if (canDo('view_activity_logs')): ?>
+            <a href="activity_logs.php" class="<?php echo $current_page=='activity_logs.php'?'active':''; ?>">
+                <div class="sb-ico">🛡️</div>
+                <span class="sb-nav-lbl">Activity Logs</span>
+            </a>
+            <?php endif; ?>
+            <?php if (getUserRole() === 'System Admin'): ?>
+            <a href="dev_simulator.php" class="<?php echo $current_page=='dev_simulator.php'?'active':''; ?>">
+                <div class="sb-ico">🧪</div>
+                <span class="sb-nav-lbl">Developer Lab</span>
+            </a>
+            <?php endif; ?>
             <?php endif; ?>
         </nav>
 

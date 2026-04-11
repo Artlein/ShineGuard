@@ -152,6 +152,11 @@ function logControlCommand($action, $value1 = null, $value2 = null) {
             $stmt->execute();
             $stmt->close();
         }
+
+        // Also log to centralized activity_logs
+        $details = "Control Action: $action | Node: $nodeId | Value1: $value1" . ($value2 ? " | Value2: $value2" : "");
+        logActivity($conn, $_SESSION['user_id'], 'Streetlight Control', $details);
+
     } catch (Exception $e) {
         error_log("Failed to log control command: " . $e->getMessage());
     }
@@ -208,6 +213,7 @@ function batchControl($commands) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' || !empty($_GET['action'])) {
+    checkRateLimit('firebase_control', 20, 1); 
     header('Content-Type: application/json');
     
     $action = $_POST['action'] ?? $_GET['action'] ?? '';
