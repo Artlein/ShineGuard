@@ -40,7 +40,11 @@ foreach ($credentials as $cred) {
 }
 
 if (!$conn || $conn->connect_error) {
-    die("CRITICAL DB FIX NEEDED: Tell the AI that none of the standard database passwords worked on AWS.");
+    if (!$conn) {
+        die("CRITICAL DB FIX NEEDED: mysqli object could not be created.");
+    } else {
+        die("CRITICAL DB FIX NEEDED: " . $conn->connect_error);
+    }
 }
 
 $conn->set_charset("utf8mb4");
