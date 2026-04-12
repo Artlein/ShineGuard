@@ -48,6 +48,14 @@ $conn->query("CREATE TABLE IF NOT EXISTS `activity_logs` (
   KEY `idx_created` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
 
+// Patch: add created_at column if it was missing when the table was first created
+$col_check = $conn->query("SHOW COLUMNS FROM `activity_logs` LIKE 'created_at'");
+if ($col_check && $col_check->num_rows === 0) {
+    $conn->query("ALTER TABLE `activity_logs` ADD COLUMN `created_at` timestamp NOT NULL DEFAULT current_timestamp()");
+    $conn->query("ALTER TABLE `activity_logs` ADD KEY `idx_created` (`created_at`)");
+    $conn->query("ALTER TABLE `activity_logs` ADD KEY `idx_user_created` (`user_id`, `created_at`)");
+}
+
 date_default_timezone_set('Asia/Manila');
 
 $baseDir = str_replace('\\', '/', dirname(__FILE__));

@@ -94,7 +94,7 @@ $stats_res = $conn->query("SELECT
     COUNT(*) as total,
     COUNT(CASE WHEN action LIKE '%Security%' THEN 1 END) as security,
     COUNT(DISTINCT user_id) as users
-    FROM activity_logs 
+    FROM activity_logs al
     WHERE $where_clause");
 $stats = $stats_res ? $stats_res->fetch_assoc() : ['total' => 0, 'security' => 0, 'users' => 0];
 
