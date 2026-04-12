@@ -7,45 +7,30 @@ $host     = 'localhost';
 $host     = 'localhost';
 $database = 'Hulo';
 
-// Auto-detect environment and brute-force credentials to guarantee connection
-$credentials = [];
+// Auto-detect environment
+$is_aws = file_exists('/var/www/html/ShineGuard');
 
-if (file_exists('/var/www/html/ShineGuard')) {
-    // AWS EC2 Environment - try all likely setups they might have configured
-    $credentials = [
-        ['root', ''],
-        ['shineguard', 'ShineGuard2026!'],
-        ['shineguard', 'ShineGuard2026'],
-        ['root', 'ShineGuard2026!'],
-        ['root', 'ShineGuard2026'],
-        ['shineguard', ''],
-        ['shineguard', 'password'],
-        ['root', 'root']
-    ];
+if ($is_aws) {
+    // AWS EC2 Environment
+    $user     = 'shineguard';
+    $password = 'ShineGuard2026';
 } else {
-    // Local XAMPP
-    $credentials = [
-        ['root', '']
-    ];
+    // Local XAMPP Environment
+    $user     = 'root';
+    $password = '';
 }
 
-$conn = null;
-$errors = [];
-foreach ($credentials as $cred) {
-    try {
-        $test_conn = @new mysqli($host, $cred[0], $cred[1], $database);
-        if (!$test_conn->connect_error) {
-            $conn = $test_conn;
-            break; // Connection successful!
-        }
-    } catch (Exception $e) {
-        $errors[] = "User {$cred[0]}: " . $e->getMessage();
-        continue;
+try {
+    $conn = @new mysqli($host, $user, $password, $database);
+    if ($conn->connect_error) {
+        throw new Exception($conn->connect_error);
     }
-}
-
-if (!$conn || $conn->connect_error) {
-    die("CRITICAL DB FIX NEEDED:<br>" . implode("<br>", $errors));
+} catch (Exception $e) {
+    if ($is_aws) {
+        die("<h3>AWS Database Connection Failed</h3><p>Username: <b>{$user}</b></p><p>Error: <b>" . $e->getMessage() . "</b></p><p>Please run the terminal command to create the MySQL user exactly as instructed.</p>");
+    } else {
+        die("Connection failed: " . $e->getMessage());
+    }
 }
 
 $conn->set_charset("utf8mb4");
