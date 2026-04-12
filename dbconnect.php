@@ -4,9 +4,19 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 $host     = 'localhost';
-$user     = 'root';
-$password = '';
+$host     = 'localhost';
 $database = 'Hulo';
+
+// Auto-detect environment based on server OS / path
+if (file_exists('/var/www/html/ShineGuard')) {
+    // AWS EC2 Environment
+    $user     = 'shineguard';
+    $password = 'ShineGuard2026!';
+} else {
+    // Local XAMPP Environment
+    $user     = 'root';
+    $password = '';
+}
 
 $conn = new mysqli($host, $user, $password, $database);
 if ($conn->connect_error) {
