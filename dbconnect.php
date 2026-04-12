@@ -14,6 +14,19 @@ if ($conn->connect_error) {
 }
 $conn->set_charset("utf8mb4");
 
+// Auto-create missing activity_logs table for AWS (without strict FK constraint)
+$conn->query("CREATE TABLE IF NOT EXISTS `activity_logs` (
+  `log_id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) DEFAULT NULL,
+  `action` varchar(255) NOT NULL,
+  `details` text DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`log_id`),
+  KEY `idx_user_created` (`user_id`,`created_at`),
+  KEY `idx_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
 date_default_timezone_set('Asia/Manila');
 
 $baseDir = str_replace('\\', '/', dirname(__FILE__));
