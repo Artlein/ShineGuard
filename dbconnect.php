@@ -28,7 +28,7 @@ if (file_exists('/var/www/html/ShineGuard')) {
 }
 
 $conn = null;
-$last_error = "";
+$errors = [];
 foreach ($credentials as $cred) {
     try {
         $test_conn = @new mysqli($host, $cred[0], $cred[1], $database);
@@ -37,13 +37,13 @@ foreach ($credentials as $cred) {
             break; // Connection successful!
         }
     } catch (Exception $e) {
-        $last_error = $e->getMessage();
+        $errors[] = "User {$cred[0]}: " . $e->getMessage();
         continue;
     }
 }
 
 if (!$conn || $conn->connect_error) {
-    die("CRITICAL DB FIX NEEDED: " . ($last_error ?: "Unknown error"));
+    die("CRITICAL DB FIX NEEDED:<br>" . implode("<br>", $errors));
 }
 
 $conn->set_charset("utf8mb4");
