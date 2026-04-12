@@ -28,23 +28,22 @@ if (file_exists('/var/www/html/ShineGuard')) {
 }
 
 $conn = null;
+$last_error = "";
 foreach ($credentials as $cred) {
     try {
-        $conn = @new mysqli($host, $cred[0], $cred[1], $database);
-        if (!$conn->connect_error) {
+        $test_conn = @new mysqli($host, $cred[0], $cred[1], $database);
+        if (!$test_conn->connect_error) {
+            $conn = $test_conn;
             break; // Connection successful!
         }
     } catch (Exception $e) {
+        $last_error = $e->getMessage();
         continue;
     }
 }
 
 if (!$conn || $conn->connect_error) {
-    if (!$conn) {
-        die("CRITICAL DB FIX NEEDED: mysqli object could not be created.");
-    } else {
-        die("CRITICAL DB FIX NEEDED: " . $conn->connect_error);
-    }
+    die("CRITICAL DB FIX NEEDED: " . ($last_error ?: "Unknown error"));
 }
 
 $conn->set_charset("utf8mb4");
