@@ -15,7 +15,9 @@ if (file_exists('/var/www/html/ShineGuard')) {
     $credentials = [
         ['root', ''],
         ['shineguard', 'ShineGuard2026!'],
+        ['shineguard', 'ShineGuard2026'],
         ['root', 'ShineGuard2026!'],
+        ['root', 'ShineGuard2026'],
         ['shineguard', ''],
         ['shineguard', 'password'],
         ['root', 'root']
