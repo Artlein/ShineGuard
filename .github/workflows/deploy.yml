@@ -19,7 +19,8 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /var/www/html/ShineGuard
-            git pull origin main
+            sudo git fetch --all
+            sudo git reset --hard origin/main
             sudo chown -R www-data:www-data /var/www/html/ShineGuard
             sudo chmod -R 755 /var/www/html/ShineGuard
             sudo chmod -R 775 /var/www/html/ShineGuard/snapshots
