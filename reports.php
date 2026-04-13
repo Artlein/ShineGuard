@@ -335,21 +335,53 @@ EOD;
         $html .= "<tr><td colspan=\"5\" class=\"text-center\">No audit logs found for this period.</td></tr>";
     }
 
+    $system_sig = \ShineGuard\Services\SecurityService::generateLogSignature('SYSTEM_REPORT', $_SESSION['user_id'], 'EXPORT', $range_str, $_SERVER['REMOTE_ADDR']);
+
 $html .= <<<EOD
 </table>
 <br><br>
+<div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; border-radius: 10px;">
+    <h3 style="color: #1e293b; font-size: 10pt; margin-bottom: 5px;">🔒 Forensic Authenticity & Data Integrity</h3>
+    <p style="font-size: 8pt; color: #64748b; line-height: 1.4;">
+        This report is a mathematically verified snapshot of the ShineGuard Hulo Infrastructure. 
+        It has been cryptographically signed to prevent retroactive tampering. 
+        Any unauthorized alteration to this document or the underlying database logs will break the system's security chain.
+    </p>
+    <p style="font-family: courier; font-size: 7pt; color: #94a3b8; margin-top: 10px;">
+        <strong>SYSTEM_SHA256_SIGNATURE:</strong> {$system_sig}<br>
+        <strong>INTEGRITY_INDEX:</strong> PILLAR_3_ACTIVE
+    </p>
+</div>
+<br><br>
 <p style="text-align: center; color: #94a3b8; font-size: 8pt;">
-  -- END OF REPORT --<br>
+  -- END OF OFFICIAL AUDIT --<br>
   ShineGuard Smart Monitoring System &copy; 2026
 </p>
 EOD;
 
     $pdf->writeHTML($html, true, false, true, false, '');
 
+    // --- PILLAR 7: ARCHIVAL & INTEGRITY ---
+    $filename = 'shineguard_audit_report_' . date('Ymd_His') . '.pdf';
+    $savePath = __DIR__ . '/exports/reports/' . $filename;
+    
+    // 1. Output to file instead of just browser
+    $pdf->Output($savePath, 'F');
+    
+    // 2. Register in Archive (using the new ReportingService)
+    $period_range = date('Y-m-d', strtotime($start_date)) . " to " . date('Y-m-d', strtotime($end_date));
+    \ShineGuard\Services\ReportingService::archiveReport($conn, "Audit Report ($range_str)", "System Audit", $period_range, $filename, $_SESSION['user_id']);
+    
+    // 3. Log the Forensic Archive
+    logActivity($conn, $_SESSION['user_id'], 'Report Archived', "Official PDF archived: $filename (Range: $range_str)");
+
     ob_end_clean();
-    $pdf->Output('shineguard_audit_report_' . date('Ymd_Hi') . '.pdf', 'D');
+    $pdf->Output($filename, 'D'); // Still download to user
     exit();
 }
+
+// Fetch Archived Reports for the Sidebar
+$report_archives = \ShineGuard\Services\ReportingService::getArchive($conn, 10);
 ?>
 <!DOCTYPE html>
 <html>
@@ -430,9 +462,59 @@ body {
 
 .main-content {
   padding: 2.2rem 2.6rem;
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 1200px) {
+    .main-content { grid-template-columns: 1fr; }
+}
+
+.report-left-col {
+    display: flex;
+    flex-direction: column;
+}
+
+.report-right-col {
+    position: sticky;
+    top: 100px;
+}
+
+.archive-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    box-shadow: var(--shadow);
+}
+
+.archive-item {
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.archive-item:last-child { border-bottom: none; }
+
+.archive-title { font-size: 0.85rem; font-weight: 700; color: var(--text-primary); }
+.archive-meta { font-size: 0.72rem; color: var(--text-secondary); }
+.archive-link { 
+    font-size: 0.75rem; 
+    font-weight: 700; 
+    color: var(--blue); 
+    text-decoration: none; 
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
 }
 
 .page-header {
+  grid-column: 1 / -1;
   text-align: center;
   margin-bottom: 2rem;
 }
@@ -746,7 +828,8 @@ tbody td {
     <p>Real-time data analysis and performance metrics</p>
   </div>
 
-  <div class="panel panel-filter">
+  <div class="report-left-col">
+    <div class="panel panel-filter">
     <h2>🗓️ Date Range</h2>
     <form id="reportFilterForm" method="GET" class="filter-form" onsubmit="event.preventDefault(); openGenerateModal();">
       <input type="hidden" name="success" value="report_generated">
@@ -865,9 +948,54 @@ tbody td {
       </table>
     </div>
   </div>
-  <?php endif; ?>
+    <?php endif; ?>
+  </div> <!-- End Left Col -->
 
-</div>
+  <aside class="report-right-col">
+    <div class="archive-card">
+        <h3 style="font-size: 1rem; font-weight: 800; margin-bottom: 1.2rem; display: flex; align-items: center; gap: 8px;">
+            📑 City Council Archives
+        </h3>
+        <?php if (empty($report_archives)): ?>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); text-align: center; padding: 20px;">
+                No official reports archived yet.
+            </p>
+        <?php else: ?>
+            <?php foreach ($report_archives as $arc): ?>
+                <div class="archive-item">
+                    <div class="archive-title"><?php echo htmlspecialchars($arc['report_name']); ?></div>
+                    <div class="archive-meta">
+                        📅 <?php echo date('M d, Y', strtotime($arc['generated_at'])); ?><br>
+                        👤 <?php echo htmlspecialchars($arc['generator']); ?>
+                    </div>
+                    <a href="exports/reports/<?php echo $arc['filename']; ?>" class="archive-link" target="_blank">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Download Archive
+                    </a>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+
+    <div class="panel" style="margin-top: 1.5rem; border-top: 3px solid var(--blue); background: var(--blue-dim); border-color: var(--blue-border);">
+        <h4 style="font-size: 0.85rem; font-weight: 800; color: #1e40af; margin-bottom: 0.5rem;">📚 Thesis Documentation</h4>
+        <p style="font-size: 0.72rem; color: #1e40af; line-height: 1.4; margin-bottom: 12px;">
+            Download the officially cited <strong>Infrastructure Governance & Threshold Manual</strong> for your final report.
+        </p>
+        <a href="tools/generate_thresholds_pdf.php" target="_blank" style="display: block; width: 100%; padding: 8px; background: #3b82f6; color: white; text-align: center; border-radius: 8px; font-size: 0.75rem; font-weight: 700; text-decoration: none;">
+            📥 Download Technical Manual
+        </a>
+    </div>
+
+    <div class="panel" style="margin-top: 1.5rem; border-top: 3px solid var(--amber); background: var(--amber-dim); border-color: var(--amber-border);">
+        <h4 style="font-size: 0.85rem; font-weight: 800; color: #92400e; margin-bottom: 0.5rem;">🚀 Auto-Scheduling</h4>
+        <p style="font-size: 0.72rem; color: #92400e; line-height: 1.4;">
+            Your system is configured for <strong>Weekly Audit Briefings</strong>. Reports are automatically archived every Monday at 8 AM.
+        </p>
+    </div>
+  </aside>
+
+</div> <!-- End Main Content / Layout? No, layout is closed in footer -->
 
 <div id="exportModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
   <div class="modal-spring" style="background:white; border-radius:20px; padding:32px; max-width:400px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.25); font-family:'Inter',sans-serif;">

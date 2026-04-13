@@ -89,6 +89,11 @@ $stats = $conn->query("SELECT
     (SELECT COUNT(*) FROM alerts WHERE status = 'Open' AND severity = 'High') as critical_alerts")->fetch_assoc();
 
 $technicians = $conn->query("SELECT user_id, full_name, role FROM users WHERE role IN ('System Admin', 'Maintenance Operator') ORDER BY full_name ASC");
+
+// PILLAR 8: ASSET LIFECYCLE DATA
+$mttr_global = \ShineGuard\Services\MaintenanceService::calculateMTTR($conn);
+$pending_pm  = \ShineGuard\Services\MaintenanceService::getPendingPM($conn);
+$inventory   = \ShineGuard\Services\MaintenanceService::getInventoryStatus($conn);
 ?>
 <!DOCTYPE html>
 <html>
@@ -165,7 +170,31 @@ if (!isset($theme_color)) {
         <div style="font-size: 28px; font-weight: 800; color: #ef4444; margin-bottom: 4px;"><?php echo $stats['critical_alerts']; ?></div>
         <div style="color: #ef4444; font-size: 14px; font-weight: 600;">Critical Alerts Pending</div>
     </div>
+    <div style="background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(139,92,246,0.2)); border: 1px solid rgba(139,92,246,0.2); border-top: 5px solid #8b5cf6; padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <div style="font-size: 36px; margin-bottom: 8px;">⚡</div>
+        <div style="font-size: 28px; font-weight: 800; color: #8b5cf6; margin-bottom: 4px;"><?php echo $mttr_global; ?><span style="font-size: 14px; font-weight: 600; opacity: 0.7;">m</span></div>
+        <div style="color: #8b5cf6; font-size: 14px; font-weight: 600;">Mean Time To Repair (MTTR)</div>
+    </div>
 </div>
+
+<?php if (!empty($pending_pm)): ?>
+<div class="panel" style="border-top: 5px solid #f59e0b; background: rgba(245,158,11,0.02);">
+    <h2 style="color: #b45309;">⏳ Lifecycle Watchdog: Preventative Maintenance Due</h2>
+    <p style="margin-bottom: 16px; color: #b45309; font-size: 0.85rem; font-weight: 600;">The following nodes have reached their 12-month or 4,000-hour service threshold.</p>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px;">
+    <?php foreach ($pending_pm as $node): ?>
+        <div style="background: #fff; border: 1px solid #fed7aa; padding: 12px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <div style="font-weight: 800; font-size: 0.9rem; color: #1e293b;"><?php echo htmlspecialchars($node['node_name']); ?></div>
+                <div style="font-size: 0.75rem; color: #64748b;">Installed: <?php echo date('M Y', strtotime($node['installed_at'])); ?> | Hours: <?php echo number_format($node['runtime_hours']); ?></div>
+            </div>
+            <button onclick="showWorkOrderForm(0, <?php echo $node['light_id']; ?>, 'Routine Preventative Maintenance (Service Interval Reached)', '<?php echo htmlspecialchars($node['node_name']); ?>')" class="btn-sm" style="background: #f59e0b; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; cursor: pointer;">Schedule</button>
+        </div>
+    <?php endforeach; ?>
+    </div>
+</div>
+<?php endif; ?>
 
 <div class="panel" style="border-top: 5px solid #ef4444;">
     <h2>🚨 Pending Alerts - Create Work Orders</h2>
@@ -334,6 +363,48 @@ else: ?>
     <?php
 endif; ?>
 </div>
+
+<div class="panel" style="border-top: 5px solid #64748b;">
+    <h2 style="display: flex; align-items: center; gap: 8px;">📦 City Maintenance Inventory</h2>
+    <div style="overflow-x: auto;">
+    <table>
+        <thead>
+            <tr>
+                <th>Part Name</th>
+                <th>Part Number</th>
+                <th>Category</th>
+                <th>In Stock</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($inventory as $item): ?>
+            <tr>
+                <td><strong><?php echo htmlspecialchars($item['part_name']); ?></strong></td>
+                <td style="font-family: monospace; font-size: 0.75rem;"><?php echo $item['part_number']; ?></td>
+                <td><span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;"><?php echo $item['category']; ?></span></td>
+                <td style="font-weight: 800;"><?php echo $item['quantity']; ?></td>
+                <td>
+                    <?php if ($item['low_stock']): ?>
+                        <span class="badge fail" style="animation: pulse 2s infinite;">LOW STOCK</span>
+                    <?php else: ?>
+                        <span class="badge ok">AVAILABLE</span>
+                    <?php endif; ?>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<style>
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
+</style>
 
 </main>
 </div>

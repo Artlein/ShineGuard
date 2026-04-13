@@ -1,4 +1,13 @@
 <?php
+/**
+ * ENTERPRISE SECURITY HEADERS (Pillar 3)
+ */
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.tile.openstreetmap.org https://unpkg.com; connect-src 'self';");
+header("X-Frame-Options: SAMEORIGIN");
+header("X-Content-Type-Options: nosniff");
+header("Referrer-Policy: strict-origin-when-cross-origin");
+header("Permissions-Policy: geolocation=(self), camera=(self)");
+
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -77,6 +86,14 @@ if (isset($_GET['autologin_debug'])) {
     $_SESSION['last_activity'] = time();
 }
 
+// Load Core Services
+require_once __DIR__ . '/src/Services/IdentityService.php';
+require_once __DIR__ . '/src/Services/AuditService.php';
+require_once __DIR__ . '/src/Services/IOTService.php';
+require_once __DIR__ . '/src/Services/SecurityService.php';
+require_once __DIR__ . '/src/Services/ReportingService.php';
+require_once __DIR__ . '/src/Services/MaintenanceService.php';
+
 /**
  * RESTORED STUBS
  * These prevent fatal errors in pages that call these functions.
@@ -84,18 +101,13 @@ if (isset($_GET['autologin_debug'])) {
  */
 if (!function_exists('generateCsrfToken')) {
     function generateCsrfToken() {
-        if (empty($_SESSION['csrf_token'])) {
-            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-        }
-        return $_SESSION['csrf_token'];
+        return \ShineGuard\Services\IdentityService::generateCsrfToken();
     }
 }
 
 if (!function_exists('verifyCsrfToken')) {
     function verifyCsrfToken($token) {
-        return isset($_SESSION['csrf_token'])
-            && is_string($token)
-            && hash_equals($_SESSION['csrf_token'], $token);
+        return \ShineGuard\Services\IdentityService::verifyCsrfToken($token);
     }
 }
 
@@ -170,50 +182,32 @@ if (!function_exists('checkRateLimit')) {
 
 if (!function_exists('setAuthorized')) {
     function setAuthorized() {
-        $_SESSION['last_auth_time'] = time();
+        \ShineGuard\Services\IdentityService::setAuthorized();
     }
 }
 
 if (!function_exists('isRecentlyAuthorized')) {
     function isRecentlyAuthorized() {
-        if (!isset($_SESSION['last_auth_time'])) return false;
-        return (time() - $_SESSION['last_auth_time']) < 300; // 5-minute window
+        return \ShineGuard\Services\IdentityService::isRecentlyAuthorized();
     }
 }
 
 if (!function_exists('revokeAuthorization')) {
     function revokeAuthorization() {
-        unset($_SESSION['last_auth_time']);
+        \ShineGuard\Services\IdentityService::revokeAuthorization();
     }
 }
 
 function isLoggedIn() {
-    return isset($_SESSION['user_id']) && isset($_SESSION['username']);
+    return \ShineGuard\Services\IdentityService::isLoggedIn();
 }
 
 function getUserRole() {
-    return $_SESSION['role'] ?? 'guest';
+    return \ShineGuard\Services\IdentityService::getUserRole();
 }
 
 function canDo(string $action): bool {
-    static $map = [
-        'view_reports'         => ['System Admin', 'Maintenance Operator', 'System Observer'],
-        'export_reports'       => ['System Admin'],
-        'manage_schedules'     => ['System Admin'],
-        'manage_cctv'          => ['System Admin'],
-        'view_cctv'            => ['System Admin', 'Maintenance Operator', 'System Observer'],
-        'manage_streetlights'  => ['System Admin'],
-        'manage_users'         => ['System Admin'],
-        'create_work_orders'   => ['System Admin'],
-        'update_work_orders'   => ['System Admin'],
-        'acknowledge_alerts'   => ['System Admin'],
-        'view_settings'        => ['System Admin'],
-        'manage_firebase'      => ['System Admin'],
-        'view_activity_logs'   => ['System Admin'],
-        'control_streetlights' => ['System Admin', 'Maintenance Operator'],
-        'take_snapshots'       => ['System Admin'],
-    ];
-    return in_array(getUserRole(), $map[$action] ?? [], true);
+    return \ShineGuard\Services\IdentityService::canDo($action);
 }
 
 function checkSessionTimeout() {
@@ -320,13 +314,7 @@ function requireLoginApi($require_role = null) {
 }
 
 function logActivity($conn, $user_id, $action, $details = '') {
-    $stmt = $conn->prepare(
-        "INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)"
-    );
-    $ip = $_SERVER['REMOTE_ADDR'];
-    $stmt->bind_param("isss", $user_id, $action, $details, $ip);
-    $stmt->execute();
-    $stmt->close();
+    \ShineGuard\Services\AuditService::logActivity($conn, $user_id, $action, $details);
 }
 
 function sanitize($data) {

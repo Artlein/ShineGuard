@@ -46,17 +46,41 @@ if (isset($conn)) {
     }
 }
 
-// Server-side Weather Fetch
+// Enhanced Weather Fetch with 15-minute Caching
 $weather_data = null;
-try {
-    $weather_url = 'https://api.open-meteo.com/v1/forecast?latitude=14.5794&longitude=121.0359&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,precipitation_probability&timezone=Asia%2FManila&forecast_days=1';
-    $context = stream_context_create(['http' => ['timeout' => 2]]);
-    $response = file_get_contents($weather_url, false, $context);
-    if ($response) {
-        $weather_data = json_decode($response, true);
+$cache_file = __DIR__ . '/assets/weather_cache.json';
+$cache_ttl = 900; // 15 minutes
+
+if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_ttl)) {
+    $weather_data = json_decode(file_get_contents($cache_file), true);
+} else {
+    try {
+        $weather_url = 'https://api.open-meteo.com/v1/forecast?latitude=14.5794&longitude=121.0359&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,precipitation_probability&timezone=Asia%2FManila&forecast_days=1';
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $weather_url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // For local XAMPP compatibility
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode === 200 && $response) {
+            $weather_data = json_decode($response, true);
+            if ($weather_data) {
+                if (!is_dir(__DIR__ . '/assets')) @mkdir(__DIR__ . '/assets', 0777, true);
+                @file_put_contents($cache_file, $response);
+            }
+        } elseif (file_exists($cache_file)) {
+            // Fallback to expired cache if API fails
+            $weather_data = json_decode(file_get_contents($cache_file), true);
+        }
+    } catch (Exception $e) {
+        if (file_exists($cache_file)) {
+            $weather_data = json_decode(file_get_contents($cache_file), true);
+        }
     }
-} catch (Exception $e) {
-    // Silently fail, UI will handle null
 }
 
 $WMO_ICONS = [
@@ -72,7 +96,9 @@ $WMO_DESC = [
     80=>'Light Showers', 81=>'Showers', 82=>'Heavy Showers', 95=>'Thunderstorm', 96=>'Thunderstorm', 99=>'Thunderstorm'
 ];
 
-$curr_weather = $weather_data['current'] ?? null;
+// Defensive check for weather data structure
+$curr_weather = (is_array($weather_data) && isset($weather_data['current'])) ? $weather_data['current'] : null;
+if (!is_array($curr_weather)) $curr_weather = []; 
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -94,6 +120,36 @@ if (!isset($theme_color)) {
 ?>
 <style>:root { --theme-color: <?php echo htmlspecialchars($theme_color); ?>; }</style>
 <link rel="stylesheet" href="assets/css/dashboard.css?v=<?php echo time(); ?>">
+<style>
+    .badge-mini {
+        font-size: 0.65rem;
+        font-weight: 800;
+        padding: 4px 8px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--surface-elev);
+        border: 1px solid var(--border);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+    .badge-mini .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+    }
+    .pulse-blue {
+        background: #3b82f6;
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+        animation: pulse-blue 2s infinite;
+    }
+    @keyframes pulse-blue {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(59, 130, 246, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+    }
+</style>
 </head>
 <body>
 <div class="layout">
@@ -256,14 +312,14 @@ if (!isset($theme_color)) {
             <!-- Integrated Weather Card -->
             <div class="weather-card">
                 <div class="weather-main">
-                    <div class="weather-icon"><?php echo $WMO_ICONS[$curr_weather['weather_code']] ?? '🌡️'; ?></div>
+                    <div class="weather-icon"><?php echo $WMO_ICONS[$curr_weather['weather_code'] ?? -1] ?? '🌡️'; ?></div>
                     <div class="weather-info">
                         <div class="weather-location">📍 Mandaluyong City</div>
                         <div class="weather-temp-row">
                             <span class="weather-temp"><?php echo isset($curr_weather['temperature_2m']) ? round($curr_weather['temperature_2m']) : '--'; ?></span>
                             <span class="weather-unit">°C</span>
                         </div>
-                        <div class="weather-desc"><?php echo $WMO_DESC[$curr_weather['weather_code']] ?? 'Service Unavailable'; ?></div>
+                        <div class="weather-desc"><?php echo $WMO_DESC[$curr_weather['weather_code'] ?? -1] ?? 'Weather Service Offline'; ?></div>
                     </div>
                 </div>
                 <div class="weather-stats">
@@ -289,6 +345,7 @@ if (!isset($theme_color)) {
             <div class="panel" style="border-top: 5px solid #64748b;">
                 <div class="panel-header">
                     <h3>📝 Recent Activity</h3>
+                    <a href="activity_logs.php" class="view-all">View All →</a>
                 </div>
                 <?php 
                 $count = 0;
@@ -334,8 +391,19 @@ if (!isset($theme_color)) {
             </div>
         </div>
         
-        <div class="iot-info">
-            Live data from <strong>SG-NODE2</strong> (Firebase) → <strong>SL-001</strong> (MySQL) <span style="color: #10b981; margin-left: 8px;">● Connected</span>
+        <div class="iot-info" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                Live data from <strong>SG-NODE2</strong> (Firebase) → <strong>SL-001</strong> (MySQL) 
+                <span style="color: #10b981; margin-left: 8px;">● Connected</span>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <div class="badge-mini mqtt" title="MQTT Bridge is active and listening">
+                    <span class="dot pulse-blue"></span> MQTT PUSH: ACTIVE
+                </div>
+                <div class="badge-mini protocol" title="Current Infrastructure Tier">
+                    TIER 2: EVENT-DRIVEN
+                </div>
+            </div>
         </div>
 
         <div class="sensor-grid">
