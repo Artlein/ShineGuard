@@ -91,6 +91,18 @@ if (!in_array('lockout_until', $existing_cols)) {
     $conn->query("ALTER TABLE `users` ADD COLUMN `lockout_until` datetime DEFAULT NULL");
 }
 
+// Maintenance & Lifecycle Patch for `streetlights` table
+$light_check = $conn->query("SHOW COLUMNS FROM `streetlights` LIKE 'installed_at'");
+if ($light_check && $light_check->num_rows === 0) {
+    // We detected missing maintenance columns, let's mature the schema
+    $conn->query("ALTER TABLE `streetlights` ADD COLUMN `installed_at` date DEFAULT NULL");
+    $conn->query("ALTER TABLE `streetlights` ADD COLUMN `runtime_hours` int(11) DEFAULT 0");
+    $conn->query("ALTER TABLE `streetlights` ADD COLUMN `hardware_revision` varchar(50) DEFAULT 'v1.0'");
+    
+    // Backfill installed_at from installation_date if it exists
+    $conn->query("UPDATE `streetlights` SET installed_at = installation_date WHERE installed_at IS NULL AND installation_date IS NOT NULL");
+}
+
 date_default_timezone_set('Asia/Manila');
 
 $baseDir = str_replace('\\', '/', dirname(__FILE__));
