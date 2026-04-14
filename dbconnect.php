@@ -321,6 +321,45 @@ function sanitize($data) {
     return htmlspecialchars(strip_tags(trim($data)));
 }
 
+/**
+ * PII PRIVACY LAYER (Data Privacy Act Compliance)
+ */
+function shouldMaskPII() {
+    $role = getUserRole();
+    return $role !== 'System Admin'; // Only Admins see raw PII
+}
+
+function maskEmail($email) {
+    if (!$email || !str_contains($email, '@')) return $email;
+    if (!shouldMaskPII()) return $email;
+    
+    $parts = explode('@', $email);
+    $name = $parts[0];
+    $domain = $parts[1];
+    
+    if (strlen($name) <= 2) return $name . '***@' . $domain;
+    return substr($name, 0, 2) . str_repeat('*', min(5, strlen($name) - 2)) . '@' . $domain;
+}
+
+function maskPhone($phone) {
+    if (!$phone) return 'Not Provided';
+    if (!shouldMaskPII()) return $phone;
+    
+    $clean = preg_replace('/[^0-9]/', '', $phone);
+    if (strlen($clean) < 7) return '********';
+    return '+' . substr($clean, 0, 2) . ' ' . substr($clean, 2, 3) . ' *** ****';
+}
+
+function maskPII($data, $type = 'text') {
+    if (!shouldMaskPII()) return $data;
+    if ($type === 'email') return maskEmail($data);
+    if ($type === 'phone') return maskPhone($data);
+    
+    // Default: mask names
+    if (strlen($data) <= 1) return $data;
+    return substr($data, 0, 1) . '***' . substr($data, -1);
+}
+
 function isIpLockedOut($conn, $ip) {
     $stmt = $conn->prepare("SELECT COUNT(*) AS cnt FROM login_attempts WHERE ip_address = ? AND attempted_at >= DATE_SUB(NOW(), INTERVAL 15 MINUTE)");
     $stmt->bind_param("s", $ip);

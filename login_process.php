@@ -19,7 +19,7 @@ if (isIpLockedOut($conn, $ip)) {
 }
 
 $stmt = $conn->prepare(
-    "SELECT user_id, username, email, password_hash, full_name, role, is_active, failed_attempts, lockout_until
+    "SELECT user_id, username, email, password_hash, full_name, role, is_active, failed_attempts, lockout_until, mfa_secret, mfa_enabled
      FROM users WHERE email = ? LIMIT 1"
 );
 $stmt->bind_param("s", $email);
@@ -76,6 +76,24 @@ if (!$user['is_active']) {
 }
 
 session_regenerate_id(true);
+
+if ($user['mfa_enabled']) {
+    // MFA is required. Set a temporary session and redirect to the MFA gate.
+    $_SESSION['mfa_pending_user_id']  = $user['user_id'];
+    $_SESSION['mfa_pending_username'] = $user['username'];
+    $_SESSION['mfa_pending_full_name']= $user['full_name'];
+    $_SESSION['mfa_pending_role']     = $user['role'];
+    $_SESSION['mfa_pending_secret']   = $user['mfa_secret'];
+    
+    // Pass along the remember flag
+    if ($remember) {
+        $_SESSION['mfa_pending_remember'] = true;
+    }
+    
+    $conn->close();
+    header('Location: mfa_verify.php');
+    exit();
+}
 
 $_SESSION['user_id']       = $user['user_id'];
 $_SESSION['username']      = $user['username'];

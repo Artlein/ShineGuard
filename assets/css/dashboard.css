@@ -633,7 +633,7 @@ body {
 .alert-item {
     padding: 16px;
     border-radius: 10px;
-    background: var(--muted);
+    background: #ffffff;
     margin-bottom: 12px;
     border-left: 4px solid var(--border);
     transition: all 0.2s;
@@ -646,12 +646,12 @@ body {
 
 .alert-item.critical {
     border-left-color: #ef4444;
-    background: rgba(239, 68, 68, 0.1);
+    background: #ffffff;
 }
 
 .alert-item.medium {
     border-left-color: #f59e0b;
-    background: rgba(245, 158, 11, 0.1);
+    background: #ffffff;
 }
 
 .alert-header {

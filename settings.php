@@ -130,6 +130,73 @@ if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
     exit();
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_mfa'])) {
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        header('Location: settings.php?tab=security&error=invalid_csrf');
+        exit();
+    }
+    
+    $action = $_POST['mfa_action'] ?? '';
+    
+    if ($action === 'enable') {
+        require_once 'src/Services/TOTPService.php';
+        $secret = \ShineGuard\Services\TOTPService::generateSecret();
+        
+        $stmt = $conn->prepare("UPDATE users SET mfa_secret = ?, mfa_enabled = 1 WHERE user_id = ?");
+        $stmt->bind_param("si", $secret, $_SESSION['user_id']);
+        $stmt->execute();
+        
+        logActivity($conn, $_SESSION['user_id'], 'Security Update', 'User enabled Two-Factor Authentication');
+        header('Location: settings.php?tab=security&success=mfa_enabled');
+        exit();
+    } elseif ($action === 'disable') {
+        $stmt = $conn->prepare("UPDATE users SET mfa_secret = NULL, mfa_enabled = 0 WHERE user_id = ?");
+        $stmt->bind_param("i", $_SESSION['user_id']);
+        $stmt->execute();
+        
+        logActivity($conn, $_SESSION['user_id'], 'Security Update', 'User disabled Two-Factor Authentication');
+        header('Location: settings.php?tab=security&success=mfa_disabled');
+        exit();
+    }
+}
+
+// ── SECURITY FEATURE: ADMINISTRATIVE MFA RESET ──
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reset_mfa'])) {
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        header('Location: settings.php?tab=users&error=invalid_csrf');
+        exit();
+    }
+
+    $target_user_id = intval($_POST['target_user_id']);
+    $admin_password = $_POST['admin_password'] ?? '';
+    $active_admin_id = (int)$_SESSION['user_id'];
+
+    // Verify Admin Password first for sensitive override
+    $auth_stmt = $conn->prepare("SELECT password_hash FROM users WHERE user_id = ? LIMIT 1");
+    $auth_stmt->bind_param("i", $active_admin_id);
+    $auth_stmt->execute();
+    $admin_data = $auth_stmt->get_result()->fetch_assoc();
+    $auth_stmt->close();
+
+    if (!$admin_data || !password_verify($admin_password, $admin_data['password_hash'])) {
+        header('Location: settings.php?tab=users&error=invalid_admin_password');
+        exit();
+    }
+
+    // Reset MFA
+    $reset_stmt = $conn->prepare("UPDATE users SET mfa_secret = NULL, mfa_enabled = 0 WHERE user_id = ?");
+    $reset_stmt->bind_param("i", $target_user_id);
+    
+    if ($reset_stmt->execute()) {
+        logActivity($conn, $active_admin_id, 'MFA Forced Reset', "Administrator forcefully removed MFA security for user ID: $target_user_id");
+        header('Location: settings.php?tab=users&success=mfa_reset_success');
+    } else {
+        header('Location: settings.php?tab=users&error=db_error');
+    }
+    $reset_stmt->close();
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     checkRateLimit('add_user', 10, 1);
     
@@ -917,6 +984,7 @@ tbody td {
     <button class="tab <?php echo $active_tab === 'alerts'      ? 'active' : ''; ?>" onclick="switchTab('alerts', this)">🚨 Alerts & Notifications</button>
     <button class="tab <?php echo $active_tab === 'automation'  ? 'active' : ''; ?>" onclick="switchTab('automation', this)">🤖 Automation</button>
     <button class="tab <?php echo $active_tab === 'data'        ? 'active' : ''; ?>" onclick="switchTab('data', this)">💾 Data & Backup</button>
+    <button class="tab <?php echo $active_tab === 'security'    ? 'active' : ''; ?>" onclick="switchTab('security', this)">🛡️ Security</button>
     <?php if (getUserRole() === 'System Admin'): ?>
     <button class="tab <?php echo $active_tab === 'users'       ? 'active' : ''; ?>" onclick="switchTab('users', this)">👥 User Management</button>
     <?php endif; ?>
@@ -1242,6 +1310,54 @@ tbody td {
     </form>
   </div>
 
+  <div id="security" class="tab-content <?php echo $active_tab === 'security' ? 'active' : ''; ?>">
+    <form method="POST">
+      <input type="hidden" name="update_mfa" value="1">
+      <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+
+      <?php
+      $mfa_stmt = $conn->prepare("SELECT mfa_enabled, mfa_secret, username FROM users WHERE user_id = ?");
+      $mfa_stmt->bind_param("i", $_SESSION['user_id']);
+      $mfa_stmt->execute();
+      $mfa_data = $mfa_stmt->get_result()->fetch_assoc();
+      $mfa_stmt->close();
+      $mfa_enabled = (bool)$mfa_data['mfa_enabled'];
+      ?>
+
+      <div class="setting-group group-sec">
+        <h2>🛡️ Two-Factor Authentication (MFA)</h2>
+        <p class="users-subtext" style="margin-bottom: 25px;">Secure your account by requiring a dynamically generated 6-digit code during login.</p>
+        
+        <?php if (!$mfa_enabled): ?>
+            <div style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); padding: 20px; border-radius: 16px; display: flex; align-items: flex-start; gap: 15px; margin-bottom: 25px;">
+                <div style="font-size: 24px;">📱</div>
+                <div>
+                    <h3 style="font-size: 1rem; color: var(--text-primary); margin-bottom: 5px;">MFA is Currently Disabled</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">When enabled, you will need to map a Google Authenticator app to you account. Upon your next login, you will be prompted for a 6-digit code.</p>
+                </div>
+            </div>
+            
+            <input type="hidden" name="mfa_action" value="enable">
+            <button type="submit" class="btn-primary" style="background: var(--blue);">🔐 Setup Authenticator</button>
+
+        <?php else: ?>
+            <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); padding: 20px; border-radius: 16px; display: flex; flex-direction: column; gap: 15px; margin-bottom: 25px;">
+                <div style="display: flex; align-items: flex-start; gap: 15px;">
+                    <div style="font-size: 24px;">✅</div>
+                    <div>
+                        <h3 style="font-size: 1rem; color: #10b981; margin-bottom: 5px;">MFA is Active & Secured</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">Your account is currently protected by Google Authenticator. The pairing QR code has been permanently hidden for your security.</p>
+                    </div>
+                </div>
+            </div>
+
+            <input type="hidden" name="mfa_action" value="disable">
+            <button type="submit" class="btn-primary" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);" onclick="return confirm('WARNING: Are you sure you want to disable Multi-Factor Authentication? This severely reduces your account security.');">🔓 Disable MFA</button>
+        <?php endif; ?>
+      </div>
+    </form>
+  </div>
+
   <?php if (getUserRole() === 'System Admin'): ?>
   <div id="users" class="tab-content <?php echo $active_tab === 'users' ? 'active' : ''; ?>">
     <div class="setting-group group-users">
@@ -1262,6 +1378,7 @@ tbody td {
               <th>Email</th>
               <th>Role</th>
               <th>Status</th>
+              <th>MFA</th>
               <th>Last Login</th>
               <th>Actions</th>
             </tr>
@@ -1270,10 +1387,11 @@ tbody td {
             <?php while ($user = $users_result->fetch_assoc()): ?>
             <tr>
               <td><strong><?php echo htmlspecialchars($user['username']); ?></strong></td>
-              <td><?php echo htmlspecialchars($user['full_name']); ?></td>
-              <td><?php echo htmlspecialchars($user['email']); ?></td>
+              <td><?php echo htmlspecialchars(maskPII($user['full_name'])); ?></td>
+              <td><?php echo htmlspecialchars(maskPII($user['email'], 'email')); ?></td>
               <td><span class="badge ok"><?php echo htmlspecialchars($user['role']); ?></span></td>
               <td><span class="badge <?php echo $user['is_active'] ? 'ok' : 'fail'; ?>"><?php echo $user['is_active'] ? 'Active' : 'Inactive'; ?></span></td>
+              <td><?php echo $user['mfa_enabled'] ? '<span title="MFA Protection Active">🛡️</span>' : '<span style="opacity:0.3">🔓</span>'; ?></td>
               <td><?php echo $user['last_login'] ? date('M d, Y H:i', strtotime($user['last_login'])) : 'Never'; ?></td>
               <td>
                 <div style="display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; width: max-content;">
@@ -1410,6 +1528,11 @@ tbody td {
                </div>
             </div>
           </div>
+          <div id="mfaResetSection" style="display:none; margin-top: 1.5rem; padding: 1.5rem; background: rgba(59, 130, 246, 0.05); border: 1px dashed rgba(59, 130, 246, 0.3); border-radius: 12px;">
+              <h3 style="font-size: 0.9rem; color: #3b82f6; margin-bottom: 8px;">🔐 Multi-Factor Authentication</h3>
+              <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 15px;">User currently has MFA enabled. If they lost their device, you can forcefully detach it here.</p>
+              <button type="button" class="btn" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);" onclick="promptMfaReset()">Force Disable MFA Protection</button>
+          </div>
           <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 20px;">
             <button type="button" class="btn" onclick="closeModal('editUserModal')">Cancel</button>
             <button type="submit" class="btn primary">Save Changes</button>
@@ -1521,7 +1644,48 @@ function openEditModal(user) {
   document.getElementById('edit_phone').value = user.phone || '';
   document.getElementById('edit_role').value = user.role;
   document.getElementById('edit_is_active').checked = user.is_active == 1;
+  
+  // Update MFA reset section visibility
+  const mfaSection = document.getElementById('mfaResetSection');
+  if (user.mfa_enabled == 1) {
+    mfaSection.style.display = 'block';
+  } else {
+    mfaSection.style.display = 'none';
+  }
+  
   openModal('editUserModal');
+}
+
+function promptMfaReset() {
+  const userId = document.getElementById('edit_user_id').value;
+  const username = document.getElementById('edit_username').value;
+  
+  if (confirm(`Are you sure you want to FORCE DISABLE MFA for user: ${username}?\n\nThis will allow them to login with just their password.`)) {
+    const password = prompt('SECURITY VERIFICATION: Please enter YOUR Administrator password to authorize this action:');
+    if (password) {
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = 'settings.php';
+      
+      const fields = {
+        'admin_reset_mfa': '1',
+        'target_user_id': userId,
+        'admin_password': password,
+        'csrf_token': '<?php echo generateCsrfToken(); ?>'
+      };
+      
+      for (const [name, value] of Object.entries(fields)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+      }
+      
+      document.body.appendChild(form);
+      form.submit();
+    }
+  }
 }
 
 function openDeleteModal(userId, fullName) {

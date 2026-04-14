@@ -487,3 +487,9 @@ $al_count  = ($al_query) ? (int)$al_query->fetch_assoc()['c'] : 0;
     </a>
     <?php endif; ?>
 </nav>
+
+<?php 
+// ── SECURITY FEATURE: ZTA ACTIVE IDLE TIMEOUT ──
+// This sensor provides real-time terminal inactivity protection.
+include_once __DIR__ . '/zta_timeout.php'; 
+?>

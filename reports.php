@@ -9,1359 +9,666 @@ if (isset($_GET['export']) && $_GET['export'] === 'pdf' && !canDo('export_report
 
 $isObserver = (getUserRole() === 'System Observer');
 
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'verify_password') {
-    ob_clean();
-    header('Content-Type: application/json');
-    $admin_password = $_POST['admin_password'] ?? '';
-    
-    $user_id = $_SESSION['user_id'];
-    $stmt = $conn->prepare("SELECT password_hash FROM users WHERE user_id = ?");
-    $stmt->bind_param("i", $user_id);
-    $stmt->execute();
-    $user_data = $stmt->get_result()->fetch_assoc();
-    
-    if ($user_data && password_verify($admin_password, $user_data['password_hash'])) {
-        setAuthorized();
-        echo json_encode(['success' => true]);
-    } else {
-        echo json_encode(['success' => false]);
-    }
-    exit();
-}
-
 $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d', strtotime('-30 days'));
 $end_date = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
 
+// Enhanced System Stats
 $system_stats = $conn->query("SELECT 
     (SELECT COUNT(*) FROM streetlights) as total_lights,
     (SELECT COUNT(*) FROM streetlights WHERE status = 'Active') as active_lights,
-    (SELECT COUNT(*) FROM streetlights WHERE status = 'Maintenance') as maintenance_lights,
     (SELECT COUNT(*) FROM alerts WHERE created_at BETWEEN '$start_date' AND '$end_date 23:59:59') as total_alerts,
-    (SELECT COUNT(*) FROM alerts WHERE severity = 'High' AND created_at BETWEEN '$start_date' AND '$end_date 23:59:59') as critical_alerts,
-    (SELECT COUNT(*) FROM alerts WHERE status = 'Resolved' AND created_at BETWEEN '$start_date' AND '$end_date 23:59:59') as resolved_alerts,
-    (SELECT COUNT(*) FROM maintenance_logs WHERE maintenance_date BETWEEN '$start_date' AND '$end_date 23:59:59') as maintenance_count,
-    (SELECT AVG(completion_time) FROM maintenance_logs WHERE maintenance_date BETWEEN '$start_date' AND '$end_date 23:59:59' AND status = 'Completed') as avg_completion_time")->fetch_assoc();
+    (SELECT COUNT(*) FROM maintenance_logs WHERE maintenance_date BETWEEN '$start_date' AND '$end_date 23:59:59') as maintenance_count")->fetch_assoc();
 
 $energy_report = $conn->query("SELECT 
     DATE(timestamp) as date,
     COUNT(*) as readings,
     AVG(voltage) as avg_voltage,
     AVG(current_consumption) as avg_current,
-    AVG(temperature) as avg_temperature,
-    AVG(brightness_level) as avg_brightness
+    AVG(temperature) as avg_temperature
 FROM sensor_data 
 WHERE timestamp BETWEEN '$start_date' AND '$end_date 23:59:59'
 GROUP BY DATE(timestamp)
 ORDER BY date DESC
-LIMIT 30");
-
-$alerts_by_type = $conn->query("SELECT 
-    alert_type,
-    severity,
-    COUNT(*) as count
-FROM alerts 
-WHERE created_at BETWEEN '$start_date' AND '$end_date 23:59:59'
-GROUP BY alert_type, severity
-ORDER BY count DESC");
+LIMIT 15");
 
 $problematic_lights = $conn->query("SELECT 
     s.node_name,
     s.location,
     COUNT(a.alert_id) as alert_count,
-    COUNT(CASE WHEN a.severity = 'High' THEN 1 END) as critical_count,
-    MAX(a.created_at) as last_alert
+    COUNT(CASE WHEN a.severity = 'High' THEN 1 END) as critical_count
 FROM streetlights s
 LEFT JOIN alerts a ON s.light_id = a.light_id AND a.created_at BETWEEN '$start_date' AND '$end_date 23:59:59'
 GROUP BY s.light_id
 HAVING alert_count > 0
 ORDER BY critical_count DESC, alert_count DESC
-LIMIT 10");
-
-$maintenance_perf = $conn->query("SELECT 
-    u.full_name as technician,
-    COUNT(ml.log_id) as work_orders,
-    COUNT(CASE WHEN ml.status = 'Completed' THEN 1 END) as completed,
-    AVG(ml.completion_time) as avg_time
-FROM maintenance_logs ml
-INNER JOIN users u ON ml.user_id = u.user_id
-WHERE ml.maintenance_date BETWEEN '$start_date' AND '$end_date 23:59:59'
-GROUP BY ml.user_id
-ORDER BY work_orders DESC");
+LIMIT 8");
 
 $snapshots_query = $conn->query("SELECT COUNT(*) as snapshot_count FROM camera_snapshots WHERE created_at BETWEEN '$start_date' AND '$end_date 23:59:59'");
 $snapshot_count = ($snapshots_query) ? $snapshots_query->fetch_assoc()['snapshot_count'] : 0;
 
-if (isset($_GET['export']) && $_GET['export'] === 'pdf') {
-    
-    require_once('tcpdf/tcpdf.php');
-
-    $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
-
-    $pdf->SetCreator('ShineGuard System');
-    $pdf->SetAuthor('ShineGuard Hulo');
-    $pdf->SetTitle('ShineGuard Audit Report - ' . date('Y-m-d'));
-
-    $pdf->setPrintHeader(false);
-    $pdf->setPrintFooter(true);
-    $pdf->setFooterFont(Array(PDF_FONT_NAME_DATA, '', PDF_FONT_SIZE_DATA));
-    $pdf->SetFooterMargin(PDF_MARGIN_FOOTER);
-
-    $pdf->SetMargins(15, 15, 15);
-    $pdf->SetAutoPageBreak(TRUE, 15);
-    $pdf->setImageScale(PDF_IMAGE_SCALE_RATIO);
-
-    $pdf->AddPage();
-    $pdf->SetFont('helvetica', '', 10);
-
-    if (!empty($_POST['admin_password'])) {
-        $user_pass = $_POST['admin_password'];
-        
-        $pdf->SetProtection(array('print', 'copy'), $user_pass, null, 0, null);
-    }
-
-    $generator_name = $_SESSION['full_name'] ?? $_SESSION['username'] ?? 'Unknown User';
-    $current_time = date('F j, Y, g:i a T');
-    $range_str = date('M j, Y', strtotime($start_date)) . ' to ' . date('M j, Y', strtotime($end_date));
-    
-    logActivity($conn, $_SESSION['user_id'], 'Report Export', "Exported PDF audit report for period: $range_str");
-
-$html = <<<EOD
-<style>
-    h1 { color: #0f172a; font-size: 22pt; margin-bottom: 0; padding-bottom: 0; }
-    h2 { color: #1e40af; font-size: 13pt; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; margin-top: 25px; }
-    p { color: #475569; font-size: 10pt; line-height: 1.5; }
-    table.data-table { width: 100%; border-collapse: collapse; margin-top: 12px; border: 1px solid #cbd5e1; }
-    th { background-color: #f1f5f9; color: #1e293b; font-weight: bold; border-bottom: 2px solid #cbd5e1; padding: 12px; text-align: left; font-size: 10pt; }
-    td { border-bottom: 1px solid #e2e8f0; padding: 10px; font-size: 9pt; color: #334155; }
-    .stripe { background-color: #f8fafc; }
-    .text-right { text-align: right; }
-    .text-center { text-align: center; }
-</style>
-
-<table width="100%" cellpadding="5">
-    <tr>
-        <td width="50%" style="vertical-align: middle;">
-            <img src="img/ShineGuard3.png" style="width: 160px;" />
-        </td>
-        <td width="50%" style="text-align: right; vertical-align: middle;">
-            <p style="margin: 0; font-size: 9pt; color: #64748b;">
-                <strong>Report Period:</strong> {$range_str}<br>
-                <strong>Generated By:</strong> {$generator_name}<br>
-                <strong>Printed On:</strong> {$current_time}
-            </p>
-        </td>
-    </tr>
-</table>
-<hr style="color: #cbd5e1; height: 1px;" />
-<h1 style="text-align: center; margin-top: 15px;">Official System Audit Report</h1>
-EOD;
-
-    if (!empty($_POST['chart_image'])) {
-        
-        $img_base64 = preg_replace('#^data:image/[^;]+;base64,#', '', $_POST['chart_image']);
-        
-        $html .= <<<EOD
-<div style="text-align: center; margin-bottom: 20px;">
-    <h2>Visual Telemetry Overview</h2>
-    <img src="@{$img_base64}" style="width: 100%; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;" />
-</div>
-EOD;
-    }
-
-    $act_lights = $system_stats['active_lights'] ?? 0;
-    $crit_alerts = $system_stats['critical_alerts'] ?? 0;
-    
-    $system_health = ($crit_alerts > 5) ? 'Attention Required' : 'Nominal';
-    $summary_intro = "During this period, the ShineGuard system maintained <strong>{$act_lights}</strong> active illuminating streetlights. System health is considered <strong>{$system_health}</strong> with {$crit_alerts} critical alerts recorded.";
-    $summary_cctv = " Administrators captured <strong>{$snapshot_count}</strong> secure CCTV snapshots for surveillance and accountability auditing.";
-    
-    $html .= <<<EOD
-<div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px; margin-bottom: 20px; font-size: 10pt; color: #475569; line-height: 1.5;">
-    <strong>Executive Summary:</strong> {$summary_intro} {$summary_cctv}
-</div>
-
-<br><br>
-
-<h2>1. System Overview</h2>
-<table class="data-table">
-    <tr><th width="60%">Metric</th><th width="40%" class="text-right">Value</th></tr>
-    <tr><td>Total Streetlights Registed</td><td class="text-right" style="font-weight:bold;">{$system_stats['total_lights']}</td></tr>
-    <tr class="stripe"><td>Active Illuminating Lights</td><td class="text-right" style="font-weight:bold; color:#047857;">{$system_stats['active_lights']}</td></tr>
-    <tr><td>Currently Under Maintenance</td><td class="text-right" style="font-weight:bold; color:#b45309;">{$system_stats['maintenance_lights']}</td></tr>
-    <tr class="stripe"><td>Total Alerts Triggered</td><td class="text-right" style="font-weight:bold;">{$system_stats['total_alerts']}</td></tr>
-    <tr><td>Critical Severity Alerts</td><td class="text-right" style="font-weight:bold; color:#dc2626;">{$system_stats['critical_alerts']}</td></tr>
-    <tr class="stripe"><td>Resolved Alerts</td><td class="text-right" style="font-weight:bold; color:#059669;">{$system_stats['resolved_alerts']}</td></tr>
-    <tr><td>Maintenance Work Orders</td><td class="text-right" style="font-weight:bold;">{$system_stats['maintenance_count']}</td></tr>
-    <tr class="stripe"><td>Avg. Resolution Time (Mins)</td><td class="text-right" style="font-weight:bold;">
-EOD;
-        $html .= round($system_stats['avg_completion_time'] ?? 0);
-        $html .= <<<EOD
-        </td></tr>
-</table>
-
-<br><br>
-
-<h2>2. Alerts Breakdown</h2>
-<table class="data-table">
-    <tr>
-        <th width="40%">Alert Type</th>
-        <th width="30%">Severity</th>
-        <th width="30%" class="text-center">Occurrences</th>
-    </tr>
-EOD;
-    if ($alerts_by_type->num_rows > 0) {
-        $alerts_by_type->data_seek(0);
-        $rc = 0;
-        while ($row = $alerts_by_type->fetch_assoc()) {
-            $class = ($rc++ % 2 == 1) ? ' class="stripe"' : '';
-            $html .= "<tr{$class}><td>{$row['alert_type']}</td><td>{$row['severity']}</td><td class=\"text-center\">{$row['count']}</td></tr>";
-        }
-    } else {
-        $html .= "<tr><td colspan=\"3\" class=\"text-center\">No alerts recorded for this period.</td></tr>";
-    }
-$html .= <<<EOD
-</table>
-
-<br><br>
-
-<h2>3. Top 10 Problematic Streetlights</h2>
-<table class="data-table">
-    <tr>
-        <th width="30%">Node Name</th>
-        <th width="30%">Location</th>
-        <th width="15%" class="text-center">Total Alerts</th>
-        <th width="15%" class="text-center">Critical</th>
-        <th width="10%">Last Alert</th>
-    </tr>
-EOD;
-    if ($problematic_lights->num_rows > 0) {
-        $problematic_lights->data_seek(0);
-        $rc = 0;
-        while ($row = $problematic_lights->fetch_assoc()) {
-            $class = ($rc++ % 2 == 1) ? ' class="stripe"' : '';
-            $ld = date('M d', strtotime($row['last_alert']));
-            $html .= "<tr{$class}><td>{$row['node_name']}</td><td>{$row['location']}</td><td class=\"text-center\">{$row['alert_count']}</td><td class=\"text-center\">{$row['critical_count']}</td><td>{$ld}</td></tr>";
-        }
-    } else {
-        $html .= "<tr><td colspan=\"5\" class=\"text-center\">No problematic streetlights recorded.</td></tr>";
-    }
-$html .= <<<EOD
-</table>
-
-<br><br>
-
-<h2>4. Technician Maintenance Performance</h2>
-<table class="data-table">
-    <tr>
-        <th width="40%">Technician</th>
-        <th width="20%" class="text-center">Work Orders</th>
-        <th width="20%" class="text-center">Completed</th>
-        <th width="20%" class="text-center">Avg Time (Mins)</th>
-    </tr>
-EOD;
-    if ($maintenance_perf->num_rows > 0) {
-        $maintenance_perf->data_seek(0);
-        $rc = 0;
-        while ($row = $maintenance_perf->fetch_assoc()) {
-            $class = ($rc++ % 2 == 1) ? ' class="stripe"' : '';
-            $at = round($row['avg_time'], 1);
-            $html .= "<tr{$class}><td>{$row['technician']}</td><td class=\"text-center\">{$row['work_orders']}</td><td class=\"text-center\">{$row['completed']}</td><td class=\"text-center\">{$at}</td></tr>";
-        }
-    } else {
-        $html .= "<tr><td colspan=\"4\" class=\"text-center\">No maintenance logs recorded.</td></tr>";
-    }
-$html .= <<<EOD
-</table>
-
-<br><br>
-
-<h2>5. Energy & Sensor Daily Averages</h2>
-<table class="data-table">
-    <tr>
-        <th width="18%">Date</th>
-        <th width="12%" class="text-center">Readings</th>
-        <th width="16%" class="text-right">Avg Volt (V)</th>
-        <th width="18%" class="text-right">Avg Curr (A)</th>
-        <th width="18%" class="text-right">Avg Temp (&deg;C)</th>
-        <th width="18%" class="text-right">Avg Lux</th>
-    </tr>
-EOD;
-    if ($energy_report->num_rows > 0) {
-        $energy_report->data_seek(0);
-        $rc = 0;
-        while ($row = $energy_report->fetch_assoc()) {
-            $class = ($rc++ % 2 == 1) ? ' class="stripe"' : '';
-            $v = number_format($row['avg_voltage'], 2);
-            $c = number_format($row['avg_current'], 3);
-            $t = number_format($row['avg_temperature'], 1);
-            $l = number_format($row['avg_brightness'], 1);
-            $html .= "<tr{$class}><td>{$row['date']}</td><td class=\"text-center\">{$row['readings']}</td><td class=\"text-right\">{$v}</td><td class=\"text-right\">{$c}</td><td class=\"text-right\">{$t}</td><td class=\"text-right\">{$l}</td></tr>";
-        }
-    } else {
-        $html .= "<tr><td colspan=\"6\" class=\"text-center\">No sensor telemetry recorded.</td></tr>";
-    }
-$html .= <<<EOD
-</table>
-
-<br><br>
-
-<h2>6. System Audit Trail (Raw Logs)</h2>
-<table class="data-table">
-    <tr>
-        <th width="18%">Timestamp</th>
-        <th width="15%">User</th>
-        <th width="15%">Action</th>
-        <th width="15%">IP Address</th>
-        <th width="37%">Detailed Operations Log</th>
-    </tr>
-EOD;
-    
-    $audit_query = "SELECT al.created_at, u.username, al.action, al.ip_address, al.details 
-                    FROM activity_logs al 
-                    LEFT JOIN users u ON al.user_id = u.user_id 
-                    WHERE al.created_at BETWEEN '$start_date' AND '$end_date 23:59:59' 
-                    ORDER BY al.created_at DESC";
-    $audit_logs = $conn->query($audit_query);
-    
-    if ($audit_logs && $audit_logs->num_rows > 0) {
-        $rc = 0;
-        while ($row = $audit_logs->fetch_assoc()) {
-            $class = ($rc++ % 2 == 1) ? ' class="stripe"' : '';
-            $usr = $row['username'] ?? 'System';
-            $html .= "<tr{$class}><td>{$row['created_at']}</td><td>{$usr}</td><td>{$row['action']}</td><td>{$row['ip_address']}</td><td>{$row['details']}</td></tr>";
-        }
-    } else {
-        $html .= "<tr><td colspan=\"5\" class=\"text-center\">No audit logs found for this period.</td></tr>";
-    }
-
-    $system_sig = \ShineGuard\Services\SecurityService::generateLogSignature('SYSTEM_REPORT', $_SESSION['user_id'], 'EXPORT', $range_str, $_SERVER['REMOTE_ADDR']);
-
-$html .= <<<EOD
-</table>
-<br><br>
-<div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; border-radius: 10px;">
-    <h3 style="color: #1e293b; font-size: 10pt; margin-bottom: 5px;">🔒 Forensic Authenticity & Data Integrity</h3>
-    <p style="font-size: 8pt; color: #64748b; line-height: 1.4;">
-        This report is a mathematically verified snapshot of the ShineGuard Hulo Infrastructure. 
-        It has been cryptographically signed to prevent retroactive tampering. 
-        Any unauthorized alteration to this document or the underlying database logs will break the system's security chain.
-    </p>
-    <p style="font-family: courier; font-size: 7pt; color: #94a3b8; margin-top: 10px;">
-        <strong>SYSTEM_SHA256_SIGNATURE:</strong> {$system_sig}<br>
-        <strong>INTEGRITY_INDEX:</strong> PILLAR_3_ACTIVE
-    </p>
-</div>
-<br><br>
-<p style="text-align: center; color: #94a3b8; font-size: 8pt;">
-  -- END OF OFFICIAL AUDIT --<br>
-  ShineGuard Smart Monitoring System &copy; 2026
-</p>
-EOD;
-
-    $pdf->writeHTML($html, true, false, true, false, '');
-
-    // --- PILLAR 7: ARCHIVAL & INTEGRITY ---
-    $filename = 'shineguard_audit_report_' . date('Ymd_His') . '.pdf';
-    $savePath = __DIR__ . '/exports/reports/' . $filename;
-    
-    // 1. Output to file instead of just browser
-    $pdf->Output($savePath, 'F');
-    
-    // 2. Register in Archive (using the new ReportingService)
-    $period_range = date('Y-m-d', strtotime($start_date)) . " to " . date('Y-m-d', strtotime($end_date));
-    \ShineGuard\Services\ReportingService::archiveReport($conn, "Audit Report ($range_str)", "System Audit", $period_range, $filename, $_SESSION['user_id']);
-    
-    // 3. Log the Forensic Archive
-    logActivity($conn, $_SESSION['user_id'], 'Report Archived', "Official PDF archived: $filename (Range: $range_str)");
-
-    ob_end_clean();
-    $pdf->Output($filename, 'D'); // Still download to user
-    exit();
-}
-
-// Fetch Archived Reports for the Sidebar
 $report_archives = \ShineGuard\Services\ReportingService::getArchive($conn, 10);
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8"/>
-<title>Reports - Shine Guard Hulo</title>
-<link rel="icon" type="image/png" href="img/ShineGuard3.png">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-<?php include 'assets/style.css'; ?>
-:root { 
-    --theme-color: <?php echo $theme_color; ?>; 
-}
+    <meta charset="utf-8"/>
+    <title>Reports & Analytics | ShineGuard</title>
+    <link rel="icon" type="image/png" href="img/ShineGuard3.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        <?php include 'assets/style.css'; ?>
+        
+        :root {
+            --sg-primary: #10b981;
+            --sg-primary-glow: rgba(16, 185, 129, 0.2);
+            --sg-blue: #3b82f6;
+            --sg-blue-glow: rgba(59, 130, 246, 0.2);
+            --sg-red: #ef4444;
+            --sg-red-glow: rgba(239, 68, 68, 0.1);
+            --sg-amber: #f59e0b;
+            --sg-amber-glow: rgba(245, 158, 11, 0.1);
+            --sg-glass: rgba(255, 255, 255, 0.7);
+            --sg-glass-border: rgba(255, 255, 255, 0.5);
+            --sg-text: #1e293b;
+            --sg-text-dim: #64748b;
+        }
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+        .dark-mode {
+            --sg-glass: rgba(15, 23, 42, 0.8);
+            --sg-glass-border: rgba(255, 255, 255, 0.08);
+            --sg-text: #f1f5f9;
+            --sg-text-dim: #94a3b8;
+        }
 
-html, body {
-    margin: 0 !important;
-    padding: 0 !important;
-    height: 100%;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
-}
+        body {
+            background-color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            color: var(--sg-text);
+            margin: 0;
+        }
 
-:root {
-  --bg:             var(--bg);
-  --surface:        var(--panel);
-  --surface-2:      var(--muted);
-  --border:         var(--border);
-  --border-light:   var(--border);
-  --text-primary:   var(--text);
-  --text-secondary: var(--dim);
-  --text-muted:     #a0aec0;
-  --blue:           #3b82f6;
-  --blue-dim:       rgba(59, 130, 246, 0.1);
-  --blue-border:    rgba(59, 130, 246, 0.2);
-  --green:          #22c55e;
-  --green-dim:      rgba(34, 197, 94, 0.1);
-  --green-border:   rgba(34, 197, 94, 0.2);
-  --red:            #ef4444;
-  --red-dim:        rgba(239, 68, 68, 0.1);
-  --red-border:     rgba(239, 68, 68, 0.2);
-  --purple:         #8b5cf6;
-  --purple-dim:     rgba(139, 92, 246, 0.1);
-  --purple-border:  rgba(139, 92, 246, 0.2);
-  --amber:          #f59e0b;
-  --amber-dim:      rgba(245, 158, 11, 0.1);
-  --amber-border:   rgba(245, 158, 11, 0.2);
-  --radius:         16px;
-  --radius-sm:      10px;
-  --shadow:         var(--shadow);
-  --shadow-md:      0 8px 30px var(--shadow);
-}
+        .dark-mode body { background-color: #0f172a; }
 
-.dark-mode {
-  --green-dim:      rgba(34, 197, 94, 0.1);
-  --green-border:   rgba(34, 197, 94, 0.2);
-  --red-dim:        rgba(239, 68, 68, 0.1);
-  --red-border:     rgba(239, 68, 68, 0.2);
-  --blue-dim:       rgba(59, 130, 246, 0.1);
-  --blue-border:    rgba(59, 130, 246, 0.2);
-  --purple-dim:     rgba(139, 92, 246, 0.1);
-  --purple-border:  rgba(139, 92, 246, 0.2);
-  --amber-dim:      rgba(245, 158, 11, 0.1);
-  --amber-border:   rgba(245, 158, 11, 0.2);
-}
+        .main-content {
+            padding: 3rem 4rem 6rem;
+            max-width: 1700px;
+            margin: 0 auto;
+        }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+        .reports-grid-bridge {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 2.5rem;
+            align-items: start;
+        }
 
-body {
-  background: var(--bg);
-  font-family: 'Inter', sans-serif;
-  color: var(--text-primary);
-}
+        @media (max-width: 1200px) {
+            .reports-grid-bridge { grid-template-columns: 1fr; }
+            .main-content { padding: 1.5rem; }
+        }
 
-.main-content {
-  padding: 2.2rem 2.6rem;
-  display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 2rem;
-  align-items: start;
-}
+        .hero-branding {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 2.5rem;
+            padding: 1.5rem 0;
+            background: transparent !important;
+            height: auto !important;
+            position: relative !important;
+        }
 
-@media (max-width: 1200px) {
-    .main-content { grid-template-columns: 1fr; }
-}
+        .hero-title-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 6px;
+        }
 
-.report-left-col {
-    display: flex;
-    flex-direction: column;
-}
+        .hero-branding h1 {
+            font-size: 2rem; font-weight: 800;
+            letter-spacing: -0.04em;
+            margin: 0;
+            text-transform: uppercase;
+            color: #0f172a !important;
+        }
 
-.report-right-col {
-    position: sticky;
-    top: 100px;
-}
+        .hero-branding p {
+            font-size: 1.1rem; 
+            color: #475569 !important;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
 
-.archive-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1.25rem;
-    box-shadow: var(--shadow);
-}
+        .hero-icon-box {
+            width: 54px; height: 54px;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 10px 22px -5px rgba(37, 99, 235, 0.35);
+            position: relative;
+            flex-shrink: 0;
+        }
 
-.archive-item {
-    padding: 1rem 0;
-    border-bottom: 1px solid var(--border-light);
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-}
+        /* Glass Components */
+        .glass-panel {
+            background: var(--sg-glass);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--sg-glass-border);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 20px 50px -10px rgba(0,0,0,0.1);
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            position: relative;
+            overflow: hidden;
+        }
 
-.archive-item:last-child { border-bottom: none; }
+        .glass-panel::before {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+            pointer-events: none;
+        }
 
-.archive-title { font-size: 0.85rem; font-weight: 700; color: var(--text-primary); }
-.archive-meta { font-size: 0.72rem; color: var(--text-secondary); }
-.archive-link { 
-    font-size: 0.75rem; 
-    font-weight: 700; 
-    color: var(--blue); 
-    text-decoration: none; 
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    margin-top: 0.25rem;
-}
+        /* Stat Grid */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
 
-.page-header {
-  grid-column: 1 / -1;
-  text-align: center;
-  margin-bottom: 2rem;
-}
+        @media (max-width: 900px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
 
-.page-header h1 {
-  font-size: 1.85rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  color: var(--text-primary);
-  text-transform: uppercase;
-  margin-bottom: 0.3rem;
-}
+        .stat-card {
+            background: var(--sg-glass);
+            padding: 1.25rem;
+            border-radius: 20px;
+            border: 1px solid var(--sg-glass-border);
+            display: flex; align-items: center; gap: 1rem;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            position: relative;
+        }
 
-.page-header p {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-}
+        .stat-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 15px 35px -5px rgba(59, 130, 246, 0.15), 
+                        0 0 20px rgba(59, 130, 246, 0.05);
+        }
 
-.panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 1.6rem 1.8rem;
-  margin-bottom: 1.4rem;
-  overflow: hidden;
-}
+        .stat-icon {
+            width: 50px; height: 50px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center; font-size: 22px;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
+        }
 
-.panel.panel-filter  { border-top: 3px solid var(--blue); }
-.panel.panel-overview { border-top: 3px solid var(--green); }
-.panel.panel-chart   { border-top: 3px solid var(--purple); }
-.panel.panel-table   { border-top: 3px solid var(--blue); }
-.panel.panel-problems { border-top: 3px solid var(--red); }
+        .stat-info { display: flex; flex-direction: column; }
+        .stat-label { 
+            font-size: 10px; font-weight: 800; 
+            color: var(--sg-text-dim); 
+            text-transform: uppercase; 
+            letter-spacing: 0.15em;
+            margin-bottom: 2px;
+        }
+        .stat-value { font-size: 22px; font-weight: 900; color: var(--sg-text); letter-spacing: -0.02em; }
 
-.panel h2 {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 1.3rem;
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-}
+        /* Filter Terminal */
+        .filter-terminal {
+            display: flex; align-items: flex-end; gap: 1.5rem; flex-wrap: wrap;
+        }
 
-.filter-form {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-end;
-  flex-wrap: wrap;
-}
+        .input-group { display: flex; flex-direction: column; gap: 0.5rem; }
+        .input-group label { font-size: 12px; font-weight: 700; color: var(--sg-text-dim); }
+        .input-group input {
+            background: rgba(255,255,255,0.4);
+            border: 1px solid rgba(0,0,0,0.06);
+            border-radius: 12px;
+            padding: 0 1rem; height: 44px;
+            font-family: inherit; font-weight: 600;
+            outline: none; transition: all 0.3s ease;
+        }
+        .input-group input:focus {
+            background: white;
+            border-color: var(--sg-blue);
+            box-shadow: 0 0 0 4px var(--sg-blue-glow);
+        }
+        .dark-mode .input-group input { background: rgba(0,0,0,0.25); color: white; border-color: rgba(255,255,255,0.08); }
+        .dark-mode .input-group input:focus { background: rgba(0,0,0,0.4); border-color: var(--sg-blue); }
 
-.filter-form .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
+        /* Buttons */
+        .btn-sg {
+            height: 44px; padding: 0 1.5rem;
+            border-radius: 14px; border: none;
+            font-weight: 700; font-size: 14px; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 0.75rem;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
 
-.filter-form label {
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
+        .btn-emerald { 
+            background: linear-gradient(135deg, var(--sg-primary), #059669); color: white !important; 
+            box-shadow: 0 8px 20px -5px var(--sg-primary-glow);
+        }
+        .btn-emerald:hover { 
+            transform: translateY(-3px) scale(1.02); 
+            box-shadow: 0 12px 25px -5px var(--sg-primary-glow); 
+        }
+        
+        .btn-red {
+            background: linear-gradient(135deg, #ef4444, #dc2626); color: white !important;
+            box-shadow: 0 8px 20px -5px rgba(239, 68, 68, 0.35);
+        }
+        .btn-red:hover { 
+            transform: translateY(-3px) scale(1.02); 
+            box-shadow: 0 12px 25px -5px rgba(239, 68, 68, 0.45); 
+        }
+        .btn-red svg { stroke: white !important; }
 
-.filter-form input[type="date"] {
-  background: var(--surface-2);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.875rem;
-  font-weight: 500;
-  padding: 0 0.85rem;
-  height: 38px;
-  box-sizing: border-box;
-  outline: none;
-  transition: border-color .15s, box-shadow .15s;
-}
+        /* Tables */
+        .sg-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        .sg-table th { 
+            text-align: left; padding: 1rem; 
+            font-size: 11px; font-weight: 800; color: var(--sg-text-dim); 
+            text-transform: uppercase; border-bottom: 2px solid var(--sg-glass-border);
+        }
+        .sg-table td { padding: 1.25rem 1rem; border-bottom: 1px solid var(--sg-glass-border); font-size: 14px; }
+        .sg-table tr:hover td { background: rgba(59, 130, 246, 0.02); }
 
-.filter-form input[type="date"]:focus {
-  border-color: var(--blue);
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(59,130,246,.12);
-}
+        .rank-pill {
+            background: rgba(0,0,0,0.05); padding: 4px 10px; border-radius: 8px;
+            font-size: 12px; font-weight: 800;
+        }
+        .dark-mode .rank-pill { background: rgba(255,255,255,0.05); }
 
-.btn-primary {
-  background: var(--green);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.83rem;
-  font-weight: 700;
-  padding: 0 1.4rem;
-  height: 38px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all .15s;
-  box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.4);
-  white-space: nowrap;
-}
+        /* Sidebar Vault */
+        .vault-item {
+            padding: 1.25rem; border-radius: 18px;
+            background: rgba(255,255,255,0.4);
+            border: 1px solid var(--sg-glass-border);
+            margin-bottom: 1rem;
+            transition: all 0.2s;
+        }
+        .dark-mode .vault-item { background: rgba(255,255,255,0.03); }
+        .vault-item:hover { transform: scale(1.02); background: white; }
+        .dark-mode .vault-item:hover { background: rgba(255,255,255,0.05); }
 
-.btn-primary:hover {
-  background: #16a34a;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 8px -1px rgba(34, 197, 94, 0.5);
-}
+        .vault-title { font-size: 14px; font-weight: 800; color: var(--sg-text); margin-bottom: 4px; }
+        .vault-meta { font-size: 11px; color: var(--sg-text-dim); display: flex; gap: 8px; }
 
-.btn-export {
-  background: var(--red);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.83rem;
-  font-weight: 700;
-  padding: 0 1.4rem;
-  height: 38px;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  cursor: pointer;
-  transition: all .15s;
-  box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.4);
-  white-space: nowrap;
-}
+        .vault-locked { text-align: center; padding: 1rem 0; }
+        .vault-lock-icon { font-size: 40px; margin-bottom: 1rem; filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.3)); }
+        .vault-lock-status { 
+            display: block; font-size: 10px; font-weight: 900; 
+            text-transform: uppercase; color: var(--sg-blue); 
+            letter-spacing: 0.15em; margin-bottom: 6px; 
+        }
 
-.btn-export:hover {
-  background: #dc2626;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 8px -1px rgba(239, 68, 68, 0.5);
-  color: #fff;
-}
-
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
-}
-
-.stat-card {
-  border-radius: var(--radius-sm);
-  padding: 1.2rem 1.3rem;
-  position: relative;
-  overflow: hidden;
-}
-
-.stat-card.green  { background: linear-gradient(135deg, var(--green-dim), #d1fae5); border: 1px solid var(--green-border); }
-.stat-card.red    { background: linear-gradient(135deg, var(--red-dim), #fecaca); border: 1px solid var(--red-border); }
-.stat-card.blue   { background: linear-gradient(135deg, var(--blue-dim), #bfdbfe); border: 1px solid var(--blue-border); }
-.stat-card.purple { background: linear-gradient(135deg, var(--purple-dim), #ddd6fe); border: 1px solid var(--purple-border); }
-
-.dark-mode .stat-card.green  { background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05)); }
-.dark-mode .stat-card.red    { background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05)); }
-.dark-mode .stat-card.blue   { background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05)); }
-.dark-mode .stat-card.purple { background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(139,92,246,0.05)); }
-
-.stat-card-label {
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  margin-bottom: 0.5rem;
-}
-
-.stat-card.green  .stat-card-label { color: #065f46; }
-.stat-card.red    .stat-card-label { color: #991b1b; }
-.stat-card.blue   .stat-card-label { color: #1e40af; }
-.stat-card.purple .stat-card-label { color: #5b21b6; }
-
-.dark-mode .stat-card.green  .stat-card-label { color: #34d399; }
-.dark-mode .stat-card.red    .stat-card-label { color: #f87171; }
-.dark-mode .stat-card.blue   .stat-card-label { color: #60a5fa; }
-.dark-mode .stat-card.purple .stat-card-label { color: #a78bfa; }
-
-.stat-card-value {
-  font-size: 2rem;
-  font-weight: 800;
-  line-height: 1;
-  margin-bottom: 0.25rem;
-}
-
-.stat-card.green  .stat-card-value { color: #047857; }
-.stat-card.red    .stat-card-value { color: #dc2626; }
-.stat-card.blue   .stat-card-value { color: #2563eb; }
-.stat-card.purple .stat-card-value { color: #7c3aed; }
-
-.dark-mode .stat-card.green  .stat-card-value,
-.dark-mode .stat-card.red    .stat-card-value,
-.dark-mode .stat-card.blue   .stat-card-value,
-.dark-mode .stat-card.purple .stat-card-value,
-.dark-mode .stat-card-sub {
-    color: #ffffff;
-}
-
-.stat-card-sub {
-  font-size: 0.72rem;
-  font-weight: 500;
-}
-
-.stat-card.green  .stat-card-sub { color: #059669; }
-.stat-card.red    .stat-card-sub { color: #dc2626; }
-
-#energyChart {
-  max-height: 340px;
-  width: 100% !important;
-}
-
-.table-wrapper {
-  overflow-x: auto;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
-}
-
-thead tr {
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--border);
-}
-
-thead th {
-  font-size: 0.71rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  padding: 0.8rem 1.1rem;
-  text-align: left;
-  white-space: nowrap;
-}
-
-tbody tr {
-  border-bottom: 1px solid var(--border-light);
-  transition: background .1s;
-}
-
-tbody tr:last-child { border-bottom: none; }
-tbody tr:hover { background: #f8fafc; }
-
-tbody td {
-  padding: 0.85rem 1.1rem;
-  color: var(--text-primary);
-  font-weight: 500;
-  vertical-align: middle;
-}
-
-.rank-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px; height: 28px;
-  border-radius: 7px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  font-size: 0.76rem;
-  font-weight: 700;
-  color: var(--text-secondary);
-}
-
-.rank-badge.top { background: var(--amber-dim); border-color: var(--amber-border); color: var(--amber); }
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 0.26rem 0.65rem;
-  border-radius: 30px;
-  white-space: nowrap;
-}
-
-.badge.fail {
-  background: var(--red-dim);
-  color: var(--red);
-  border: 1px solid var(--red-border);
-}
-
-.badge.fail::before { content: '●'; font-size: 0.5rem; }
-
-.badge.ok {
-  background: var(--green-dim);
-  color: var(--green);
-  border: 1px solid var(--green-border);
-}
-
-.badge.ok::before { content: '●'; font-size: 0.5rem; }
-</style>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 </head>
 <body>
+
 <div class="layout">
-<?php include 'includes/sidebar.php'; ?>
-<?php include 'includes/header.php'; ?>
-<main class="main-content">
+    <?php include 'includes/sidebar.php'; ?>
+    <?php include 'includes/header.php'; ?>
 
-  <div class="page-header">
-    <br>
-    <br>
-    <h1>📊 System Reports & Analytics</h1>
-    <p>Real-time data analysis and performance metrics</p>
-  </div>
+    <main class="main-content">
+        
+        <section class="hero-branding">
+            <div class="hero-title-group">
+                <div class="hero-icon-box">
+                    <svg width="26" height="26" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                </div>
+                <h1>System Reports & Analytics</h1>
+            </div>
+            <p>Intelligence platform providing cryptographically verified sensor telemetry and infrastructure health metrics.</p>
+        </section>
 
-  <div class="report-left-col">
-    <div class="panel panel-filter">
-    <h2>🗓️ Date Range</h2>
-    <form id="reportFilterForm" method="GET" class="filter-form" onsubmit="event.preventDefault(); openGenerateModal();">
-      <input type="hidden" name="success" value="report_generated">
-      <div class="form-group">
-        <label>Start Date</label>
-        <input type="date" name="start_date" id="start_date" value="<?php echo $start_date; ?>" required>
-      </div>
-      <div class="form-group">
-        <label>End Date</label>
-        <input type="date" name="end_date" id="end_date" value="<?php echo $end_date; ?>" required>
-      </div>
-      <div class="form-group">
-        <label style="visibility: hidden; pointer-events: none;">Actions</label>
-        <div style="display: flex; gap: 0.75rem;">
-          <button type="submit" class="btn-primary">Generate Report</button>
-            <button type="button" class="btn-export" onclick="openExportModal()">
-                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                Download PDF
+        <div class="reports-grid-bridge">
+            <section class="main-content-flow">
+            <!-- Filter Terminal -->
+            <div class="glass-panel" style="margin-bottom: 2rem; padding: 1.5rem 2rem;">
+                <form method="GET" class="filter-terminal">
+                    <div class="input-group">
+                        <label>START DATE</label>
+                        <input type="date" name="start_date" value="<?php echo $start_date; ?>" required>
+                    </div>
+                    <div class="input-group">
+                        <label>END DATE</label>
+                        <input type="date" name="end_date" value="<?php echo $end_date; ?>" required>
+                    </div>
+                    <div style="flex: 1; display: flex; justify-content: flex-end; gap: 1rem;">
+                        <button type="button" class="btn-sg btn-emerald" onclick="gateAction('generate')">
+                            <span>📊</span> GENERATE REPORT
+                        </button>
+                        <button type="button" class="btn-sg btn-red" onclick="gateAction('download')">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            DOWNLOAD PDF
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Stats -->
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">💡</div>
+                    <div class="stat-info">
+                        <span class="stat-label">Active Nodes</span>
+                        <span class="stat-value"><?php echo $system_stats['active_lights']; ?>/<?php echo $system_stats['total_lights']; ?></span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white;">🚨</div>
+                    <div class="stat-info">
+                        <span class="stat-label">Alerts</span>
+                        <span class="stat-value"><?php echo $system_stats['total_alerts']; ?></span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;">🔧</div>
+                    <div class="stat-info">
+                        <span class="stat-label">Work Orders</span>
+                        <span class="stat-value"><?php echo $system_stats['maintenance_count']; ?></span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">📸</div>
+                    <div class="stat-info">
+                        <span class="stat-label">Snapshots</span>
+                        <span class="stat-value"><?php echo $snapshot_count; ?></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Problematic Nodes (Prioritized) -->
+            <div class="glass-panel" style="margin-bottom: 2rem;">
+                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                    ⚠️ Infrastructure Health: Problematic Nodes
+                </h3>
+                <div style="overflow-x: auto;">
+                    <table class="sg-table">
+                        <thead>
+                            <tr>
+                                <th>Node Identity</th>
+                                <th>Location</th>
+                                <th>Total Alerts</th>
+                                <th>Critical</th>
+                                <th style="text-align: right;">Risk Level</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if ($problematic_lights && $problematic_lights->num_rows > 0): ?>
+                                <?php while ($row = $problematic_lights->fetch_assoc()): ?>
+                                    <tr>
+                                        <td style="font-weight: 700;">
+                                            <span style="color: #3b82f6;">📡</span> <?php echo htmlspecialchars($row['node_name']); ?>
+                                        </td>
+                                        <td style="font-size: 12px; color: var(--sg-text-dim);"><?php echo htmlspecialchars($row['location']); ?></td>
+                                        <td><span class="rank-pill"><?php echo $row['alert_count']; ?></span></td>
+                                        <td><span class="rank-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;"><?php echo $row['critical_count']; ?></span></td>
+                                        <td style="text-align: right;">
+                                            <?php if ($row['critical_count'] > 0): ?>
+                                                <span style="color: #ef4444; font-weight: 800; font-size: 11px;">⚠️ IMMEDIATE CHECK</span>
+                                            <?php else: ?>
+                                                <span style="color: #f59e0b; font-weight: 800; font-size: 11px;">🟡 MONITORING</span>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <tr><td colspan="5" style="text-align: center; padding: 3rem;">All structural nodes are reporting optimal health signatures.</td></tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Detailed Table -->
+            <div class="glass-panel" style="margin-bottom: 2rem;">
+                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                    📈 Sensor Telemetry Historicals
+                </h3>
+                <div style="overflow-x: auto;">
+                    <table class="sg-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Density</th>
+                                <th>Volt (Avg)</th>
+                                <th>Curr (Avg)</th>
+                                <th>Temp</th>
+                                <th style="text-align: right;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if ($energy_report && $energy_report->num_rows > 0): ?>
+                                <?php while ($row = $energy_report->fetch_assoc()): ?>
+                                    <tr>
+                                        <td style="font-weight: 700;"><?php echo date('M d, Y', strtotime($row['date'])); ?></td>
+                                        <td><span class="rank-pill"><?php echo $row['readings']; ?></span></td>
+                                        <td><?php echo number_format($row['avg_voltage'], 1); ?>V</td>
+                                        <td><?php echo number_format($row['avg_current'], 2); ?>A</td>
+                                        <td><?php echo number_format($row['avg_temperature'], 1); ?>°C</td>
+                                        <td style="text-align: right;"><span style="color: #10b981; font-weight: 800; font-size: 11px;">✓ VERIFIED</span></td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <tr><td colspan="6" style="text-align: center; padding: 3rem;">No telemetry signatures found in this quadrant.</td></tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sidebar Vault -->
+        <aside class="reports-sidebar">
+            <div class="glass-panel" style="padding: 1.5rem;">
+                <h2 style="font-size: 16px; font-weight: 800; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                    📑 Archive Vault
+                </h2>
+                
+                <?php if (!isRecentlyAuthorized()): ?>
+                    <!-- Locked State -->
+                    <div class="vault-locked">
+                        <div class="vault-lock-icon">🔒</div>
+                        <span class="vault-lock-status">Active Lockdown</span>
+                        <p style="font-size: 12px; color: var(--sg-text-dim); margin-bottom: 1.5rem;">
+                            Diagnostic archives are protected by Secure Session Authorization (SBA). 
+                            Authorization elevation is required to view the ledger.
+                        </p>
+                        <button type="button" class="btn-sg btn-emerald" onclick="gateAction('unlock_vault')" style="width: 100%; justify-content: center;">
+                            UNLOCK LEDGER
+                        </button>
+                    </div>
+                <?php else: ?>
+                    <!-- Unlocked State -->
+                    <?php if (empty($report_archives)): ?>
+                        <div style="text-align: center; padding: 2rem; border: 2px dashed rgba(0,0,0,0.05); border-radius: 20px;">
+                            <span style="font-size: 2rem; display: block; margin-bottom: 1rem;">📭</span>
+                            <p style="font-size: 12px; color: var(--sg-text-dim);">The archival repository is currently empty.</p>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($report_archives as $arc): ?>
+                            <div class="vault-item">
+                                <div class="vault-title"><?php echo htmlspecialchars($arc['report_name']); ?></div>
+                                <div class="vault-meta">
+                                    <span>📅 <?php echo date('M d', strtotime($arc['generated_at'])); ?></span>
+                                    <span>🔑 <?php echo htmlspecialchars($arc['generator']); ?></span>
+                                </div>
+                                <a href="exports/reports/<?php echo $arc['filename']; ?>" target="_blank" class="btn-sg btn-emerald" style="width: 100%; margin-top: 12px; height: 32px; font-size: 11px; justify-content: center; border-radius: 10px;">
+                                    DOWNLOAD ARCHIVE
+                                </a>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    
+                    <button type="button" onclick="location.reload()" class="btn-sg" style="width: 100%; margin-top: 1rem; background: rgba(59, 130, 246, 0.1); color: var(--sg-blue); justify-content: center; font-size: 11px; height: 32px;">
+                        REVOKE ELEVATION
+                    </button>
+                <?php endif; ?>
+            </div>
+
+            <!-- Auto-Scheduling (Separated) -->
+            <div class="glass-panel" style="margin-top: 1.5rem; background: var(--sg-amber-glow); border: 2px solid rgba(245, 158, 11, 0.2); border-radius: 20px; padding: 1.5rem;">
+                <h4 style="color: #f59e0b; font-size: 13px; font-weight: 800; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 0.05em;">🚀 AUTO-SCHEDULING</h4>
+                <p style="font-size: 12px; margin: 0; line-height: 1.5; font-weight: 600; color: #1e293b;">
+                    System briefing scheduled for <strong>Every Monday @ 08:00 AM.</strong>
+                </p>
+            </div>
+        </aside>
+        </div>
+    </main>
+</div>
+
+<!-- Modern Identity Verification Modal -->
+<div id="authGateModal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.6); backdrop-filter:blur(12px) saturate(160%); z-index:10000; align-items:center; justify-content:center;">
+    <div class="glass-panel modal-spring" style="max-width: 440px; width: 90%; background: var(--sg-glass); padding: 2.5rem; text-align: center;">
+        <div style="font-size: 40px; margin-bottom: 1rem;">🛡️</div>
+        <h2 id="gateTitle" style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em;">IDENTITY GATE</h2>
+        <p id="gateDesc" style="font-size: 14px; color: var(--sg-text-dim); margin-bottom: 1.5rem;">Please verify your administrator credentials to proceed.</p>
+        
+        <div id="gateError" style="display:none; background:rgba(239, 68, 68, 0.1); color:#ef4444; padding:0.75rem; border-radius:12px; font-size:12px; font-weight:700; margin-bottom:1rem; border:1px solid rgba(239,68,68,0.2);">
+            Invalid password. Access denied.
+        </div>
+
+        <div class="input-group" style="text-align: left; margin-bottom: 1.5rem;">
+            <label style="font-size: 10px; letter-spacing: 0.1em; color: var(--sg-blue);">CREDENTIAL VERIFICATION</label>
+            <input type="password" id="gatePassword" placeholder="Admin Password" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--sg-glass-border); color:var(--sg-text); height:48px; padding:0 1.25rem; border-radius:14px; font-weight:600; outline:none;">
+        </div>
+
+        <div style="display: flex; gap: 1rem;">
+            <button onclick="closeSecurityGate()" class="btn-sg" style="flex:1; background:rgba(0,0,0,0.05); justify-content:center; color:var(--sg-text-dim);">CANCEL</button>
+            <button onclick="confirmSecurityGate()" id="gateConfirmBtn" class="btn-sg btn-emerald" style="flex:1; justify-content:center;">
+                VERIFY & PROCEED
             </button>
         </div>
-      </div>
-    </form>
-  </div>
-
-  <div class="panel panel-overview">
-    <h2>📈 System Overview (<?php echo date('M d', strtotime($start_date)); ?> – <?php echo date('M d, Y', strtotime($end_date)); ?>)</h2>
-    <div class="stat-grid">
-
-      <div class="stat-card green">
-        <div class="stat-card-label">Active Lights</div>
-        <div class="stat-card-value"><?php echo $system_stats['active_lights']; ?><span style="font-size:1rem;font-weight:600;opacity:.6;">/<?php echo $system_stats['total_lights']; ?></span></div>
-      </div>
-
-      <div class="stat-card <?php echo $system_stats['critical_alerts'] > 0 ? 'red' : 'green'; ?>">
-        <div class="stat-card-label">Total Alerts</div>
-        <div class="stat-card-value"><?php echo $system_stats['total_alerts']; ?></div>
-        <div class="stat-card-sub"><?php echo $system_stats['critical_alerts']; ?> critical</div>
-      </div>
-
-      <div class="stat-card blue">
-        <div class="stat-card-label">Maintenance</div>
-        <div class="stat-card-value"><?php echo $system_stats['maintenance_count']; ?></div>
-      </div>
-
     </div>
-  </div>
-
-  <div class="panel panel-chart">
-    <h2>⚡ Sensor Data Trends</h2>
-    <canvas id="energyChart"></canvas>
-  </div>
-
-  <div class="panel panel-table">
-    <h2>📋 Detailed Sensor Readings</h2>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Readings</th>
-            <th>Avg Voltage (V)</th>
-            <th>Avg Current (A)</th>
-            <th>Avg Temp (°C)</th>
-            <th>Avg Brightness (lux)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php
-          $energy_report->data_seek(0);
-          while ($row = $energy_report->fetch_assoc()):
-          ?>
-          <tr>
-            <td><?php echo date('M d, Y', strtotime($row['date'])); ?></td>
-            <td><?php echo $row['readings']; ?></td>
-            <td><?php echo number_format($row['avg_voltage'], 2); ?></td>
-            <td><?php echo number_format($row['avg_current'], 3); ?></td>
-            <td><?php echo number_format($row['avg_temperature'], 1); ?></td>
-            <td><?php echo number_format($row['avg_brightness'], 1); ?></td>
-          </tr>
-          <?php endwhile; ?>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <?php if ($problematic_lights->num_rows > 0): ?>
-  <div class="panel panel-problems">
-    <h2>⚠️ Top 10 Most Problematic Streetlights</h2>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Rank</th>
-            <th>Node</th>
-            <th>Location</th>
-            <th>Total Alerts</th>
-            <th>Critical</th>
-            <th>Last Alert</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php
-          $rank = 1;
-          while ($light = $problematic_lights->fetch_assoc()):
-          ?>
-          <tr>
-            <td><span class="rank-badge <?php echo $rank <= 3 ? 'top' : ''; ?>">#<?php echo $rank++; ?></span></td>
-            <td><?php echo htmlspecialchars($light['node_name']); ?></td>
-            <td><?php echo htmlspecialchars($light['location']); ?></td>
-            <td><?php echo $light['alert_count']; ?></td>
-            <td><span class="badge fail"><?php echo $light['critical_count']; ?></span></td>
-            <td><?php echo date('M d, H:i', strtotime($light['last_alert'])); ?></td>
-          </tr>
-          <?php endwhile; ?>
-        </tbody>
-      </table>
-    </div>
-  </div>
-    <?php endif; ?>
-  </div> <!-- End Left Col -->
-
-  <aside class="report-right-col">
-    <div class="archive-card">
-        <h3 style="font-size: 1rem; font-weight: 800; margin-bottom: 1.2rem; display: flex; align-items: center; gap: 8px;">
-            📑 City Council Archives
-        </h3>
-        <?php if (empty($report_archives)): ?>
-            <p style="font-size: 0.8rem; color: var(--text-secondary); text-align: center; padding: 20px;">
-                No official reports archived yet.
-            </p>
-        <?php else: ?>
-            <?php foreach ($report_archives as $arc): ?>
-                <div class="archive-item">
-                    <div class="archive-title"><?php echo htmlspecialchars($arc['report_name']); ?></div>
-                    <div class="archive-meta">
-                        📅 <?php echo date('M d, Y', strtotime($arc['generated_at'])); ?><br>
-                        👤 <?php echo htmlspecialchars($arc['generator']); ?>
-                    </div>
-                    <a href="exports/reports/<?php echo $arc['filename']; ?>" class="archive-link" target="_blank">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        Download Archive
-                    </a>
-                </div>
-            <?php endforeach; ?>
-        <?php endif; ?>
-    </div>
-
-    <div class="panel" style="margin-top: 1.5rem; border-top: 3px solid var(--blue); background: var(--blue-dim); border-color: var(--blue-border);">
-        <h4 style="font-size: 0.85rem; font-weight: 800; color: #1e40af; margin-bottom: 0.5rem;">📚 Thesis Documentation</h4>
-        <p style="font-size: 0.72rem; color: #1e40af; line-height: 1.4; margin-bottom: 12px;">
-            Download the officially cited <strong>Infrastructure Governance & Threshold Manual</strong> for your final report.
-        </p>
-        <a href="tools/generate_thresholds_pdf.php" target="_blank" style="display: block; width: 100%; padding: 8px; background: #3b82f6; color: white; text-align: center; border-radius: 8px; font-size: 0.75rem; font-weight: 700; text-decoration: none;">
-            📥 Download Technical Manual
-        </a>
-    </div>
-
-    <div class="panel" style="margin-top: 1.5rem; border-top: 3px solid var(--amber); background: var(--amber-dim); border-color: var(--amber-border);">
-        <h4 style="font-size: 0.85rem; font-weight: 800; color: #92400e; margin-bottom: 0.5rem;">🚀 Auto-Scheduling</h4>
-        <p style="font-size: 0.72rem; color: #92400e; line-height: 1.4;">
-            Your system is configured for <strong>Weekly Audit Briefings</strong>. Reports are automatically archived every Monday at 8 AM.
-        </p>
-    </div>
-  </aside>
-
-</div> <!-- End Main Content / Layout? No, layout is closed in footer -->
-
-<div id="exportModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-  <div class="modal-spring" style="background:white; border-radius:20px; padding:32px; max-width:400px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.25); font-family:'Inter',sans-serif;">
-    <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
-      <div style="background:#eff6ff; width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">📥</div>
-      <div>
-        <div style="font-size:1.1rem; font-weight:800; color:#0f172a;">Export Report?</div>
-        <div style="font-size:0.8rem; color:#64748b; margin-top:2px;" id="exportModalRange">Date range will appear here</div>
-      </div>
-    </div>
-    
-    <p style="font-size:0.9rem; color:#475569; line-height:1.6; margin-bottom:24px;">
-      You are about to download a comprehensive system audit report in PDF format. Please confirm your administrator password to proceed.
-    </p>
-
-    <div id="exportViewOnlyMessage" style="display:none; text-align:center; padding:10px; border-radius:12px; border:1.5px dashed #cbd5e1; background:#f8fafc; margin-bottom:24px;">
-        <p style="font-size:0.875rem; color:#64748b; font-weight:600; margin-bottom:0;">🔒 View Only Access Restricted</p>
-        <p style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">Report export is restricted to Administrators only.</p>
-    </div>
-
-    <div id="exportPasswordSection">
-        <div style="margin-bottom: 24px; text-align: left;">
-            <label for="exportAdminPassword" style="display:block; font-size:0.875rem; font-weight:600; color:#0f172a; margin-bottom:8px;">🔐 Your Password <span style="color:#ef4444;">*</span></label>
-            <input type="password" id="exportAdminPassword" placeholder="Enter password to confirm export" style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid #cbd5e1; font-family:'Inter',sans-serif; font-size:0.875rem; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
-            <div id="exportPasswordError" style="color:#ef4444; font-size:0.75rem; margin-top:6px; display:none;">Password is required</div>
-        </div>
-    </div>
-
-    <div style="display:flex; gap:12px; justify-content:flex-end;">
-      <button type="button" onclick="closeExportModal()" style="padding:10px 22px; border-radius:10px; border:1.5px solid #e2e8f0; background:white; font-family:'Inter',sans-serif; font-size:0.875rem; font-weight:600; color:#64748b; cursor:pointer;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='white'">Cancel</button>
-      <button type="button" id="exportConfirmBtn" onclick="confirmExport()" style="padding:10px 22px; border-radius:10px; border:none; background:#3b82f6; font-family:'Inter',sans-serif; font-size:0.875rem; font-weight:700; color:white; cursor:pointer; box-shadow:0 4px 12px rgba(59,130,246,0.35); transition:all 0.2s;" onmouseover="this.style.background='#2563eb'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#3b82f6'; this.style.transform='translateY(0)';">📥 Download PDF</button>
-    </div>
-  </div>
 </div>
 
-<div id="generateModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-  <div class="modal-spring" style="background:white; border-radius:20px; padding:32px; max-width:400px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.25); font-family:'Inter',sans-serif;">
-    <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
-      <div style="background:#f0fdf4; width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">📊</div>
-      <div>
-        <div style="font-size:1.1rem; font-weight:800; color:#0f172a;">Generate Report?</div>
-        <div style="font-size:0.8rem; color:#64748b; margin-top:2px;" id="generateModalRange">Date range will appear here</div>
-      </div>
-    </div>
-    
-    <p style="font-size:0.9rem; color:#475569; line-height:1.6; margin-bottom:24px;">
-      This will process and display a detailed visual report containing all system metrics, sensor data, and alerts for the selected period.
-    </p>
-
-    <div id="generateViewOnlyMessage" style="display:none; text-align:center; padding:10px; border-radius:12px; border:1.5px dashed #cbd5e1; background:#f8fafc; margin-bottom:24px;">
-        <p style="font-size:0.875rem; color:#64748b; font-weight:600; margin-bottom:0;">🔒 View Only Access Restricted</p>
-        <p style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">Report generation is restricted to Administrators only.</p>
-    </div>
-
-    <div id="generatePasswordSection">
-        <div style="margin-bottom: 24px; text-align: left;">
-            <label for="generateAdminPassword" style="display:block; font-size:0.875rem; font-weight:600; color:#0f172a; margin-bottom:8px;">🔐 Your Password <span style="color:#ef4444;">*</span></label>
-            <input type="password" id="generateAdminPassword" placeholder="Enter password to confirm generation" style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid #cbd5e1; font-family:'Inter',sans-serif; font-size:0.875rem; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
-            <div id="generatePasswordError" style="color:#ef4444; font-size:0.75rem; margin-top:6px; display:none;">Password is required</div>
+<!-- Simplified Export Modal -->
+<div id="exportModal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.4); backdrop-filter:blur(8px); z-index:9999; align-items:center; justify-content:center;">
+    <div class="glass-panel modal-spring" style="max-width: 400px; width: 90%; background: var(--sg-glass); text-align: center;">
+        <h2 style="margin-top: 0; font-size: 1.25rem; font-weight: 800;">Export Ledger</h2>
+        <p style="font-size: 13px; color: var(--sg-text-dim);">Select signature format for the selected period.</p>
+        <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem;">
+            <a href="reports.php?export=pdf&start_date=<?php echo $start_date; ?>&end_date=<?php echo $end_date; ?>" class="btn-sg btn-emerald" style="justify-content: center; text-decoration: none;">
+                📄 DOWNLOAD PDF SIGNATURE
+            </a>
+            <button onclick="document.getElementById('exportModal').style.display='none'" class="btn-sg" style="background: rgba(0,0,0,0.05); justify-content: center;">
+                CANCEL
+            </button>
         </div>
     </div>
-
-    <div style="display:flex; gap:12px; justify-content:flex-end;">
-      <button type="button" onclick="closeGenerateModal()" style="padding:10px 22px; border-radius:10px; border:1.5px solid #e2e8f0; background:white; font-family:'Inter',sans-serif; font-size:0.875rem; font-weight:600; color:#64748b; cursor:pointer;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='white'">Cancel</button>
-      <button type="button" id="generateConfirmBtn" onclick="confirmGenerate()" style="padding:10px 22px; border-radius:10px; border:none; background:#10b981; font-family:'Inter',sans-serif; font-size:0.875rem; font-weight:700; color:white; cursor:pointer; box-shadow:0 4px 12px rgba(16,185,129,0.35); transition:all 0.2s;" onmouseover="this.style.background='#059669'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#10b981'; this.style.transform='translateY(0)';">📊 Generate Report</button>
-    </div>
-  </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-const isObserver = <?php echo $isObserver ? 'true' : 'false'; ?>;
+    let activeGateAction = null;
 
-function openGenerateModal() {
-    const start = document.getElementById('start_date').value;
-    const end = document.getElementById('end_date').value;
-    
-    if (new Date(start) > new Date(end)) {
-        showAppAlert("⚠️ Error: The end date must be after the start date.", "warning");
-        return;
-    }
-    
-    document.getElementById('generateModalRange').textContent = `Period: ${start} to ${end}`;
-    
-    const modal = document.getElementById('generateModal');
-    modal.style.display = 'flex';
+    function gateAction(action) {
+        activeGateAction = action;
+        const modal = document.getElementById('authGateModal');
+        const title = document.getElementById('gateTitle');
+        const desc = document.getElementById('gateDesc');
+        const error = document.getElementById('gateError');
+        const password = document.getElementById('gatePassword');
 
-    document.getElementById('generatePasswordSection').style.display = 'block';
-    document.getElementById('generateViewOnlyMessage').style.display = 'none';
-    document.getElementById('generateConfirmBtn').style.display = 'inline-flex';
-
-    const content = modal.querySelector('.modal-spring');
-    if (content) {
-        content.classList.remove('modal-spring');
-        void content.offsetWidth;
-        content.classList.add('modal-spring');
-    }
-}
-
-function closeGenerateModal() {
-    document.getElementById('generateModal').style.display = 'none';
-    const pwdInput = document.getElementById('generateAdminPassword');
-    if (pwdInput) {
-        pwdInput.value = '';
-        pwdInput.style.borderColor = '#cbd5e1';
-        document.getElementById('generatePasswordError').style.display = 'none';
-        document.getElementById('generateConfirmBtn').innerHTML = '📊 Generate Report';
-        document.getElementById('generateConfirmBtn').disabled = false;
-    }
-}
-
-async function confirmGenerate() {
-    const pwdInput = document.getElementById('generateAdminPassword');
-    const pwdError = document.getElementById('generatePasswordError');
-    const btn = document.getElementById('generateConfirmBtn');
-    
-    if (!pwdInput.value.trim()) {
-        pwdError.textContent = 'Password is required';
-        pwdError.style.display = 'block';
-        pwdInput.style.borderColor = '#ef4444';
-        pwdInput.focus();
-        return;
-    }
-    
-    pwdError.style.display = 'none';
-    btn.innerHTML = 'Verifying...';
-    btn.disabled = true;
-    
-    try {
-        const formData = new URLSearchParams();
-        formData.append('action', 'verify_password');
-        formData.append('admin_password', pwdInput.value);
+        error.style.display = 'none';
+        password.value = '';
         
-        const response = await fetch('reports.php', {
-            method: 'POST',
-            body: formData,
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-        });
-        
-        const data = await response.json();
-        if (data.success) {
-            document.getElementById('reportFilterForm').submit();
+        if (action === 'generate') {
+            title.textContent = 'RE-AUTHENTICATE ACTION';
+            desc.textContent = 'Generating live signatures requires immediate identity verification.';
+        } else if (action === 'download') {
+            title.textContent = 'EXPORT AUTHORIZATION';
+            desc.textContent = 'Downloading encrypted PDF reports requires a security handshake.';
         } else {
-            pwdError.textContent = 'Incorrect password. Try again.';
-            pwdError.style.display = 'block';
-            pwdInput.style.borderColor = '#ef4444';
-            btn.innerHTML = '📊 Generate Report';
-            btn.disabled = false;
+            title.textContent = 'IDENTITY GATE';
+            desc.textContent = 'Please verify your administrator credentials to unlock the archive.';
         }
-    } catch(err) {
-        console.error(err);
-        pwdError.textContent = 'Error verifying password. Check connection.';
-        pwdError.style.display = 'block';
-        btn.disabled = false;
+
+        modal.style.display = 'flex';
+        password.focus();
     }
-}
 
-function openExportModal() {
-    const start = document.getElementById('start_date').value;
-    const end = document.getElementById('end_date').value;
-    
-    if (new Date(start) > new Date(end)) {
-        showAppAlert("⚠️ Error: Cannot export. The end date must be after the start date.", "warning");
-        return;
+    function closeSecurityGate() {
+        document.getElementById('authGateModal').style.display = 'none';
+        activeGateAction = null;
     }
-    
-    document.getElementById('exportModalRange').textContent = `Period: ${start} to ${end}`;
-    
-    const modal = document.getElementById('exportModal');
-    modal.style.display = 'flex';
 
-    document.getElementById('exportPasswordSection').style.display = 'block';
-    document.getElementById('exportViewOnlyMessage').style.display = 'none';
-    document.getElementById('exportConfirmBtn').style.display = 'inline-flex';
+    async function confirmSecurityGate() {
+        const passwordInput = document.getElementById('gatePassword');
+        const confirmBtn = document.getElementById('gateConfirmBtn');
+        const error = document.getElementById('gateError');
+        const password = passwordInput.value;
 
-    const content = modal.querySelector('.modal-spring');
-    if (content) {
-        content.classList.remove('modal-spring');
-        void content.offsetWidth;
-        content.classList.add('modal-spring');
-    }
-}
-
-function closeExportModal() {
-    document.getElementById('exportModal').style.display = 'none';
-    const pwdInput = document.getElementById('exportAdminPassword');
-    if (pwdInput) {
-        pwdInput.value = '';
-        pwdInput.style.borderColor = '#cbd5e1';
-        document.getElementById('exportPasswordError').style.display = 'none';
-        document.getElementById('exportConfirmBtn').innerHTML = '📥 Download PDF';
-        document.getElementById('exportConfirmBtn').disabled = false;
-    }
-}
-
-async function confirmExport() {
-    const pwdInput = document.getElementById('exportAdminPassword');
-    const pwdError = document.getElementById('exportPasswordError');
-    const btn = document.getElementById('exportConfirmBtn');
-    
-    if (!pwdInput.value.trim()) {
-        pwdError.textContent = 'Password is required';
-        pwdError.style.display = 'block';
-        pwdInput.style.borderColor = '#ef4444';
-        pwdInput.focus();
-        return;
-    }
-    
-    pwdError.style.display = 'none';
-    btn.innerHTML = 'Verifying...';
-    btn.disabled = true;
-    
-    try {
-        const formData = new URLSearchParams();
-        formData.append('action', 'verify_password');
-        formData.append('admin_password', pwdInput.value);
-        
-        const response = await fetch('reports.php', {
-            method: 'POST',
-            body: formData,
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-        });
-        
-        const data = await response.json();
-        if (data.success) {
-            const start = document.getElementById('start_date').value;
-            const end = document.getElementById('end_date').value;
-            
-            if (window.sgToast) {
-                window.sgToast('📥', 'Export Started', 'Your PDF report is being generated and downloaded.', '#10b981', '#ecfdf5');
-            }
-
-            const chartCanvas = document.getElementById('energyChart');
-            let imgData = '';
-            if (chartCanvas) {
-
-                const ctx = chartCanvas.getContext('2d');
-                const origGlobalCompositeOp = ctx.globalCompositeOperation;
-                ctx.globalCompositeOperation = "destination-over";
-                ctx.fillStyle = "#ffffff";
-                ctx.fillRect(0, 0, chartCanvas.width, chartCanvas.height);
-                
-                imgData = chartCanvas.toDataURL('image/png', 1.0);
-
-                ctx.globalCompositeOperation = origGlobalCompositeOp;
-            }
-
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `?export=pdf&start_date=${start}&end_date=${end}`;
-            
-            if (imgData) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'chart_image';
-                input.value = imgData;
-                form.appendChild(input);
-            }
-
-            if (pwdInput.value) {
-                const pwdHidden = document.createElement('input');
-                pwdHidden.type = 'hidden';
-                pwdHidden.name = 'admin_password';
-                pwdHidden.value = pwdInput.value;
-                form.appendChild(pwdHidden);
-            }
-            
-            document.body.appendChild(form);
-            form.submit();
-            document.body.removeChild(form);
-            
-            closeExportModal();
-        } else {
-            pwdError.textContent = 'Incorrect password. Try again.';
-            pwdError.style.display = 'block';
-            pwdInput.style.borderColor = '#ef4444';
-            btn.innerHTML = '📥 Download PDF';
-            btn.disabled = false;
+        if (!password) {
+            passwordInput.focus();
+            return;
         }
-    } catch(err) {
-        console.error(err);
-        pwdError.textContent = 'Error verifying password. Check connection.';
-        pwdError.style.display = 'block';
-        btn.disabled = false;
-    }
-}
 
-<?php
-$energy_report->data_seek(0);
-$dates = [];
-$voltages = [];
-$temps = [];
-while ($row = $energy_report->fetch_assoc()) {
-    $dates[]    = date('M d', strtotime($row['date']));
-    $voltages[] = round($row['avg_voltage'], 2);
-    $temps[]    = round($row['avg_temperature'], 1);
-}
-?>
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'VERIFYING...';
+        error.style.display = 'none';
 
-const energyCtx = document.getElementById('energyChart').getContext('2d');
-new Chart(energyCtx, {
-    type: 'line',
-    data: {
-        labels: <?php echo json_encode(array_reverse($dates)); ?>,
-        datasets: [{
-            label: 'Avg Voltage (V)',
-            data: <?php echo json_encode(array_reverse($voltages)); ?>,
-            borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59,130,246,0.08)',
-            borderWidth: 2,
-            pointBackgroundColor: '#3b82f6',
-            pointRadius: 3,
-            pointHoverRadius: 5,
-            yAxisID: 'y',
-            tension: 0.4,
-            fill: true
-        }, {
-            label: 'Avg Temperature (°C)',
-            data: <?php echo json_encode(array_reverse($temps)); ?>,
-            borderColor: '#ef4444',
-            backgroundColor: 'rgba(239,68,68,0.06)',
-            borderWidth: 2,
-            pointBackgroundColor: '#ef4444',
-            pointRadius: 3,
-            pointHoverRadius: 5,
-            yAxisID: 'y1',
-            tension: 0.4,
-            fill: true
-        }]
-    },
-    options: {
-        responsive: true,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-            legend: {
-                labels: {
-                    font: { family: 'Inter', size: 12, weight: '600' },
-                    color: '#6b7a99',
-                    usePointStyle: true,
-                    pointStyleWidth: 8
+        try {
+            const formData = new URLSearchParams();
+            formData.append('admin_password', password);
+            // Persistent SBA only for vault, "verify" for specific actions
+            formData.append('action', activeGateAction === 'unlock_vault' ? 'authorize' : 'verify');
+            formData.append('csrf_token', '<?php echo generateCsrfToken(); ?>');
+
+            const response = await fetch('api/auth_session.php', {
+                method: 'POST',
+                body: formData,
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                if (activeGateAction === 'generate') {
+                    // Logic for "GENERATE REPORT"
+                    document.querySelector('.filter-terminal').submit();
+                } else if (activeGateAction === 'download') {
+                    closeSecurityGate();
+                    document.getElementById('exportModal').style.display = 'flex';
+                } else if (activeGateAction === 'unlock_vault') {
+                    location.reload();
                 }
+            } else {
+                error.textContent = result.error || 'Invalid password. Access denied.';
+                error.style.display = 'block';
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'VERIFY & PROCEED';
+                passwordInput.value = '';
+                passwordInput.focus();
             }
-        },
-        scales: {
-            x: {
-                grid: { color: '#f0f4f8' },
-                ticks: { font: { family: 'Inter', size: 11 }, color: '#a0aec0' }
-            },
-            y: {
-                type: 'linear',
-                position: 'left',
-                grid: { color: '#f0f4f8' },
-                ticks: { font: { family: 'Inter', size: 11 }, color: '#a0aec0' },
-                title: { display: true, text: 'Voltage (V)', font: { family: 'Inter', size: 11, weight: '600' }, color: '#6b7a99' }
-            },
-            y1: {
-                type: 'linear',
-                position: 'right',
-                grid: { drawOnChartArea: false },
-                ticks: { font: { family: 'Inter', size: 11 }, color: '#a0aec0' },
-                title: { display: true, text: 'Temperature (°C)', font: { family: 'Inter', size: 11, weight: '600' }, color: '#6b7a99' }
-            }
+        } catch (err) {
+            error.textContent = 'Security communication failure.';
+            error.style.display = 'block';
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'VERIFY & PROCEED';
         }
     }
-});
-</script>
 
-<?php include 'assets/app_alert.php'; ?>
+    // Add Enter key listener for password
+    document.getElementById('gatePassword').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') confirmSecurityGate();
+    });
+
+    function openExportModal() {
+        document.getElementById('exportModal').style.display = 'flex';
+    }
+</script>
 </body>
 </html>

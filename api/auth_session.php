@@ -18,9 +18,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'revoke') {
             revokeAuthorization();
             logActivity($conn, $user_id, 'Access Revocation', 'Elevated session access revoked manually');
+        } elseif ($action === 'verify') {
+            // One-time verification: Success but don't call setAuthorized()
+            logActivity($conn, $user_id, 'Action Verification', 'User verified identity for a one-time secure action');
         } else {
             setAuthorized();
-            logActivity($conn, $user_id, 'Elevated Access', 'User successfully elevated session access');
+            logActivity($conn, $user_id, 'Elevated Access', 'User successfully elevated session access (SBA)');
         }
         echo json_encode(['success' => true]);
     } else {

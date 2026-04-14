@@ -1,6 +1,6 @@
 <?php
 require_once 'dbconnect.php';
-requireLogin(['System Admin']);
+requireLogin(['System Admin', 'System Observer']);
 
 // Standalone "Critical Access" Authorization Handler
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'critical_auth') {
@@ -97,6 +97,52 @@ $stats_res = $conn->query("SELECT
     FROM activity_logs al
     WHERE $where_clause");
 $stats = $stats_res ? $stats_res->fetch_assoc() : ['total' => 0, 'security' => 0, 'users' => 0];
+
+// ── SECURITY FEATURE: INTEGRITY VALIDATOR SCRIPT ──
+$integrity_results = [];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) {
+    require_once 'src/Services/SecurityService.php';
+    
+    // We verify the logs currently visible in the filter
+    $verify_query = "SELECT al.* FROM activity_logs al WHERE $where_clause ORDER BY al.log_id ASC";
+    $v_res = $conn->query($verify_query);
+    
+    // To verify a chain, we need the "Previous Hash" of the first record in our set.
+    // If we're starting from the very first record ever, it's all zeros.
+    $first_log = $conn->query("SELECT log_id FROM activity_logs ORDER BY log_id ASC LIMIT 1")->fetch_assoc();
+    $current_prev_hash = str_repeat('0', 64);
+    
+    if ($v_res->num_rows > 0) {
+        $v_data = $v_res->fetch_all(MYSQLI_ASSOC);
+        
+        // If the first log in our filter isn't the global first log, we need its actual predecessor
+        if ($v_data[0]['log_id'] != $first_log['log_id']) {
+            $pred_id = $v_data[0]['log_id'];
+            $pred_res = $conn->query("SELECT log_hash FROM activity_logs WHERE log_id < $pred_id ORDER BY log_id DESC LIMIT 1");
+            if ($pred_row = $pred_res->fetch_assoc()) {
+                $current_prev_hash = $pred_row['log_hash'];
+            }
+        }
+
+        foreach ($v_data as $row) {
+            $expected = \ShineGuard\Services\SecurityService::generateLogSignature(
+                $current_prev_hash, 
+                $row['user_id'], 
+                $row['action'], 
+                $row['details'], 
+                $row['ip_address']
+            );
+            
+            $integrity_results[$row['log_id']] = ($expected === $row['log_hash']);
+            $current_prev_hash = $row['log_hash']; // Move to next link in chain
+        }
+    }
+    
+    if (!empty($integrity_results)) {
+        logActivity($conn, $_SESSION['user_id'], 'Integrity Verification', 'User executed a mathematical forensic audit of the activity logs');
+    }
+}
+
 
 ?>
 <!DOCTYPE html>
@@ -346,9 +392,17 @@ $stats = $stats_res ? $stats_res->fetch_assoc() : ['total' => 0, 'security' => 0
                     <h1>🛡️ Activity Logs</h1>
                     <p>Comprehensive audit trail for ShineGuard Hulo</p>
                 </div>
-                <a href="activity_logs.php?export=csv&start_date=<?php echo $start_date; ?>&end_date=<?php echo $end_date; ?>&action=<?php echo urlencode($action_filter); ?>&user_id=<?php echo $user_filter; ?>" class="btn-export">
-                    <span>📥 Export to CSV</span>
-                </a>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <form method="POST" style="margin: 0;">
+                        <input type="hidden" name="verify_integrity" value="1">
+                        <button type="submit" class="btn-filter" style="background: #6366f1; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);">
+                            🛡️ Verify Log Integrity
+                        </button>
+                    </form>
+                    <a href="activity_logs.php?export=csv&start_date=<?php echo $start_date; ?>&end_date=<?php echo $end_date; ?>&action=<?php echo urlencode($action_filter); ?>&user_id=<?php echo $user_filter; ?>" class="btn-export">
+                        <span>📥 Export to CSV</span>
+                    </a>
+                </div>
             </div>
 
             <div class="stats-row">
@@ -421,6 +475,7 @@ $stats = $stats_res ? $stats_res->fetch_assoc() : ['total' => 0, 'security' => 0
                                 <th>Timestamp</th>
                                 <th>User Activity</th>
                                 <th>Action</th>
+                                <th>Security Integrity</th>
                                 <th>Observations</th>
                                 <th>Technical ID</th>
                             </tr>
@@ -454,7 +509,7 @@ $stats = $stats_res ? $stats_res->fetch_assoc() : ['total' => 0, 'security' => 0
                                             <div class="user-pill">
                                                 <div class="user-avatar"><?php echo $initials; ?></div>
                                                 <div class="user-info">
-                                                    <strong><?php echo htmlspecialchars($log['full_name'] ?: 'System Interface'); ?></strong>
+                                                    <strong><?php echo maskPII($log['full_name'] ?: 'System Interface'); ?></strong>
                                                     <span><?php echo htmlspecialchars($log['role'] ?: 'Automated'); ?></span>
                                                 </div>
                                             </div>
@@ -465,8 +520,30 @@ $stats = $stats_res ? $stats_res->fetch_assoc() : ['total' => 0, 'security' => 0
                                                 <?php echo htmlspecialchars($log['action']); ?>
                                             </span>
                                         </td>
+                                        <td>
+                                            <?php if (isset($integrity_results[$log['log_id']])): ?>
+                                                <?php if ($integrity_results[$log['log_id']]): ?>
+                                                    <span class="badge-control" style="padding: 4px 10px; border-radius: 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;">
+                                                        🛡️ Verified
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="badge-security" style="padding: 4px 10px; border-radius: 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; animation: pulse 2s infinite;">
+                                                        🚨 TAMPERED
+                                                    </span>
+                                                <?php endif; ?>
+                                            <?php else: ?>
+                                                <span style="color: #94a3b8; font-style: italic; font-size: 12px;">Not Validated</span>
+                                            <?php endif; ?>
+                                        </td>
                                         <td class="details-col">
-                                            <?php echo htmlspecialchars($log['details']); ?>
+                                            <?php 
+                                                $details = $log['details'];
+                                                if (shouldMaskPII()) {
+                                                    // Simple heuristic to mask emails or phones embedded in logs
+                                                    $details = preg_replace_callback('/[a-zA-Z0-9._%+-]+@hulo\.gov\.ph/', function($m) { return maskEmail($m[0]); }, $details);
+                                                }
+                                                echo htmlspecialchars($details); 
+                                            ?>
                                         </td>
                                         <td style="font-family: 'JetBrains Mono', monospace; color: #94a3b8; font-size: 12px;">
                                             <?php echo htmlspecialchars($log['ip_address']); ?>
