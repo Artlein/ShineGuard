@@ -65,6 +65,26 @@ if ($col_check && $col_check->num_rows === 0) {
     $conn->query("ALTER TABLE `activity_logs` ADD KEY `idx_user_created` (`user_id`, `created_at`)");
 }
 
+// Security & MFA Patch for `users` table
+$users_cols = $conn->query("SHOW COLUMNS FROM `users`")->fetch_all(MYSQLI_ASSOC);
+$existing_cols = array_column($users_cols, 'Field');
+
+if (!in_array('mfa_enabled', $existing_cols)) {
+    $conn->query("ALTER TABLE `users` ADD COLUMN `mfa_enabled` tinyint(1) DEFAULT 0");
+}
+if (!in_array('mfa_secret', $existing_cols)) {
+    $conn->query("ALTER TABLE `users` ADD COLUMN `mfa_secret` varchar(32) DEFAULT NULL");
+}
+if (!in_array('failed_attempts', $existing_cols)) {
+    $conn->query("ALTER TABLE `users` ADD COLUMN `failed_attempts` int(11) DEFAULT 0");
+}
+if (!in_array('last_failed_attempt', $existing_cols)) {
+    $conn->query("ALTER TABLE `users` ADD COLUMN `last_failed_attempt` datetime DEFAULT NULL");
+}
+if (!in_array('lockout_until', $existing_cols)) {
+    $conn->query("ALTER TABLE `users` ADD COLUMN `lockout_until` datetime DEFAULT NULL");
+}
+
 date_default_timezone_set('Asia/Manila');
 
 $baseDir = str_replace('\\', '/', dirname(__FILE__));
