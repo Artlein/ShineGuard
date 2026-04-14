@@ -467,3 +467,18 @@ function clearLoginAttempts($conn, $ip) {
     $stmt->execute();
     $stmt->close();
 }
+
+function getLockoutSecondsRemaining($conn, $ip) {
+    // Find the 5th most recent attempt. The lockout expires when this attempt is > 15 mins old.
+    $stmt = $conn->prepare("SELECT attempted_at FROM login_attempts WHERE ip_address = ? ORDER BY attempted_at DESC LIMIT 1 OFFSET 4");
+    $stmt->bind_param("s", $ip);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    if ($row = $res->fetch_assoc()) {
+        $first_of_five = strtotime($row['attempted_at']);
+        $expiry = $first_of_five + (15 * 60);
+        $remaining = $expiry - time();
+        return max(0, $remaining);
+    }
+    return 0;
+}
