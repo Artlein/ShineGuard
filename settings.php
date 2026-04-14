@@ -1499,6 +1499,10 @@ tbody td {
                 <div style="display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; width: max-content;">
                   <button class="btn-secondary" style="font-size: 0.76rem; padding: 0.4rem 0.8rem; height: 32px; margin: 0;" 
                     onclick="openEditModal(<?php echo htmlspecialchars(json_encode($user)); ?>)">✏️ Edit</button>
+                  <?php if ($user['mfa_enabled']): ?>
+                  <button class="btn-secondary" style="font-size: 0.76rem; padding: 0.4rem 0.8rem; height: 32px; margin: 0; background: rgba(59, 130, 246, 0.05); color: #3b82f6; border-color: rgba(59, 130, 246, 0.2);" 
+                    onclick="promptMfaResetDirect(<?php echo $user['user_id']; ?>, '<?php echo htmlspecialchars(addslashes($user['username'])); ?>')">🛡️ Reset MFA</button>
+                  <?php endif; ?>
                   <button class="btn-secondary" style="font-size: 0.76rem; padding: 0.4rem 0.8rem; height: 32px; margin: 0; background: #fee2e2; color: #991b1b; border-color: #fca5a5;" 
                     onclick="openDeleteModal(<?php echo $user['user_id']; ?>, '<?php echo htmlspecialchars(addslashes($user['full_name'])); ?>')">🗑️ Delete</button>
                 </div>
@@ -1758,9 +1762,9 @@ function openEditModal(user) {
   openModal('editUserModal');
 }
 
-function promptMfaReset() {
-  const userId = document.getElementById('edit_user_id').value;
-  const username = document.getElementById('edit_username').value;
+function promptMfaReset(userId = null, username = null) {
+  if (!userId)   userId = document.getElementById('edit_user_id').value;
+  if (!username) username = document.getElementById('edit_username').value;
   
   if (confirm(`Are you sure you want to FORCE DISABLE MFA for user: ${username}?\n\nThis will allow them to login with just their password.`)) {
     const password = prompt('SECURITY VERIFICATION: Please enter YOUR Administrator password to authorize this action:');
@@ -1788,6 +1792,11 @@ function promptMfaReset() {
       form.submit();
     }
   }
+}
+
+// Wrapper for table-direct resets
+function promptMfaResetDirect(id, name) {
+    promptMfaReset(id, name);
 }
 
 function openDeleteModal(userId, fullName) {
