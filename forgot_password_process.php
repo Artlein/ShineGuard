@@ -6,6 +6,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['email'])) {
     exit();
 }
 
+checkCsrf();
+checkRateLimit('pw_reset_request', 3, 10); // Max 3 requests per 10 mins per IP
+
 $email = trim($_POST['email']);
 
 // 1. Verify user exists
@@ -15,9 +18,11 @@ $stmt->execute();
 $res = $stmt->get_result();
 
 if ($res->num_rows === 0) {
-    // SECURITY: We don't want to leak if an email exists, but for UX we might.
-    // However, the prompt says "make it work", so we'll be helpful.
-    header('Location: forgot_password.php?error=not_found');
+    // SECURITY: DEFENSIVE ENUMERATION PROTECTION
+    // We always redirect to success to prevent attackers from "fishing" for emails.
+    // We also sleep for a tiny random bit to prevent timing attacks.
+    usleep(rand(100000, 300000)); 
+    header('Location: forgot_password.php?success=1');
     exit();
 }
 

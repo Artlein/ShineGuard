@@ -6,6 +6,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['token']) || empty($_P
     exit();
 }
 
+checkCsrf();
+
 $token = $_POST['token'];
 $email = $_POST['email'];
 $password = $_POST['password'];

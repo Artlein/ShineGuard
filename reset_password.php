@@ -82,6 +82,7 @@ if ($res->num_rows === 1) {
                 <form id="resetForm" method="POST" action="reset_password_process.php">
                     <input type="hidden" name="token" value="<?php echo htmlspecialchars($token); ?>">
                     <input type="hidden" name="email" value="<?php echo htmlspecialchars($email); ?>">
+                    <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
                     
                     <div class="form-group">
                         <label for="password">NEW PASSWORD</label>

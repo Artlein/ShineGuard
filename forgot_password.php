@@ -75,6 +75,8 @@ require_once 'dbconnect.php';
                         <span class="input-icon">✉️</span>
                     </div>
                 </div>
+
+                <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
                 
                 <button type="submit" class="login-button" style="margin-top: 10px;">
                     Send Reset Link
