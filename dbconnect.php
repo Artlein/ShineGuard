@@ -103,6 +103,20 @@ if ($light_check && $light_check->num_rows === 0) {
     $conn->query("UPDATE `streetlights` SET installed_at = installation_date WHERE installed_at IS NULL AND installation_date IS NOT NULL");
 }
 
+// Reporting Archive Patch (Historical Governance)
+$conn->query("CREATE TABLE IF NOT EXISTS `report_archive` (
+  `report_id` int(11) NOT NULL AUTO_INCREMENT,
+  `report_name` varchar(255) NOT NULL,
+  `report_type` varchar(50) NOT NULL,
+  `period_range` varchar(100) NOT NULL,
+  `generated_by` int(11) DEFAULT NULL,
+  `generated_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `filename` varchar(255) NOT NULL,
+  `file_hash` char(64) DEFAULT NULL,
+  PRIMARY KEY (`report_id`),
+  KEY `idx_generated_at` (`generated_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
 date_default_timezone_set('Asia/Manila');
 
 $baseDir = str_replace('\\', '/', dirname(__FILE__));
