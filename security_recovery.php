@@ -89,19 +89,21 @@ $pending_res = $conn->query($pending_query);
         <main class="main-content">
             <?php include 'includes/header.php'; ?>
             
-            <div class="content-wrapper" style="padding: 3.5rem;">
-            <div class="hdr-left" style="margin-bottom: 32px;">
-                <h1 style="font-size: 28px; font-weight: 800; color: #1e293b; letter-spacing: -0.02em;">Security Operations Center</h1>
-                <p style="color: #64748b; font-weight: 500;">Manage administrative password recovery and perishable links</p>
-            </div>
-
-            <div class="recovery-card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                    <h3 style="font-weight: 700; color: #334155;">Active Recovery Requests</h3>
-                    <span class="status-pill status-pending"><?php echo $pending_res->num_rows; ?> Pending</span>
+            <div class="content-wrapper">
+                <div class="page-header" style="margin-top: 2rem;">
+                    <div class="hdr-left">
+                        <h1>Security Operations Center</h1>
+                        <p>Manage administrative password recovery and perishable links</p>
+                    </div>
                 </div>
 
-                <?php if ($pending_res && $pending_res->num_rows > 0): ?>
+                <div class="glass-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                        <h3 style="font-weight: 700; color: #334155;">Active Recovery Requests</h3>
+                        <span class="status-pill status-pending"><?php echo $pending_res->num_rows; ?> Pending</span>
+                    </div>
+
+                    <?php if ($pending_res && $pending_res->num_rows > 0): ?>
                     <div style="overflow-x: auto;">
                         <table style="width: 100%; border-collapse: collapse;">
                             <thead>
@@ -153,13 +155,13 @@ $pending_res = $conn->query($pending_query);
                 <?php endif; ?>
             </div>
 
-            <div class="recovery-card" style="border-color: rgba(148, 163, 184, 0.2); opacity: 0.8;">
-                <h4 style="font-weight: 700; color: #475569; margin-bottom: 12px; font-size: 14px;">Corporate Protocol Reminder</h4>
-                <p style="font-size: 13px; color: #64748b; line-height: 1.6;">
-                    For compliance with ShineGuard Security standards, recovery links should only be provided after verifying the user's identity via official corporate channels. 
-                    Links are <strong>perishable</strong> and will expire automatically after 1 hour.
-                </p>
-            </div>
+                <div class="glass-panel" style="opacity: 0.8; margin-top: 40px;">
+                    <h4 style="font-weight: 700; color: #475569; margin-bottom: 12px; font-size: 14px;">Corporate Protocol Reminder</h4>
+                    <p style="font-size: 13px; color: #64748b; line-height: 1.6;">
+                        For compliance with ShineGuard Security standards, recovery links should only be provided after verifying the user's identity via official corporate channels. 
+                        Links are <strong>perishable</strong> and will expire automatically after 1 hour.
+                    </p>
+                </div>
             </div>
         </main>
     </div>
