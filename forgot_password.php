@@ -50,9 +50,9 @@ require_once 'dbconnect.php';
             
             <!-- Success Message -->
             <?php if(isset($_GET['success'])): ?>
-            <div style="background: #ecfdf5; color: #065f46; padding: 16px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #a7f3d0; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 10px; animation: fadeIn 0.4s;">
-                <span>✅</span>
-                <span>Reset link sent! Please check your email inbox (and spam folder).</span>
+            <div style="background: #eff6ff; color: #1e40af; padding: 16px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #bfdbfe; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 10px; animation: fadeIn 0.4s; line-height: 1.5;">
+                <span style="font-size: 18px;">🛡️</span>
+                <span>Request Logged! For security compliance, please coordinate with your System Administrator to receive your secure, perishable recovery link.</span>
             </div>
             <?php endif; ?>
 
