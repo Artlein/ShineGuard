@@ -149,13 +149,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_mfa'])) {
     if ($action === 'enable') {
         require_once 'src/Services/TOTPService.php';
         $secret = \ShineGuard\Services\TOTPService::generateSecret();
+        $_SESSION['mfa_setup_secret'] = $secret;
         
-        $stmt = $conn->prepare("UPDATE users SET mfa_secret = ?, mfa_enabled = 1 WHERE user_id = ?");
-        $stmt->bind_param("si", $secret, $_SESSION['user_id']);
-        $stmt->execute();
-        
-        logActivity($conn, $_SESSION['user_id'], 'Security Update', 'User enabled Two-Factor Authentication');
-        header('Location: settings.php?tab=security&success=mfa_enabled');
+        logActivity($conn, $_SESSION['user_id'], 'Security Setup', 'User initiated MFA setup');
+        header('Location: settings.php?tab=security&setup=1');
         exit();
     } elseif ($action === 'disable') {
         $stmt = $conn->prepare("UPDATE users SET mfa_secret = NULL, mfa_enabled = 0 WHERE user_id = ?");
@@ -164,6 +161,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_mfa'])) {
         
         logActivity($conn, $_SESSION['user_id'], 'Security Update', 'User disabled Two-Factor Authentication');
         header('Location: settings.php?tab=security&success=mfa_disabled');
+        exit();
+    }
+}
+
+// ── SECURITY FEATURE: MFA SETUP VERIFICATION ──
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_mfa_setup'])) {
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        header('Location: settings.php?tab=security&error=invalid_csrf');
+        exit();
+    }
+
+    $setup_secret = $_SESSION['mfa_setup_secret'] ?? '';
+    $verify_code = $_POST['mfa_verify_code'] ?? '';
+
+    if (empty($setup_secret)) {
+        header('Location: settings.php?tab=security&error=mfa_timeout');
+        exit();
+    }
+
+    require_once 'src/Services/TOTPService.php';
+    if (\ShineGuard\Services\TOTPService::verifyCode($setup_secret, $verify_code)) {
+        $stmt = $conn->prepare("UPDATE users SET mfa_secret = ?, mfa_enabled = 1 WHERE user_id = ?");
+        $stmt->bind_param("si", $setup_secret, $_SESSION['user_id']);
+        $stmt->execute();
+        
+        unset($_SESSION['mfa_setup_secret']);
+        logActivity($conn, $_SESSION['user_id'], 'Security Update', 'User verified and enabled MFA pairing');
+        header('Location: settings.php?tab=security&success=mfa_enabled');
+        exit();
+    } else {
+        header('Location: settings.php?tab=security&setup=1&error=invalid_mfa_code');
         exit();
     }
 }
@@ -1340,18 +1368,62 @@ tbody td {
   <?php endif; ?>
 
   <div id="security" class="tab-content <?php echo $active_tab === 'security' ? 'active' : ''; ?>">
+    <?php
+    require_once 'src/Services/TOTPService.php';
+    $mfa_stmt = $conn->prepare("SELECT mfa_enabled, mfa_secret, username, full_name, email FROM users WHERE user_id = ?");
+    $mfa_stmt->bind_param("i", $_SESSION['user_id']);
+    $mfa_stmt->execute();
+    $mfa_user = $mfa_stmt->get_result()->fetch_assoc();
+    $mfa_stmt->close();
+    $mfa_enabled = (bool)$mfa_user['mfa_enabled'];
+
+    // Setup Pairing View
+    if (isset($_GET['setup']) && $_GET['setup'] == 1 && isset($_SESSION['mfa_setup_secret'])): 
+        $setup_secret = $_SESSION['mfa_setup_secret'];
+        $qrCodeUrl = \ShineGuard\Services\TOTPService::getQRCodeUrl($mfa_user['username'], $setup_secret);
+    ?>
+    <div class="setting-group group-sec">
+        <div style="text-align: center; margin-bottom: 30px;">
+            <div style="font-size: 3rem; margin-bottom: 15px;">🛡️</div>
+            <h2 style="font-size: 1.5rem; margin-bottom: 10px;">Pair Authenticator App</h2>
+            <p style="color: var(--text-secondary); max-width: 500px; margin: 0 auto;">Scan the QR code below using Google Authenticator, Authy, or any TOTP-compatible app to link your account.</p>
+        </div>
+
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 25px; background: rgba(255, 255, 255, 0.03); border: 1.5px dashed var(--border); padding: 35px; border-radius: 24px; margin-bottom: 30px;">
+            <div style="background: white; padding: 10px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+                <img src="<?php echo $qrCodeUrl; ?>" alt="MFA QR Code" style="display: block; width: 220px; height: 220px;">
+            </div>
+            
+            <div style="text-align: center;">
+                <p style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 8px;">Manual Secret Key</p>
+                <code style="background: var(--surface-2); padding: 8px 16px; border-radius: 8px; font-size: 1.1rem; letter-spacing: 0.1em; font-weight: 700; color: var(--blue); border: 1px solid var(--border);"><?php echo $setup_secret; ?></code>
+            </div>
+        </div>
+
+        <form method="POST" style="max-width: 400px; margin: 0 auto; text-align: center;">
+            <input type="hidden" name="confirm_mfa_setup" value="1">
+            <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+            
+            <div class="setting-item" style="margin-bottom: 25px;">
+                <label style="justify-content: center; margin-bottom: 12px;">Enter 6-Digit Verification Code</label>
+                <input type="text" name="mfa_verify_code" placeholder="000 000" maxlength="6" 
+                       style="text-align: center; font-size: 1.75rem; letter-spacing: 0.4em; font-weight: 800; border-color: var(--blue);" required autofocus>
+                <?php if (isset($_GET['error']) && $_GET['error'] === 'invalid_mfa_code'): ?>
+                    <p style="color: var(--red); font-size: 0.85rem; font-weight: 600; margin-top: 10px;">⚠️ Invalid code. Please check your app and try again.</p>
+                <?php endif; ?>
+            </div>
+
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <a href="settings.php?tab=security" class="btn-secondary" style="text-decoration: none; display: flex; align-items: center; justify-content: center; min-width: 120px;">Cancel</a>
+                <button type="submit" class="btn-primary" style="background: var(--blue); min-width: 180px;">Verify & Activate</button>
+            </div>
+        </form>
+    </div>
+
+    <?php else: ?>
     <form method="POST">
       <input type="hidden" name="update_mfa" value="1">
       <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
-
-      <?php
-      $mfa_stmt = $conn->prepare("SELECT mfa_enabled, mfa_secret, username FROM users WHERE user_id = ?");
-      $mfa_stmt->bind_param("i", $_SESSION['user_id']);
-      $mfa_stmt->execute();
-      $mfa_data = $mfa_stmt->get_result()->fetch_assoc();
-      $mfa_stmt->close();
-      $mfa_enabled = (bool)$mfa_data['mfa_enabled'];
-      ?>
 
       <div class="setting-group group-sec">
         <h2>🛡️ Two-Factor Authentication (MFA)</h2>
@@ -1385,6 +1457,7 @@ tbody td {
         <?php endif; ?>
       </div>
     </form>
+    <?php endif; ?>
   </div>
 
   <?php if (getUserRole() === 'System Admin'): ?>
