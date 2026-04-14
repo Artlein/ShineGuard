@@ -22,12 +22,19 @@ class TOTPService {
     }
 
     /**
-     * Generate the otpauth URI and return a Google Chart API QR Code URL.
+     * Generate the otpauth URI for local generation.
      */
-    public static function getQRCodeUrl($name, $secret, $issuer = 'ShineGuard') {
+    public static function getAuthUri($name, $secret, $issuer = 'ShineGuard') {
         $encodedIssuer = rawurlencode($issuer);
         $encodedName = rawurlencode($name);
-        $otpauthUrl = "otpauth://totp/{$encodedIssuer}:{$encodedName}?secret={$secret}&issuer={$encodedIssuer}&algorithm=SHA1&digits=6&period=30";
+        return "otpauth://totp/{$encodedIssuer}:{$encodedName}?secret={$secret}&issuer={$encodedIssuer}&algorithm=SHA1&digits=6&period=30";
+    }
+
+    /**
+     * Generate the otpauth URI and return a QR Code API URL (Fallback).
+     */
+    public static function getQRCodeUrl($name, $secret, $issuer = 'ShineGuard') {
+        $otpauthUrl = self::getAuthUri($name, $secret, $issuer);
         $encodedOtpauthUrl = rawurlencode($otpauthUrl);
         return "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data={$encodedOtpauthUrl}&ecc=M";
     }

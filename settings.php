@@ -1417,8 +1417,11 @@ tbody td {
     // Setup Pairing View
     if (isset($_GET['setup']) && $_GET['setup'] == 1 && isset($_SESSION['mfa_setup_secret'])): 
         $setup_secret = $_SESSION['mfa_setup_secret'];
-        $qrCodeUrl = \ShineGuard\Services\TOTPService::getQRCodeUrl($mfa_user['username'], $setup_secret);
+        $authUri = \ShineGuard\Services\TOTPService::getAuthUri($mfa_user['username'], $setup_secret);
     ?>
+    <!-- Client-side QR Generation Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
     <div class="setting-group group-sec">
         <div style="text-align: center; margin-bottom: 30px;">
             <div style="font-size: 3rem; margin-bottom: 15px;">🛡️</div>
@@ -1427,9 +1430,20 @@ tbody td {
         </div>
 
         <div style="display: flex; flex-direction: column; align-items: center; gap: 25px; background: rgba(255, 255, 255, 0.03); border: 1.5px dashed var(--border); padding: 35px; border-radius: 24px; margin-bottom: 30px;">
-            <div style="background: white; padding: 10px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
-                <img src="<?php echo $qrCodeUrl; ?>" alt="MFA QR Code" style="display: block; width: 220px; height: 220px;">
+            <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 230px; height: 230px;">
+                <div id="qrcode_container"></div>
             </div>
+            
+            <script>
+                new QRCode(document.getElementById("qrcode_container"), {
+                    text: "<?php echo $authUri; ?>",
+                    width: 200,
+                    height: 200,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.H
+                });
+            </script>
             
             <div style="text-align: center;">
                 <p style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 8px;">Manual Secret Key</p>
