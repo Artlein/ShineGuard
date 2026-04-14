@@ -726,6 +726,25 @@ header {
         </button>
 
         <?php 
+        // ── CORPORATE WORKFLOW: Pending Password Recovery Alerts ──
+        $pending_resets_query = $conn->query("SELECT COUNT(*) as count FROM password_resets WHERE status='Pending'");
+        $resets_count = $pending_resets_query ? $pending_resets_query->fetch_assoc()['count'] : 0;
+        ?>
+        <?php if ($resets_count > 0): ?>
+        <a href="security_recovery.php" class="hdr-notif" title="<?php echo $resets_count; ?> Pending Password Reset(s)" style="background: #3b82f6; border-color: #3b82f6; color: white; animation: pulseRecovery 2.5s infinite;">
+            🛡️
+            <span class="hdr-notif-badge" style="background: white; color: #3b82f6; border-color: #3b82f6;"><?php echo $resets_count; ?></span>
+        </a>
+        <style>
+            @keyframes pulseRecovery {
+                0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+                70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+            }
+        </style>
+        <?php endif; ?>
+
+        <?php 
         $open_alerts_query = $conn->query("SELECT COUNT(*) as count FROM alerts WHERE status='Open'");
         $alerts_count = $open_alerts_query ? $open_alerts_query->fetch_assoc()['count'] : 0;
         ?>
