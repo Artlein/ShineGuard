@@ -95,6 +95,7 @@ if ($res->num_rows === 1) {
                                 required
                             >
                             <span class="input-icon">🔒</span>
+                            <button type="button" class="eye-toggle" onclick="togglePassword('password')">👁️</button>
                         </div>
                     </div>
 
@@ -109,14 +110,17 @@ if ($res->num_rows === 1) {
                                 required
                             >
                             <span class="input-icon">🔒</span>
+                            <button type="button" class="eye-toggle" onclick="togglePassword('confirm_password')">👁️</button>
                         </div>
                     </div>
                     
-                    <div id="pwError" style="color: #ef4444; font-size: 13px; font-weight: 600; margin-bottom: 15px; display: none;">
+                    <div id="pwMatchStatus" style="font-size: 13px; font-weight: 700; margin-bottom: 20px; min-height: 20px; transition: all 0.3s ease;"></div>
+
+                    <div id="pwError" style="color: #ef4444; font-size: 13px; font-weight: 600; margin-bottom: 15px; display: none; background: #fff1f2; padding: 10px; border-radius: 8px; border: 1px solid #fecdd3;">
                         ⚠️ Passwords do not match.
                     </div>
 
-                    <button type="submit" class="login-button" style="margin-top: 10px;">
+                    <button type="submit" id="submitBtn" class="login-button" style="margin-top: 10px;">
                         Update Password
                     </button>
                 </form>
@@ -128,17 +132,90 @@ if ($res->num_rows === 1) {
             </div>
         </div>
     </div>
+
+    <!-- UI Enhancement Styles -->
+    <style>
+        .input-wrapper { position: relative; }
+        .eye-toggle {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+            padding: 5px;
+            z-index: 10;
+        }
+        .eye-toggle:hover { opacity: 1; }
+        
+        .input-wrapper input { padding-right: 45px !important; }
+        
+        /* Dynamic Validation States */
+        input.match-success { border-color: #10b981 !important; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1) !important; }
+        input.match-error { border-color: #ef4444 !important; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1) !important; }
+    </style>
     
     <script>
+        function togglePassword(id) {
+            const el = document.getElementById(id);
+            const btn = el.nextElementSibling.nextElementSibling;
+            if (el.type === 'password') {
+                el.type = 'text';
+                btn.textContent = '🙈';
+            } else {
+                el.type = 'password';
+                btn.textContent = '👁️';
+            }
+        }
+
+        const pwInput = document.getElementById('password');
+        const confInput = document.getElementById('confirm_password');
+        const statusDiv = document.getElementById('pwMatchStatus');
+        const submitBtn = document.getElementById('submitBtn');
+
+        function checkMatch() {
+            const pw = pwInput.value;
+            const conf = confInput.value;
+
+            if (!pw || !conf) {
+                statusDiv.textContent = '';
+                pwInput.classList.remove('match-success', 'match-error');
+                confInput.classList.remove('match-success', 'match-error');
+                return;
+            }
+
+            if (pw === conf) {
+                statusDiv.innerHTML = '<span style="color: #10b981;">✅ Passwords Match</span>';
+                pwInput.classList.add('match-success');
+                pwInput.classList.remove('match-error');
+                confInput.classList.add('match-success');
+                confInput.classList.remove('match-error');
+            } else {
+                statusDiv.innerHTML = '<span style="color: #ef4444;">❌ Passwords do not match</span>';
+                pwInput.classList.add('match-error');
+                pwInput.classList.remove('match-success');
+                confInput.classList.add('match-error');
+                confInput.classList.remove('match-success');
+            }
+        }
+
+        pwInput.addEventListener('input', checkMatch);
+        confInput.addEventListener('input', checkMatch);
+
         const resetForm = document.getElementById('resetForm');
         if (resetForm) {
             resetForm.addEventListener('submit', function(e) {
-                const pw = document.getElementById('password').value;
-                const conf = document.getElementById('confirm_password').value;
+                const pw = pwInput.value;
+                const conf = confInput.value;
                 const err = document.getElementById('pwError');
 
                 if (pw !== conf) {
                     e.preventDefault();
+                    err.textContent = '⚠️ Passwords do not match.';
                     err.style.display = 'block';
                     return;
                 }
@@ -150,9 +227,8 @@ if ($res->num_rows === 1) {
                     return;
                 }
 
-                const button = this.querySelector('.login-button');
-                button.classList.add('loading');
-                button.textContent = 'Updating...';
+                submitBtn.classList.add('loading');
+                submitBtn.textContent = 'Updating...';
             });
         }
     </script>
