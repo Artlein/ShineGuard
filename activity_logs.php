@@ -46,7 +46,7 @@ $user_filter = $_GET['user_id'] ?? '';
 
 // Build Query
 $where = ["al.created_at BETWEEN '$start_date 00:00:00' AND '$end_date 23:59:59'"];
-if ($action_filter) $where[] = "al.action = " . $conn->real_escape_string("'$action_filter'");
+if ($action_filter) $where[] = "al.action = '" . $conn->real_escape_string($action_filter) . "'";
 if ($user_filter) $where[] = "al.user_id = " . intval($user_filter);
 
 $where_clause = implode(' AND ', $where);
