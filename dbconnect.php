@@ -172,6 +172,21 @@ define('BASE_URL', $protocol . $host . rtrim($relPath, '/') . '/');
 
 define('SESSION_IDLE_TIMEOUT', 1800); 
 
+// ── CORPORATE STANDARDS: Self-Healing Database Migration ──
+if (isset($conn)) {
+    try {
+        // Check if the recovery tracking system is initialized
+        $check = $conn->query("SHOW COLUMNS FROM `password_resets` LIKE 'status'");
+        if ($check && $check->num_rows == 0) {
+            $conn->query("ALTER TABLE password_resets 
+                         ADD COLUMN status ENUM('Pending', 'Fulfilled', 'Dismissed') DEFAULT 'Pending',
+                         ADD COLUMN admin_notes TEXT AFTER status");
+        }
+    } catch (Exception $e) {
+        // Silently continue if table doesn't exist yet or other transient issues.
+    }
+}
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
