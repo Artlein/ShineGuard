@@ -361,42 +361,92 @@ $cameras_result->data_seek(0);
             border-color: var(--accent);
         }
 
-        /* Refined Fullscreen Card */
+        /* Absolute Fullscreen (Zero-Gap) Overhaul */
         .obs-card.fullscreen {
             position: fixed !important;
-            top: 50% !important;
-            left: 50% !important;
-            transform: translate(-50%, -50%) !important;
-            width: 92vw !important;
-            height: 92vh !important;
-            max-height: 940px !important;
-            z-index: 100001 !important;
-            background: #ffffff !important;
-            border-radius: 28px !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-height: none !important;
+            z-index: 100005 !important;
+            background: #000000 !important;
+            border-radius: 0 !important;
             padding: 0 !important;
             margin: 0 !important;
+            transform: none !important;
             display: flex !important;
             flex-direction: column !important;
-            align-items: stretch !important;
-            overflow: hidden !important;
-            box-shadow: 0 0 0 100vmax rgba(15, 23, 42, 0.9),
-                0 40px 80px -20px rgba(0, 0, 0, 0.7) !important;
         }
 
         .obs-card.fullscreen .obs-preview {
             border-radius: 0 !important;
-            /* Let parent clip it */
-            height: auto !important;
-            min-height: 0 !important;
+            height: 100% !important;
             width: 100% !important;
             flex: 1 !important;
             margin: 0 !important;
         }
 
         .obs-card.fullscreen .obs-info {
-            padding: 25px 30px !important;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.9) !important;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 30px 50px !important;
             margin: 0 !important;
-            flex-shrink: 0;
+            z-index: 10;
+            color: white !important;
+        }
+
+        .obs-card.fullscreen .obs-info .obs-name,
+        .obs-card.fullscreen .obs-info .obs-loc {
+            color: white !important;
+        }
+
+        .obs-card.fullscreen .obs-info .hud-tool {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .focus-close {
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: #ef4444;
+            color: white;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            cursor: pointer;
+            z-index: 100010;
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.5);
+            border: none;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .focus-close:hover {
+            transform: scale(1.1) rotate(90deg);
+            background: #dc2626;
+        }
+
+        .obs-card.fullscreen .focus-close {
+            display: flex;
+        }
+
+        .hud-tool.active-focus {
+            background: #ef4444 !important;
+            color: white !important;
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.4) !important;
         }
 
         .focus-close {
