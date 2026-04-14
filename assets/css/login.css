@@ -279,7 +279,7 @@ body {
 
 .input-wrapper input {
     width: 100%;
-    padding: 13px 40px 13px 16px;
+    padding: 13px 40px 13px 40px;
     border: 2px solid #cbd5e1;
     border-radius: 10px;
     font-size: 14px;
@@ -304,7 +304,7 @@ body {
 
 .input-icon {
     position: absolute;
-    right: 14px;
+    left: 14px;
     top: 50%;
     transform: translateY(-50%);
     font-size: 16px;
@@ -591,7 +591,7 @@ body {
     }
 
     .input-wrapper input {
-        padding: 12px 38px 12px 14px;
+        padding: 12px 40px 12px 40px;
         font-size: 15px;
         border-radius: 10px;
     }
