@@ -560,12 +560,6 @@ tbody td {
                 </tbody>
             </table>
         </div>
-
-        <div id="noResults" class="no-results">
-            <span class="no-results-icon">🔎</span>
-            <div class="no-results-text">No alerts matching your search criteria</div>
-            <p style="color: var(--text-muted); margin-top: 10px; font-size: 0.9rem;">Try adjusting your keywords or clearing the search</p>
-        </div>
     </div>
 </main>
 </div>
