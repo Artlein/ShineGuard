@@ -34,20 +34,27 @@ $pending_res = $conn->query($pending_query);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Security Operations — Shine Guard</title>
+    <link rel="stylesheet" href="assets/style.css">
     <link rel="stylesheet" href="assets/css/dashboard.css">
     <style>
         .recovery-card {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(10px);
-            border-radius: 16px;
+            border-radius: 20px;
             border: 1px solid rgba(59, 130, 246, 0.2);
-            padding: 24px;
+            padding: 28px;
             margin-bottom: 24px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.05);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.06);
+            animation: fadeIn 0.6s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .status-pill {
-            padding: 4px 12px;
+            padding: 6px 14px;
             border-radius: 20px;
             font-size: 11px;
             font-weight: 800;
@@ -57,40 +64,32 @@ $pending_res = $conn->query($pending_query);
         .status-pending { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
         
         .action-btn {
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 13px;
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-size: 13.5px;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
             border: none;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             text-decoration: none;
         }
-        .btn-fulfill { background: #3b82f6; color: white; }
-        .btn-fulfill:hover { background: #2563eb; transform: translateY(-1px); }
+        .btn-fulfill { background: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25); }
+        .btn-fulfill:hover { background: #2563eb; transform: translateY(-2px); box-shadow: 0 6px 16px rgba(59, 130, 246, 0.35); }
         .btn-dismiss { background: #f1f5f9; color: #64748b; }
         .btn-dismiss:hover { background: #e2e8f0; color: #0f172a; }
-        
-        .retrieval-box {
-            background: #f8fafc;
-            border: 1px dashed #cbd5e1;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 15px 0;
-            font-size: 13px;
-            color: #475569;
-        }
     </style>
 </head>
 <body class="dashboard-body">
-    <?php include 'includes/sidebar.php'; ?>
-    <div class="main-content">
-        <?php include 'includes/header.php'; ?>
+    <div class="layout">
+        <?php include 'includes/sidebar.php'; ?>
         
-        <div class="content-wrapper" style="padding: 40px;">
+        <main class="main-content">
+            <?php include 'includes/header.php'; ?>
+            
+            <div class="content-wrapper" style="padding: 3.5rem;">
             <div class="hdr-left" style="margin-bottom: 32px;">
                 <h1 style="font-size: 28px; font-weight: 800; color: #1e293b; letter-spacing: -0.02em;">Security Operations Center</h1>
                 <p style="color: #64748b; font-weight: 500;">Manage administrative password recovery and perishable links</p>
@@ -161,7 +160,8 @@ $pending_res = $conn->query($pending_query);
                     Links are <strong>perishable</strong> and will expire automatically after 1 hour.
                 </p>
             </div>
-        </div>
+            </div>
+        </main>
     </div>
 </body>
 </html>
