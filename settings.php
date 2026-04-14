@@ -1463,7 +1463,7 @@ tbody td {
       <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
 
       <div class="setting-group group-sec">
-        <h2>🛡️ Two-Factor Authentication (MFA)</h2>
+        <h2>🛡️ Multi-Factor Verification (MFA)</h2>
         <p class="users-subtext" style="margin-bottom: 25px;">Secure your account by requiring a dynamically generated 6-digit code during login.</p>
         
         <?php if (!$mfa_enabled): ?>

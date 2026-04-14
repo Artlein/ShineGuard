@@ -236,7 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; width: 100%; padding: 20px;">
         <div class="mfa-card">
             <div class="icon-shield">📱</div>
-            <h2>Two-Factor Verification</h2>
+            <h2>Multi-Factor Verification</h2>
             <p>Open your Google Authenticator app and enter the 6-digit code for your ShineGuard account.</p>
             
             <?php if ($error): ?>
