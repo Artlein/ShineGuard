@@ -4,7 +4,6 @@ require_once 'src/Services/TOTPService.php';
 
 use ShineGuard\Services\TOTPService;
 
-session_start();
 
 if (!isset($_SESSION['mfa_pending_user_id'])) {
     header('Location: login.php');
