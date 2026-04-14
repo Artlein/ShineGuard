@@ -22,7 +22,14 @@ $res = $stmt->get_result();
 if ($res->num_rows === 1) {
     $data = $res->fetch_assoc();
     if (strtotime($data['expires_at']) > time()) {
-        // 2. Token is valid. Update password.
+        // 2. Validate Password Complexity (Min 8 chars, 1 Upper, 1 Lower, 1 Number, 1 Special)
+        $complexity_regex = '/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{8,}$/';
+        if (!preg_match($complexity_regex, $password)) {
+            header('Location: reset_password.php?email=' . urlencode($email) . '&token=' . urlencode($token) . '&error=weak_password');
+            exit();
+        }
+
+        // 3. Token is valid. Update password.
         $new_hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
         
         $update_stmt = $conn->prepare("UPDATE users SET password_hash = ? WHERE email = ?");

@@ -23,6 +23,11 @@ if ($res->num_rows === 1) {
     $data = $res->fetch_assoc();
     if (strtotime($data['expires_at']) > time()) {
         $is_valid = true;
+        
+        // Check for specific complexity error from backend
+        if (isset($_GET['error']) && $_GET['error'] === 'weak_password') {
+            $error_msg = "👮 Security Alert: The password provided does not meet corporate complexity requirements (8+ chars, Uppercase, Lowercase, Number, and Special Character).";
+        }
     } else {
         $error_msg = "⏱️ This reset link has expired. Please request a new one.";
     }
@@ -71,31 +76,50 @@ if ($res->num_rows === 1) {
                 <p>Secure your account with a strong password</p>
             </div>
             
-            <?php if (!$is_valid): ?>
+            <?php if ($error_msg): ?>
                 <div style="background: #fee2e2; color: #991b1b; padding: 20px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #fca5a5; font-size: 14px; font-weight: 600; text-align: center;">
                     <?php echo $error_msg; ?>
-                    <div style="margin-top: 20px;">
-                        <a href="forgot_password.php" style="background: #ef4444; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none;">Try Again</a>
-                    </div>
+                    <?php if (!$is_valid): ?>
+                        <div style="margin-top: 20px;">
+                            <a href="forgot_password.php" style="background: #ef4444; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none;">Try Again</a>
+                        </div>
+                    <?php endif; ?>
                 </div>
-            <?php else: ?>
+            <?php endif; ?>
+            
+            <?php if ($is_valid): ?>
                 <form id="resetForm" method="POST" action="reset_password_process.php">
                     <input type="hidden" name="token" value="<?php echo htmlspecialchars($token); ?>">
                     <input type="hidden" name="email" value="<?php echo htmlspecialchars($email); ?>">
                     <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
                     
-                    <div class="form-group">
+                    <div class="form-group" style="margin-bottom: 10px;">
                         <label for="password">NEW PASSWORD</label>
                         <div class="input-wrapper">
                             <input 
                                 type="password" 
                                 id="password" 
                                 name="password" 
-                                placeholder="Min. 8 characters" 
+                                placeholder="Enter strong password" 
                                 required
                             >
                             <span class="input-icon">🔒</span>
                             <button type="button" class="eye-toggle" onclick="togglePassword('password')">👁️</button>
+                        </div>
+                    </div>
+
+                    <!-- 🛡️ Corporate Password Checklist -->
+                    <div class="pw-requirements-panel">
+                        <div class="req-title">SECURITY REQUIREMENTS</div>
+                        <ul class="req-list">
+                            <li id="req-len" class="req-item invalid"><span>❌</span> At least 8 characters</li>
+                            <li id="req-upper" class="req-item invalid"><span>❌</span> One uppercase letter (A-Z)</li>
+                            <li id="req-lower" class="req-item invalid"><span>❌</span> One lowercase letter (a-z)</li>
+                            <li id="req-num" class="req-item invalid"><span>❌</span> One number (0-9)</li>
+                            <li id="req-special" class="req-item invalid"><span>❌</span> One special character (!@#$%^&*)</li>
+                        </ul>
+                        <div class="req-note">
+                            <strong>Note:</strong> These rules are mandated by ShineGuard Corporate Security protocols to ensure your account remains resilient against unauthorized access.
                         </div>
                     </div>
 
@@ -120,7 +144,7 @@ if ($res->num_rows === 1) {
                         ⚠️ Passwords do not match.
                     </div>
 
-                    <button type="submit" id="submitBtn" class="login-button" style="margin-top: 10px;">
+                    <button type="submit" id="submitBtn" class="login-button disabled" disabled style="margin-top: 10px; opacity: 0.5; cursor: not-allowed;">
                         Update Password
                     </button>
                 </form>
@@ -135,36 +159,50 @@ if ($res->num_rows === 1) {
 
     <!-- UI Enhancement Styles -->
     <style>
-        .input-wrapper { position: relative; }
-        .eye-toggle {
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 18px;
-            opacity: 0.5;
-            transition: opacity 0.2s;
-            padding: 5px;
-            z-index: 10;
+        .pw-requirements-panel {
+            background: rgba(15, 23, 42, 0.03);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            transition: all 0.3s ease;
         }
-        .eye-toggle:hover { opacity: 1; }
-        
-        .input-wrapper input { 
-            padding-left: 45px !important;
-            padding-right: 45px !important; 
+        .req-title {
+            font-size: 11px;
+            font-weight: 800;
+            color: #64748b;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
         }
-        
-        .input-icon {
-            left: 15px !important;
-            right: auto !important;
+        .req-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
         }
+        .req-item {
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s ease;
+            opacity: 0.6;
+        }
+        .req-item span { font-size: 14px; }
+        .req-item.valid { opacity: 1; color: #10b981; }
+        .req-item.invalid { color: #64748b; }
         
-        /* Dynamic Validation States */
-        input.match-success { border-color: #10b981 !important; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1) !important; }
-        input.match-error { border-color: #ef4444 !important; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1) !important; }
+        .req-note {
+            margin-top: 15px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(15, 23, 42, 0.05);
+            font-size: 11px;
+            color: #94a3b8;
+            line-height: 1.5;
+        }
     </style>
     
     <script>
@@ -185,23 +223,60 @@ if ($res->num_rows === 1) {
         const statusDiv = document.getElementById('pwMatchStatus');
         const submitBtn = document.getElementById('submitBtn');
 
-        function checkMatch() {
+        const requirements = {
+            len: { re: /.{8,}/, el: document.getElementById('req-len') },
+            upper: { re: /[A-Z]/, el: document.getElementById('req-upper') },
+            lower: { re: /[a-z]/, el: document.getElementById('req-lower') },
+            num: { re: /[0-9]/, el: document.getElementById('req-num') },
+            special: { re: /[!@#$%^&*]/, el: document.getElementById('req-special') }
+        };
+
+        function validatePassword() {
+            const val = pwInput.value;
+            let allValid = true;
+
+            for (const key in requirements) {
+                const req = requirements[key];
+                if (req.re.test(val)) {
+                    req.el.className = 'req-item valid';
+                    req.el.querySelector('span').textContent = '✅';
+                } else {
+                    req.el.className = 'req-item invalid';
+                    req.el.querySelector('span').textContent = '❌';
+                    allValid = false;
+                }
+            }
+
+            checkMatch(allValid);
+        }
+
+        function checkMatch(isPwValid = null) {
             const pw = pwInput.value;
             const conf = confInput.value;
 
+            // If we didn't pass isPwValid, recalculate it
+            if (isPwValid === null) {
+                isPwValid = true;
+                for (const key in requirements) {
+                    if (!requirements[key].re.test(pw)) {
+                        isPwValid = false;
+                        break;
+                    }
+                }
+            }
+
+            let matchValid = false;
             if (!pw || !conf) {
                 statusDiv.textContent = '';
                 pwInput.classList.remove('match-success', 'match-error');
                 confInput.classList.remove('match-success', 'match-error');
-                return;
-            }
-
-            if (pw === conf) {
+            } else if (pw === conf) {
                 statusDiv.innerHTML = '<span style="color: #10b981;">✅ Passwords Match</span>';
                 pwInput.classList.add('match-success');
                 pwInput.classList.remove('match-error');
                 confInput.classList.add('match-success');
                 confInput.classList.remove('match-error');
+                matchValid = true;
             } else {
                 statusDiv.innerHTML = '<span style="color: #ef4444;">❌ Passwords do not match</span>';
                 pwInput.classList.add('match-error');
@@ -209,32 +284,27 @@ if ($res->num_rows === 1) {
                 confInput.classList.add('match-error');
                 confInput.classList.remove('match-success');
             }
+
+            // Lock/Unlock button
+            if (isPwValid && matchValid) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('disabled');
+                submitBtn.style.opacity = '1';
+                submitBtn.style.cursor = 'pointer';
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.classList.add('disabled');
+                submitBtn.style.opacity = '0.5';
+                submitBtn.style.cursor = 'not-allowed';
+            }
         }
 
-        pwInput.addEventListener('input', checkMatch);
-        confInput.addEventListener('input', checkMatch);
+        pwInput.addEventListener('input', validatePassword);
+        confInput.addEventListener('input', () => checkMatch());
 
         const resetForm = document.getElementById('resetForm');
         if (resetForm) {
             resetForm.addEventListener('submit', function(e) {
-                const pw = pwInput.value;
-                const conf = confInput.value;
-                const err = document.getElementById('pwError');
-
-                if (pw !== conf) {
-                    e.preventDefault();
-                    err.textContent = '⚠️ Passwords do not match.';
-                    err.style.display = 'block';
-                    return;
-                }
-                
-                if (pw.length < 8) {
-                    e.preventDefault();
-                    err.textContent = '⚠️ Password must be at least 8 characters.';
-                    err.style.display = 'block';
-                    return;
-                }
-
                 submitBtn.classList.add('loading');
                 submitBtn.textContent = 'Updating...';
             });
