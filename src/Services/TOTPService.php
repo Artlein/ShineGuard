@@ -29,7 +29,7 @@ class TOTPService {
         $encodedName = rawurlencode($name);
         $otpauthUrl = "otpauth://totp/{$encodedIssuer}:{$encodedName}?secret={$secret}&issuer={$encodedIssuer}&algorithm=SHA1&digits=6&period=30";
         $encodedOtpauthUrl = rawurlencode($otpauthUrl);
-        return "https://chart.googleapis.com/chart?chs=200x200&chld=M|0&cht=qr&chl={$encodedOtpauthUrl}";
+        return "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data={$encodedOtpauthUrl}&ecc=M";
     }
 
     /**
