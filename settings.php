@@ -155,11 +155,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_mfa'])) {
         header('Location: settings.php?tab=security&setup=1');
         exit();
     } elseif ($action === 'disable') {
+        $password = $_POST['mfa_password'] ?? '';
+        $totp_code = $_POST['mfa_totp_code'] ?? '';
+        $user_id = (int)$_SESSION['user_id'];
+
+        // 1. Verify Password
+        $auth_stmt = $conn->prepare("SELECT password_hash, mfa_secret FROM users WHERE user_id = ? LIMIT 1");
+        $auth_stmt->bind_param("i", $user_id);
+        $auth_stmt->execute();
+        $user_data = $auth_stmt->get_result()->fetch_assoc();
+        $auth_stmt->close();
+
+        if (!$user_data || !password_verify($password, $user_data['password_hash'])) {
+            header('Location: settings.php?tab=security&error=invalid_password');
+            exit();
+        }
+
+        // 2. Verify TOTP Code (Double-Lock)
+        require_once 'src/Services/TOTPService.php';
+        if (!\ShineGuard\Services\TOTPService::verifyCode($user_data['mfa_secret'], $totp_code)) {
+            header('Location: settings.php?tab=security&error=invalid_mfa_code');
+            exit();
+        }
+
+        // Success: Disable
         $stmt = $conn->prepare("UPDATE users SET mfa_secret = NULL, mfa_enabled = 0 WHERE user_id = ?");
-        $stmt->bind_param("i", $_SESSION['user_id']);
+        $stmt->bind_param("i", $user_id);
         $stmt->execute();
         
-        logActivity($conn, $_SESSION['user_id'], 'Security Update', 'User disabled Two-Factor Authentication');
+        logActivity($conn, $user_id, 'Security Update', 'User disabled MFA after password/TOTP verification');
         header('Location: settings.php?tab=security&success=mfa_disabled');
         exit();
     }
@@ -206,10 +230,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reset_mfa'])) {
 
     $target_user_id = intval($_POST['target_user_id']);
     $admin_password = $_POST['admin_password'] ?? '';
+    $admin_totp     = $_POST['admin_totp_code'] ?? '';
     $active_admin_id = (int)$_SESSION['user_id'];
 
-    // Verify Admin Password first for sensitive override
-    $auth_stmt = $conn->prepare("SELECT password_hash FROM users WHERE user_id = ? LIMIT 1");
+    // 1. Verify Admin Password & MFA Status
+    $auth_stmt = $conn->prepare("SELECT password_hash, mfa_secret, mfa_enabled FROM users WHERE user_id = ? LIMIT 1");
     $auth_stmt->bind_param("i", $active_admin_id);
     $auth_stmt->execute();
     $admin_data = $auth_stmt->get_result()->fetch_assoc();
@@ -220,12 +245,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reset_mfa'])) {
         exit();
     }
 
-    // Reset MFA
+    // 2. Double-Lock: Admin MUST have mfa enabled themselves to reset others
+    if (!$admin_data['mfa_enabled']) {
+        header('Location: settings.php?tab=users&error=admin_mfa_required');
+        exit();
+    }
+
+    require_once 'src/Services/TOTPService.php';
+    if (!\ShineGuard\Services\TOTPService::verifyCode($admin_data['mfa_secret'], $admin_totp)) {
+        header('Location: settings.php?tab=users&error=invalid_mfa_code');
+        exit();
+    }
+
+    // Success: Reset Target User
     $reset_stmt = $conn->prepare("UPDATE users SET mfa_secret = NULL, mfa_enabled = 0 WHERE user_id = ?");
     $reset_stmt->bind_param("i", $target_user_id);
     
     if ($reset_stmt->execute()) {
-        logActivity($conn, $active_admin_id, 'MFA Forced Reset', "Administrator forcefully removed MFA security for user ID: $target_user_id");
+        logActivity($conn, $active_admin_id, 'MFA Forced Reset', "Administrator forcefully removed MFA security for user ID: $target_user_id (Authorized via Admin MFA/Pass)");
         header('Location: settings.php?tab=users&success=mfa_reset_success');
     } else {
         header('Location: settings.php?tab=users&error=db_error');
@@ -1453,7 +1490,22 @@ tbody td {
             </div>
 
             <input type="hidden" name="mfa_action" value="disable">
-            <button type="submit" class="btn-primary" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);" onclick="return confirm('WARNING: Are you sure you want to disable Multi-Factor Authentication? This severely reduces your account security.');">🔓 Disable MFA</button>
+            
+            <div style="background: var(--surface-2); padding: 25px; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 25px; max-width: 450px;">
+                <h4 style="font-size: 0.9rem; color: var(--red); margin-bottom: 15px;">🔒 Identity Verification Required</h4>
+                
+                <div class="setting-item" style="margin-bottom: 15px;">
+                    <label>Current Account Password</label>
+                    <input type="password" name="mfa_password" placeholder="Verify your password" required>
+                </div>
+                
+                <div class="setting-item">
+                    <label>Authenticator 6-Digit Code</label>
+                    <input type="text" name="mfa_totp_code" placeholder="000 000" maxlength="6" style="text-align: center; font-size: 1.25rem; letter-spacing: 0.2em; font-weight: 700;" required>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-primary" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);" onclick="return confirm('WARNING: Are you sure you want to disable Multi-Factor Authentication? This severely reduces your account security.');">🔓 Verify & Disable MFA</button>
         <?php endif; ?>
       </div>
     </form>
@@ -1767,29 +1819,33 @@ function promptMfaReset(userId = null, username = null) {
   if (!username) username = document.getElementById('edit_username').value;
   
   if (confirm(`Are you sure you want to FORCE DISABLE MFA for user: ${username}?\n\nThis will allow them to login with just their password.`)) {
-    const password = prompt('SECURITY VERIFICATION: Please enter YOUR Administrator password to authorize this action:');
+    const password = prompt('STEP 1: Please enter YOUR Administrator password:');
     if (password) {
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = 'settings.php';
-      
-      const fields = {
-        'admin_reset_mfa': '1',
-        'target_user_id': userId,
-        'admin_password': password,
-        'csrf_token': '<?php echo generateCsrfToken(); ?>'
-      };
-      
-      for (const [name, value] of Object.entries(fields)) {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = name;
-        input.value = value;
-        form.appendChild(input);
+      const totp = prompt('STEP 2: Please enter YOUR 6-digit Authenticator Code (Double-Lock):');
+      if (totp) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'settings.php';
+        
+        const fields = {
+          'admin_reset_mfa': '1',
+          'target_user_id': userId,
+          'admin_password': password,
+          'admin_totp_code': totp,
+          'csrf_token': '<?php echo generateCsrfToken(); ?>'
+        };
+        
+        for (const [name, value] of Object.entries(fields)) {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = name;
+          input.value = value;
+          form.appendChild(input);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
       }
-      
-      document.body.appendChild(form);
-      form.submit();
     }
   }
 }
