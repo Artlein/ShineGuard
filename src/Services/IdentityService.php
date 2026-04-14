@@ -32,7 +32,7 @@ class IdentityService {
             'create_work_orders'   => ['System Admin'],
             'update_work_orders'   => ['System Admin'],
             'acknowledge_alerts'   => ['System Admin'],
-            'view_settings'        => ['System Admin'],
+            'view_settings'        => ['System Admin', 'Maintenance Operator', 'System Observer'],
             'manage_firebase'      => ['System Admin'],
             'view_activity_logs'   => ['System Admin'],
             'control_streetlights' => ['System Admin', 'Maintenance Operator'],

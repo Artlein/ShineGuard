@@ -1,8 +1,12 @@
 <?php
 require_once 'dbconnect.php';
-requireLogin('System Admin');
+requireLogin();
+
+// Role-based access control for administrative tabs
+$isAdmin = (getUserRole() === 'System Admin');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_preferences'])) {
+if (!$isAdmin) { header('Location: settings.php?error=unauthorized'); exit(); }
 if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
     header('Location: settings.php?tab=preferences&error=invalid_csrf');
     exit();
@@ -33,6 +37,7 @@ if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_thresholds'])) {
+if (!$isAdmin) { header('Location: settings.php?error=unauthorized'); exit(); }
 if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
     header('Location: settings.php?tab=thresholds&error=invalid_csrf');
     exit();
@@ -60,6 +65,7 @@ if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_alerts'])) {
+if (!$isAdmin) { header('Location: settings.php?error=unauthorized'); exit(); }
 if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
     header('Location: settings.php?tab=alerts&error=invalid_csrf');
     exit();
@@ -84,6 +90,7 @@ if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_automation'])) {
+if (!$isAdmin) { header('Location: settings.php?error=unauthorized'); exit(); }
 if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
     header('Location: settings.php?tab=automation&error=invalid_csrf');
     exit();
@@ -108,6 +115,7 @@ if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_data'])) {
+if (!$isAdmin) { header('Location: settings.php?error=unauthorized'); exit(); }
 if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
     header('Location: settings.php?tab=data&error=invalid_csrf');
     exit();
@@ -162,6 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_mfa'])) {
 
 // ── SECURITY FEATURE: ADMINISTRATIVE MFA RESET ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reset_mfa'])) {
+    if (!$isAdmin) { header('Location: settings.php?error=unauthorized'); exit(); }
     if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
         header('Location: settings.php?tab=users&error=invalid_csrf');
         exit();
@@ -198,6 +207,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reset_mfa'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
+    if (!$isAdmin) { header('Location: settings.php?error=unauthorized'); exit(); }
     checkRateLimit('add_user', 10, 1);
     
     if (getUserRole() !== 'System Admin') {
@@ -290,6 +300,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_user'])) {
+    if (!$isAdmin) { header('Location: settings.php?error=unauthorized'); exit(); }
     checkRateLimit('update_user', 10, 1);
     if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
         header('Location: settings.php?tab=users&error=invalid_csrf');
@@ -362,6 +373,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_user'])) {
 
 // ── SECURITY FEATURE: SECURE USER DELETION ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_user'])) {
+    if (!$isAdmin) { header('Location: settings.php?error=unauthorized'); exit(); }
     checkRateLimit('delete_user', 5, 2);
     if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
         header('Location: settings.php?tab=users&error=invalid_csrf');
@@ -439,7 +451,12 @@ foreach ($defaults as $key => $value) {
     }
 }
 
-$active_tab = $_GET['tab'] ?? 'preferences';
+$active_tab = $_GET['tab'] ?? ($isAdmin ? 'preferences' : 'security');
+
+// Ensure non-admins cannot "sneak" into admin tabs via URL parameter
+if (!$isAdmin && $active_tab !== 'security') {
+    $active_tab = 'security';
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -979,17 +996,20 @@ tbody td {
   </div>
 
   <div class="tabs">
+    <?php if ($isAdmin): ?>
     <button class="tab <?php echo $active_tab === 'preferences' ? 'active' : ''; ?>" onclick="switchTab('preferences', this)">🎨 System Preferences</button>
     <button class="tab <?php echo $active_tab === 'thresholds'  ? 'active' : ''; ?>" onclick="switchTab('thresholds', this)">📊 Predictive Thresholds</button>
     <button class="tab <?php echo $active_tab === 'alerts'      ? 'active' : ''; ?>" onclick="switchTab('alerts', this)">🚨 Alerts & Notifications</button>
     <button class="tab <?php echo $active_tab === 'automation'  ? 'active' : ''; ?>" onclick="switchTab('automation', this)">🤖 Automation</button>
     <button class="tab <?php echo $active_tab === 'data'        ? 'active' : ''; ?>" onclick="switchTab('data', this)">💾 Data & Backup</button>
+    <?php endif; ?>
     <button class="tab <?php echo $active_tab === 'security'    ? 'active' : ''; ?>" onclick="switchTab('security', this)">🛡️ Security</button>
-    <?php if (getUserRole() === 'System Admin'): ?>
+    <?php if ($isAdmin): ?>
     <button class="tab <?php echo $active_tab === 'users'       ? 'active' : ''; ?>" onclick="switchTab('users', this)">👥 User Management</button>
     <?php endif; ?>
   </div>
 
+  <?php if ($isAdmin): ?>
   <div id="preferences" class="tab-content <?php echo $active_tab === 'preferences' ? 'active' : ''; ?>">
     <form method="POST">
       <input type="hidden" name="update_preferences" value="1">
@@ -1101,7 +1121,9 @@ tbody td {
       </div>
     </form>
   </div>
+  <?php endif; ?>
 
+  <?php if ($isAdmin): ?>
   <div id="thresholds" class="tab-content <?php echo $active_tab === 'thresholds' ? 'active' : ''; ?>">
     <form method="POST">
       <input type="hidden" name="update_thresholds" value="1">
@@ -1152,7 +1174,9 @@ tbody td {
       </div>
     </form>
   </div>
+  <?php endif; ?>
 
+  <?php if ($isAdmin): ?>
   <div id="alerts" class="tab-content <?php echo $active_tab === 'alerts' ? 'active' : ''; ?>">
     <form method="POST">
       <input type="hidden" name="update_alerts" value="1">
@@ -1202,7 +1226,9 @@ tbody td {
       </div>
     </form>
   </div>
+  <?php endif; ?>
 
+  <?php if ($isAdmin): ?>
   <div id="automation" class="tab-content <?php echo $active_tab === 'automation' ? 'active' : ''; ?>">
     <form method="POST">
       <input type="hidden" name="update_automation" value="1">
@@ -1252,7 +1278,9 @@ tbody td {
       </div>
     </form>
   </div>
+  <?php endif; ?>
 
+  <?php if ($isAdmin): ?>
   <div id="data" class="tab-content <?php echo $active_tab === 'data' ? 'active' : ''; ?>">
     <form method="POST">
       <input type="hidden" name="update_data" value="1">
@@ -1309,6 +1337,7 @@ tbody td {
       </div>
     </form>
   </div>
+  <?php endif; ?>
 
   <div id="security" class="tab-content <?php echo $active_tab === 'security' ? 'active' : ''; ?>">
     <form method="POST">
