@@ -6,7 +6,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 :root {
-    --sb-w           : 280px;
+    --sb-w           : 230px;
     --sb-w-collapsed : 70px;
     --sb-font        : 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --sb-bg          : #111827;
