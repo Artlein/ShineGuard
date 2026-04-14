@@ -40,12 +40,12 @@ $stmt = $conn->prepare("INSERT INTO password_resets (email, token_hash, expires_
 $stmt->bind_param("sss", $email, $token_hash, $expires_at);
 
 if ($stmt->execute()) {
-    // Log the request
-    logActivity($conn, null, 'Password Reset Request', "Password reset link generated for email: $email");
-
     // 5. CORPORATE EMAIL DISPATCH
     require_once 'src/Services/MailService.php';
     $reset_link = BASE_URL . "reset_password.php?token=" . $token . "&email=" . urlencode($email);
+    
+    // Log the request with a BACKUP LINK for the Super Admin
+    logActivity($conn, null, 'Password Reset Request', "Recovery link generated for $email: $reset_link");
     
     $result = \ShineGuard\Services\MailService::sendPasswordReset($email, $full_name, $reset_link);
     
