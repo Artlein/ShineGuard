@@ -107,6 +107,9 @@ require_once 'dbconnect.php';
         if (errorCode === 'not_found' || errorCode === 'invalid') {
             errorText.textContent = 'Account not found or invalid email. Please check.';
             errorEl.classList.add('show');
+        } else if (errorCode === 'invalid_csrf') {
+            errorText.textContent = 'Security token expired. Please refresh and try again.';
+            errorEl.classList.add('show');
         } else if (errorCode === 'db_error') {
             errorText.textContent = 'System error. Please try again later.';
             errorEl.classList.add('show');

@@ -217,7 +217,12 @@ if (!function_exists('checkCsrf')) {
                 http_response_code(403);
                 die(json_encode(['success' => false, 'error' => 'Invalid CSRF token. Please refresh.']));
             } else {
-                header('Location: ' . $_SERVER['PHP_SELF'] . '?error=invalid_csrf');
+                // Redirect back to forgot_password.php specifically for recovery flow
+                if (strpos($_SERVER['PHP_SELF'], 'forgot_password_process.php') !== false) {
+                    header('Location: forgot_password.php?error=invalid_csrf');
+                } else {
+                    header('Location: ' . $_SERVER['PHP_SELF'] . '?error=invalid_csrf');
+                }
                 exit();
             }
         }
