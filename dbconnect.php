@@ -65,6 +65,12 @@ if ($col_check && $col_check->num_rows === 0) {
     $conn->query("ALTER TABLE `activity_logs` ADD KEY `idx_user_created` (`user_id`, `created_at`)");
 }
 
+// Patch: add log_hash column for Tamper-Evident Logging (Immutable Audit)
+$hash_check = $conn->query("SHOW COLUMNS FROM `activity_logs` LIKE 'log_hash'");
+if ($hash_check && $hash_check->num_rows === 0) {
+    $conn->query("ALTER TABLE `activity_logs` ADD COLUMN `log_hash` varchar(64) DEFAULT NULL");
+}
+
 // Security & MFA Patch for `users` table
 $users_cols = $conn->query("SHOW COLUMNS FROM `users`")->fetch_all(MYSQLI_ASSOC);
 $existing_cols = array_column($users_cols, 'Field');
