@@ -36,7 +36,7 @@ if ($res->num_rows === 1) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reset Password - Shine Guard</title>
-    <link rel="stylesheet" href="assets/css/login.css">
+    <link rel="stylesheet" href="assets/css/login.css?v=1.1">
     <style>
         .login-container { max-width: 800px; }
         @media (max-width: 768px) { .login-container { max-width: 360px; } }
@@ -152,7 +152,15 @@ if ($res->num_rows === 1) {
         }
         .eye-toggle:hover { opacity: 1; }
         
-        .input-wrapper input { padding-right: 45px !important; }
+        .input-wrapper input { 
+            padding-left: 45px !important;
+            padding-right: 45px !important; 
+        }
+        
+        .input-icon {
+            left: 15px !important;
+            right: auto !important;
+        }
         
         /* Dynamic Validation States */
         input.match-success { border-color: #10b981 !important; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1) !important; }
