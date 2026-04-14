@@ -11,6 +11,9 @@ class AuditService {
     public static function logActivity($conn, $user_id, $action, $details = '') {
         $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
         
+        // Handle anonymous/system actions (ID 0 or NULL)
+        $user_id = ($user_id <= 0) ? null : $user_id;
+        
         // 1. Get the hash of the PREVIOUS log entry (The "Chain")
         $prev_hash = self::getLatestLogHash($conn);
         

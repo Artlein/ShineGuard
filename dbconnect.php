@@ -29,6 +29,15 @@ if ($is_aws) {
     $password = '';
 }
 
+/**
+ * CORPORATE EMAIL INFRASTRUCTURE (Mailtrap Sandbox)
+ * Grab your credentials from https://mailtrap.io
+ */
+define('MAILTRAP_API_TOKEN', '1455d7c786b90dcc3450dfd347ca82ba');
+define('MAILTRAP_INBOX_ID',  '4546141');
+define('SYSTEM_EMAIL',       'noreply@hulo.barangay.ph');
+define('SYSTEM_NAME',        'ShineGuard Security');
+
 try {
     $conn = @new mysqli($host, $user, $password, $database);
     if ($conn->connect_error) {

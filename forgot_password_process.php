@@ -11,20 +11,21 @@ checkRateLimit('pw_reset_request', 3, 10); // Max 3 requests per 10 mins per IP
 
 $email = trim($_POST['email']);
 
-// 1. Verify user exists
-$stmt = $conn->prepare("SELECT user_id FROM users WHERE email = ? LIMIT 1");
+// 1. Verify user exists and get full name for personalization
+$stmt = $conn->prepare("SELECT user_id, full_name FROM users WHERE email = ? LIMIT 1");
 $stmt->bind_param("s", $email);
 $stmt->execute();
 $res = $stmt->get_result();
 
 if ($res->num_rows === 0) {
     // SECURITY: DEFENSIVE ENUMERATION PROTECTION
-    // We always redirect to success to prevent attackers from "fishing" for emails.
-    // We also sleep for a tiny random bit to prevent timing attacks.
     usleep(rand(100000, 300000)); 
     header('Location: forgot_password.php?success=1');
     exit();
 }
+
+$user_data = $res->fetch_assoc();
+$full_name = $user_data['full_name'];
 
 // 2. Clear any old tokens for this email
 $conn->query("DELETE FROM password_resets WHERE email = '$email'");
@@ -40,24 +41,21 @@ $stmt->bind_param("sss", $email, $token_hash, $expires_at);
 
 if ($stmt->execute()) {
     // Log the request
-    logActivity($conn, 0, 'Password Reset Request', "Password reset link generated for email: $email");
+    logActivity($conn, null, 'Password Reset Request', "Password reset link generated for email: $email");
 
-    // 5. MOCK EMAIL DELIVERY
-    // In a real app, you'd use mail() or a library.
-    // For local dev, we save the link to a file and tell the user.
+    // 5. CORPORATE EMAIL DISPATCH
+    require_once 'src/Services/MailService.php';
     $reset_link = BASE_URL . "reset_password.php?token=" . $token . "&email=" . urlencode($email);
     
-    $mock_content = "To: $email\n";
-    $mock_content .= "Subject: Password Reset Request - Shine Guard\n";
-    $mock_content .= "Link: $reset_link\n";
-    $mock_content .= "Expires: $expires_at\n";
+    $result = \ShineGuard\Services\MailService::sendPasswordReset($email, $full_name, $reset_link);
     
-    file_put_contents('tmp_reset_email.txt', $mock_content);
-    
-    // Also save to a session for easy display if needed
-    session_start();
-    $_SESSION['mock_reset_link'] = $reset_link;
-    
+    // Even if mail fails (e.g. key missing), we show success to the user for security.
+    // The developer can check Audit Logs or Error Logs for failures.
+    if (!$result['success']) {
+        error_log("Mail Error: " . $result['error']);
+        logActivity($conn, null, 'Mail Delivery Error', "Failed to send recovery email to $email. Error: " . $result['error']);
+    }
+
     header('Location: forgot_password.php?success=1');
     exit();
 } else {
