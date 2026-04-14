@@ -177,24 +177,6 @@ if (!isset($theme_color)) {
     </div>
 </div>
 
-<?php if (!empty($pending_pm)): ?>
-<div class="panel" style="border-top: 5px solid #f59e0b; background: rgba(245,158,11,0.02);">
-    <h2 style="color: #b45309;">⏳ Lifecycle Watchdog: Preventative Maintenance Due</h2>
-    <p style="margin-bottom: 16px; color: #b45309; font-size: 0.85rem; font-weight: 600;">The following nodes have reached their 12-month or 4,000-hour service threshold.</p>
-    
-    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px;">
-    <?php foreach ($pending_pm as $node): ?>
-        <div style="background: #fff; border: 1px solid #fed7aa; padding: 12px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <div style="font-weight: 800; font-size: 0.9rem; color: #1e293b;"><?php echo htmlspecialchars($node['node_name']); ?></div>
-                <div style="font-size: 0.75rem; color: #64748b;">Installed: <?php echo date('M Y', strtotime($node['installed_at'])); ?> | Hours: <?php echo number_format($node['runtime_hours']); ?></div>
-            </div>
-            <button onclick="showWorkOrderForm(0, <?php echo $node['light_id']; ?>, 'Routine Preventative Maintenance (Service Interval Reached)', '<?php echo htmlspecialchars($node['node_name']); ?>')" class="btn-sm" style="background: #f59e0b; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; cursor: pointer;">Schedule</button>
-        </div>
-    <?php endforeach; ?>
-    </div>
-</div>
-<?php endif; ?>
 
 <div class="panel" style="border-top: 5px solid #ef4444;">
     <h2>🚨 Pending Alerts - Create Work Orders</h2>
@@ -405,6 +387,38 @@ endif; ?>
     100% { opacity: 1; }
 }
 </style>
+
+<?php if (!empty($pending_pm)): ?>
+<br>
+<div class="panel" style="border-top: 8px solid #f59e0b; background: rgba(245,158,11,0.03); border-radius: 20px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);">
+    <h2 style="color: #b45309; display: flex; align-items: center; gap: 10px; font-size: 1.4rem; margin-bottom: 8px;">
+        <span style="font-size: 1.6rem;">⏳</span> Lifecycle Watchdog: Preventative Maintenance Due
+    </h2>
+    <p style="margin-bottom: 24px; color: #b45309; font-size: 0.95rem; font-weight: 600; opacity: 0.9;">The following nodes have reached their 12-month or 4,000-hour service threshold.</p>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px;">
+    <?php foreach ($pending_pm as $node): ?>
+        <div style="background: #ffffff; border: 1px solid #fde68a; padding: 16px 20px; border-radius: 14px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); transition: transform 0.2s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div style="font-weight: 800; font-size: 1.1rem; color: #1e293b; letter-spacing: -0.5px;"><?php echo htmlspecialchars($node['node_name']); ?></div>
+                <div style="font-size: 0.8rem; color: #64748b; font-weight: 500;">
+                    Installed: <span style="color: #475569; font-weight: 600;"><?php echo date('M Y', strtotime($node['installed_at'] ?? $node['installation_date'])); ?></span> 
+                    <span style="margin: 0 6px; opacity: 0.3;">|</span> 
+                    Hours: <span style="color: #475569; font-weight: 600;"><?php echo number_format($node['runtime_hours'] ?? 0); ?></span>
+                </div>
+            </div>
+            <button onclick="showWorkOrderForm(0, <?php echo $node['light_id']; ?>, 'Routine Preventative Maintenance (Service Interval Reached)', '<?php echo htmlspecialchars($node['node_name']); ?>')" 
+                    class="btn-sm" 
+                    style="background: #f59e0b; color: #fff; border: none; padding: 10px 18px; border-radius: 10px; font-size: 0.85rem; font-weight: 800; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.3); transition: all 0.2s;"
+                    onmouseover="this.style.background='#d97706'; this.style.boxShadow='0 6px 10px -1px rgba(245, 158, 11, 0.4)'"
+                    onmouseout="this.style.background='#f59e0b'; this.style.boxShadow='0 4px 6px -1px rgba(245, 158, 11, 0.3)'">
+                Schedule
+            </button>
+        </div>
+    <?php endforeach; ?>
+    </div>
+</div>
+<?php endif; ?>
 
 </main>
 </div>

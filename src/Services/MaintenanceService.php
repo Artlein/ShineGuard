@@ -31,9 +31,9 @@ class MaintenanceService {
     public static function getPendingPM($conn) {
         // PM Logic: Light is > 1 year old OR > 4000 runtime hours
         $sql = "SELECT * FROM streetlights 
-                WHERE (installed_at <= DATE_SUB(NOW(), INTERVAL 1 YEAR)) 
-                OR (runtime_hours >= 4000)
-                AND status != 'Maintenance'";
+                WHERE ((installed_at <= DATE_SUB(NOW(), INTERVAL 1 YEAR)) 
+                OR (runtime_hours >= 4000))
+                AND status NOT IN ('Maintenance', 'Inactive')";
         
         $result = $conn->query($sql);
         $nodes = [];
