@@ -1976,5 +1976,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 </script>
+<?php include 'assets/app_alert.php'; ?>
 </body>
 </html>

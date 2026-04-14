@@ -2050,6 +2050,7 @@ echo json_encode($lights_array);
             });
         }
     </script>
+    <?php include 'assets/app_alert.php'; ?>
     </main>
     </div>
 </body>

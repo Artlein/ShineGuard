@@ -284,5 +284,6 @@ $virtual_nodes = $conn->query("SELECT * FROM streetlights WHERE is_virtual = 1 O
         }
     }
     </script>
+    <?php include 'assets/app_alert.php'; ?>
 </body>
 </html>

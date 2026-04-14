@@ -906,6 +906,6 @@ function updateCurrentTimeLine() {
 document.addEventListener('DOMContentLoaded', renderCalendar);
 window.addEventListener('resize', renderCalendar);
 </script>
-
+<?php include 'assets/app_alert.php'; ?>
 </body>
 </html>
