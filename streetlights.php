@@ -1407,12 +1407,12 @@ endif; ?>
             if (scope === 'range') {
                 const range = document.getElementById('bulk_range_field').value.trim();
                 if (!range) {
-                    alert('Please enter a range or list of IDs');
+                    showAppAlert('Please enter a range or list of IDs (e.g., 1-10 or 1, 5, 12).', 'warning', 'Missing Range');
                     return false;
                 }
                 // Allow numeric, dash, comma, space
                 if (!/^[0-9\-\s,]+$/.test(range)) {
-                    alert('Invalid format. Use 1-10 or 1, 5, 12');
+                    showAppAlert('Invalid format. Please use numbers separated by dashes (1-10) or commas (1, 5, 12).', 'warning', 'Format Error');
                     return false;
                 }
             }

@@ -178,6 +178,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_mfa'])) {
             exit();
         }
 
+        // 3. SEC-POLICY: Restricted Roles cannot disable their own MFA
+        $user_role = getUserRole();
+        if ($user_role === 'System Observer' || $user_role === 'Maintenance Operator') {
+            header('Location: settings.php?tab=security&error=mfa_mandatory_role');
+            exit();
+        }
+
         // Success: Disable
         $stmt = $conn->prepare("UPDATE users SET mfa_secret = NULL, mfa_enabled = 0 WHERE user_id = ?");
         $stmt->bind_param("i", $user_id);
@@ -1464,7 +1471,7 @@ tbody td {
             </div>
         </div>
 
-        <form method="POST" style="max-width: 400px; margin: 0 auto; text-align: center;">
+        <form id="mfa_setup_confirm_form" method="POST" style="max-width: 400px; margin: 0 auto; text-align: center;">
             <input type="hidden" name="confirm_mfa_setup" value="1">
             <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
             
@@ -1477,15 +1484,15 @@ tbody td {
                 <?php endif; ?>
             </div>
 
-            <div style="display: flex; gap: 12px; justify-content: center;">
-                <a href="settings.php?tab=security" class="btn-secondary" style="text-decoration: none; display: flex; align-items: center; justify-content: center; min-width: 120px;">Cancel</a>
-                <button type="submit" class="btn-primary" style="background: var(--blue); min-width: 180px;">Verify & Activate</button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <button type="button" class="btn" style="background: var(--surface-2);" onclick="window.location.href='settings.php?tab=security'">Cancel</button>
+                <button type="submit" class="btn-primary">Verify & Activate</button>
             </div>
         </form>
     </div>
 
     <?php else: ?>
-    <form method="POST">
+    <form id="mfa_management_form" method="POST">
       <input type="hidden" name="update_mfa" value="1">
       <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
 
@@ -1532,7 +1539,22 @@ tbody td {
                 </div>
             </div>
 
-            <button type="submit" class="btn-primary" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);" onclick="return confirm('WARNING: Are you sure you want to disable Multi-Factor Authentication? This severely reduces your account security.');">🔓 Verify & Disable MFA</button>
+            <?php 
+            $user_role = getUserRole();
+            $isRestricted = ($user_role === 'System Observer' || $user_role === 'Maintenance Operator');
+            ?>
+
+            <?php if ($isRestricted): ?>
+                <div style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 12px; padding: 15px; display: flex; align-items: center; gap: 12px;">
+                    <div style="font-size: 20px;">🛡️</div>
+                    <div style="font-size: 0.85rem; color: var(--blue); font-weight: 500;">
+                        MFA Protection is mandatory for the <strong><?php echo $user_role; ?></strong> role. Contact a System Admin to request a security override.
+                    </div>
+                </div>
+            <?php else: ?>
+                <button type="button" class="btn-primary" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);" 
+                        onclick="showAppConfirm('WARNING: Are you sure you want to disable Multi-Factor Verification? This severely reduces your account security.', () => document.getElementById('mfa_management_form').submit(), 'error', 'Security Warning')">🔓 Verify & Disable MFA</button>
+            <?php endif; ?>
         <?php endif; ?>
       </div>
     </form>
@@ -1580,7 +1602,7 @@ tbody td {
                     onclick="openEditModal(<?php echo htmlspecialchars(json_encode($user)); ?>)">✏️ Edit</button>
                   <?php if ($user['mfa_enabled']): ?>
                   <button class="btn-secondary" style="font-size: 0.76rem; padding: 0.4rem 0.8rem; height: 32px; margin: 0; background: rgba(59, 130, 246, 0.05); color: #3b82f6; border-color: rgba(59, 130, 246, 0.2);" 
-                    onclick="promptMfaResetDirect(<?php echo $user['user_id']; ?>, '<?php echo htmlspecialchars(addslashes($user['username'])); ?>')">🛡️ Reset MFA</button>
+                    onclick="promptMfaReset('<?php echo htmlspecialchars(addslashes($user['username'])); ?>', <?php echo $user['user_id']; ?>)">🛡️ Reset MFA</button>
                   <?php endif; ?>
                   <button class="btn-secondary" style="font-size: 0.76rem; padding: 0.4rem 0.8rem; height: 32px; margin: 0; background: #fee2e2; color: #991b1b; border-color: #fca5a5;" 
                     onclick="openDeleteModal(<?php echo $user['user_id']; ?>, '<?php echo htmlspecialchars(addslashes($user['full_name'])); ?>')">🗑️ Delete</button>
@@ -1716,7 +1738,7 @@ tbody td {
           <div id="mfaResetSection" style="display:none; margin-top: 1.5rem; padding: 1.5rem; background: rgba(59, 130, 246, 0.05); border: 1px dashed rgba(59, 130, 246, 0.3); border-radius: 12px;">
               <h3 style="font-size: 0.9rem; color: #3b82f6; margin-bottom: 8px;">🔐 Multi-Factor Authentication</h3>
               <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 15px;">User currently has MFA enabled. If they lost their device, you can forcefully detach it here.</p>
-              <button type="button" class="btn" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);" onclick="promptMfaReset()">Force Disable MFA Protection</button>
+              <button type="button" class="btn" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);" onclick="promptMfaReset(document.getElementById('edit_username').value, document.getElementById('edit_user_id').value)">Force Disable MFA Protection</button>
           </div>
           <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 20px;">
             <button type="button" class="btn" onclick="closeModal('editUserModal')">Cancel</button>
@@ -1841,45 +1863,21 @@ function openEditModal(user) {
   openModal('editUserModal');
 }
 
-function promptMfaReset(userId = null, username = null) {
-  if (!userId)   userId = document.getElementById('edit_user_id').value;
-  if (!username) username = document.getElementById('edit_username').value;
-  
-  if (confirm(`Are you sure you want to FORCE DISABLE MFA for user: ${username}?\n\nThis will allow them to login with just their password.`)) {
-    const password = prompt('STEP 1: Please enter YOUR Administrator password:');
-    if (password) {
-      const totp = prompt('STEP 2: Please enter YOUR 6-digit Authenticator Code (Double-Lock):');
-      if (totp) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = 'settings.php';
-        
-        const fields = {
-          'admin_reset_mfa': '1',
-          'target_user_id': userId,
-          'admin_password': password,
-          'admin_totp_code': totp,
-          'csrf_token': '<?php echo generateCsrfToken(); ?>'
-        };
-        
-        for (const [name, value] of Object.entries(fields)) {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = name;
-          input.value = value;
-          form.appendChild(input);
-        }
-        
-        document.body.appendChild(form);
-        form.submit();
-      }
-    }
-  }
+function promptMfaReset(username, userId) {
+    showAppConfirm(
+        `Are you sure you want to FORCE DISABLE MFA for user: ${username}?\n\nThis will allow them to login with just their password.`,
+        function() {
+            document.getElementById('target_user_id').value = userId;
+            openModal('mfa_reset_modal');
+        },
+        'warning',
+        'Administrative Override'
+    );
 }
 
 // Wrapper for table-direct resets
-function promptMfaResetDirect(id, name) {
-    promptMfaReset(id, name);
+function promptMfaResetDirect(userId, username) {
+    promptMfaReset(username, userId);
 }
 
 function openDeleteModal(userId, fullName) {

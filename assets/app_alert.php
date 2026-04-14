@@ -3,7 +3,6 @@
     <div id="sgGlobalAlertContent" style="background: white; border-radius: 16px; width: 90%; max-width: 400px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); transform: scale(0.95) translateY(10px); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
         
         <div style="display: flex; align-items: flex-start; gap: 16px;">
-            
             <div id="sgGlobalAlertIcon" style="width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; background: #fef2f2; color: #ef4444;">
                 ⚠️
             </div>
@@ -16,8 +15,11 @@
             </div>
         </div>
         
-        <div style="margin-top: 24px; display: flex; justify-content: flex-end;">
-            <button onclick="closeAppAlert()" style="background: #3b82f6; color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); transition: background 0.2s ease;">
+        <div id="sgAlertButtonGroup" style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
+            <button id="sgAlertCancelBtn" onclick="closeAppAlert()" style="display: none; background: transparent; color: #64748b; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s ease;">
+                Cancel
+            </button>
+            <button id="sgAlertConfirmBtn" onclick="closeAppAlert()" style="background: #3b82f6; color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); transition: background 0.2s ease;">
                 OK
             </button>
         </div>
@@ -26,16 +28,29 @@
 </div>
 
 <script>
+let sgConfirmCallback = null;
 
 function showAppAlert(message, type = 'info', title = null) {
+    prepareAlert(message, type, title, false);
+}
+
+function showAppConfirm(message, onConfirm, type = 'warning', title = 'Confirm Action') {
+    sgConfirmCallback = onConfirm;
+    prepareAlert(message, type, title, true);
+}
+
+function prepareAlert(message, type, title, isConfirm) {
     const modal = document.getElementById('sgGlobalAlertModal');
     const content = document.getElementById('sgGlobalAlertContent');
     const iconContainer = document.getElementById('sgGlobalAlertIcon');
     const titleEl = document.getElementById('sgGlobalAlertTitle');
     const msgEl = document.getElementById('sgGlobalAlertMessage');
-    const btn = modal.querySelector('button');
+    const confirmBtn = document.getElementById('sgAlertConfirmBtn');
+    const cancelBtn = document.getElementById('sgAlertCancelBtn');
 
     msgEl.innerHTML = message;
+    cancelBtn.style.display = isConfirm ? 'block' : 'none';
+    confirmBtn.textContent = isConfirm ? 'Confirm' : 'OK';
 
     let defaultTitle = 'Alert';
     let icon = 'ℹ️';
@@ -47,46 +62,52 @@ function showAppAlert(message, type = 'info', title = null) {
         case 'error':
             defaultTitle = 'Action Failed';
             icon = '⚠️';
-            iconBg = '#fef2f2'; // red-50
-            btnBg = '#ef4444';  // red-500
-            btnHover = '#dc2626'; // red-600
+            iconBg = '#fef2f2';
+            btnBg = '#ef4444'; 
+            btnHover = '#dc2626';
             break;
         case 'warning':
             defaultTitle = 'Warning';
             icon = '⚡';
-            iconBg = '#fffbeb'; // amber-50
-            btnBg = '#f59e0b';  // amber-500
-            btnHover = '#d97706'; // amber-600
+            iconBg = '#fffbeb';
+            btnBg = '#f59e0b'; 
+            btnHover = '#d97706';
             break;
         case 'success':
             defaultTitle = 'Success';
             icon = '✅';
-            iconBg = '#f0fdf4'; // green-50
-            btnBg = '#10b981';  // green-500
-            btnHover = '#059669'; // green-600
+            iconBg = '#f0fdf4';
+            btnBg = '#10b981'; 
+            btnHover = '#059669';
             break;
         case 'info':
         default:
             defaultTitle = 'Information';
             icon = 'ℹ️';
-            iconBg = '#eff6ff'; // blue-50
-            btnBg = '#3b82f6';  // blue-500
-            btnHover = '#2563eb'; // blue-600
+            iconBg = '#eff6ff';
+            btnBg = '#3b82f6'; 
+            btnHover = '#2563eb';
             break;
     }
     
     titleEl.textContent = title || defaultTitle;
     iconContainer.textContent = icon;
     iconContainer.style.background = iconBg;
-    btn.style.background = btnBg;
+    confirmBtn.style.background = btnBg;
 
-    btn.onmouseover = () => btn.style.background = btnHover;
-    btn.onmouseout = () => btn.style.background = btnBg;
+    confirmBtn.onmouseover = () => confirmBtn.style.background = btnHover;
+    confirmBtn.onmouseout = () => confirmBtn.style.background = btnBg;
+
+    // Handle button clicks
+    confirmBtn.onclick = function() {
+        closeAppAlert();
+        if (isConfirm && typeof sgConfirmCallback === 'function') {
+            sgConfirmCallback();
+        }
+    };
 
     modal.style.display = 'flex';
-
     void modal.offsetWidth;
-    
     modal.style.opacity = '1';
     content.style.transform = 'scale(1) translateY(0)';
 }
@@ -100,17 +121,14 @@ function closeAppAlert() {
     
     setTimeout(() => {
         modal.style.display = 'none';
-
         window.getSelection()?.removeAllRanges();
+        sgConfirmCallback = null;
     }, 200);
 }
 
 document.addEventListener('keydown', function(event) {
     if (event.key === "Escape") {
-        const modal = document.getElementById('sgGlobalAlertModal');
-        if (modal && modal.style.display === 'flex') {
-            closeAppAlert();
-        }
+        closeAppAlert();
     }
 });
 </script>

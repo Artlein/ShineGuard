@@ -276,11 +276,11 @@ $virtual_nodes = $conn->query("SELECT * FROM streetlights WHERE is_virtual = 1 O
                     }
                 }
             } else {
-                alert('Simulation failed: ' + (data.error || 'Unknown error'));
+                showAppAlert('Simulation failed: ' + (data.error || 'Unknown error'), 'error', 'Lab Module Error');
             }
         } catch (e) {
             console.error('Sim error:', e);
-            alert('Connection error in lab module.');
+            showAppAlert('Connection error in lab module. Please check your network and session status.', 'error', 'System Connection Failure');
         }
     }
     </script>
