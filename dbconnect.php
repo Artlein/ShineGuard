@@ -117,6 +117,39 @@ $conn->query("CREATE TABLE IF NOT EXISTS `report_archive` (
   KEY `idx_generated_at` (`generated_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
 
+// Inventory Stock Patch (Workforce Logistics)
+$conn->query("CREATE TABLE IF NOT EXISTS `inventory_stock` (
+  `item_id` int(11) NOT NULL AUTO_INCREMENT,
+  `part_name` varchar(255) NOT NULL,
+  `part_number` varchar(100) NOT NULL,
+  `quantity` int(11) DEFAULT 0,
+  `min_stock_level` int(11) DEFAULT 5,
+  `unit_cost` decimal(10,2) DEFAULT 0.00,
+  `category` enum('Lighting','Sensors','Connectivity','Power') NOT NULL,
+  PRIMARY KEY (`item_id`),
+  UNIQUE KEY `part_number` (`part_number`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+// Maintenance Logs Patch (MTTR Analytics)
+$conn->query("CREATE TABLE IF NOT EXISTS `maintenance_logs` (
+  `log_id` int(11) NOT NULL AUTO_INCREMENT,
+  `light_id` int(11) NOT NULL,
+  `alert_id` int(11) DEFAULT NULL,
+  `user_id` int(11) NOT NULL,
+  `action_taken` text NOT NULL,
+  `notes` text DEFAULT NULL,
+  `parts_replaced` text DEFAULT NULL,
+  `maintenance_date` datetime DEFAULT current_timestamp(),
+  `completion_time` int(11) DEFAULT NULL,
+  `cost` decimal(10,2) DEFAULT NULL,
+  `status` enum('Scheduled','In Progress','Completed','Cancelled') DEFAULT 'Scheduled',
+  PRIMARY KEY (`log_id`),
+  KEY `idx_light` (`light_id`),
+  KEY `idx_user` (`user_id`),
+  KEY `idx_maintenance_date` (`maintenance_date`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
 date_default_timezone_set('Asia/Manila');
 
 $baseDir = str_replace('\\', '/', dirname(__FILE__));
