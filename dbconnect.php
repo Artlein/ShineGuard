@@ -164,7 +164,11 @@ date_default_timezone_set('Asia/Manila');
 $baseDir = str_replace('\\', '/', dirname(__FILE__));
 $docRoot = str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']);
 $relPath = str_replace($docRoot, '', $baseDir);
-define('BASE_URL', rtrim($relPath, '/') . '/');
+
+// ── CORPORATE STANDARDS: Absolute URL Detection for Emails ──
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost'; 
+define('BASE_URL', $protocol . $host . rtrim($relPath, '/') . '/');
 
 define('SESSION_IDLE_TIMEOUT', 1800); 
 
