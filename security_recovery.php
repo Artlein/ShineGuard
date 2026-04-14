@@ -85,10 +85,9 @@ $pending_res = $conn->query($pending_query);
 <body class="dashboard-body">
     <div class="layout">
         <?php include 'includes/sidebar.php'; ?>
+        <?php include 'includes/header.php'; ?>
         
         <main class="main-content">
-            <?php include 'includes/header.php'; ?>
-            
             <div class="content-wrapper">
                 <div class="page-header" style="margin-top: 2rem;">
                     <div class="hdr-left">
