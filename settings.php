@@ -1786,6 +1786,43 @@ tbody td {
     </div>
   </div>
 
+  <!-- Administrative MFA Reset Modal -->
+  <div id="mfa_reset_modal" class="modal">
+    <div class="modal-content modal-spring" style="max-width: 420px;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--border); margin-bottom: 20px; padding-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="margin: 0; font-size: 1.25rem; color: #3b82f6;">🛡️ Administrative MFA Reset</h2>
+        <button type="button" class="btn-sm" onclick="closeModal('mfa_reset_modal')" style="border: none; background: none; font-size: 1.2rem; cursor: pointer;">✕</button>
+      </div>
+      <form method="POST">
+        <input type="hidden" name="admin_reset_mfa" value="1">
+        <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+        <input type="hidden" name="target_user_id" id="target_user_id">
+        <div class="modal-body-content" style="padding: 0 10px;">
+          
+          <div class="info-box" style="background: rgba(59, 130, 246, 0.05); color: #3b82f6; border: 1px dashed rgba(59, 130, 246, 0.3); margin-bottom: 20px; padding: 15px; border-radius: 8px; font-size: 0.85rem;">
+            <strong>Double-Lock Verification:</strong><br>
+            For your security, resetting another user's MFA requires your own Administrator credentials.
+          </div>
+
+          <div class="setting-item" style="margin-bottom: 20px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.85rem;">Your Admin Password</label>
+            <input type="password" name="admin_password" placeholder="Verify your password" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
+          </div>
+
+          <div class="setting-item" style="margin-bottom: 20px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.85rem;">Your Authenticator Code</label>
+            <input type="text" name="admin_totp_code" placeholder="000 000" maxlength="6" style="width: 100%; text-align: center; font-size: 1.2rem; letter-spacing: 0.2em; font-weight: 700; padding: 10px; border-radius: 8px; border: 1px solid var(--border);" required>
+          </div>
+          
+          <div style="display: flex; gap: 12px; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 20px;">
+            <button type="button" class="btn" onclick="closeModal('mfa_reset_modal')" style="padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2);">Cancel</button>
+            <button type="submit" class="btn primary" style="background: #3b82f6; color: white; padding: 10px 24px; border-radius: 8px; border: none; font-weight: 600;">Confirm Reset</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
 <script>
 
 function showUserError(msg) {
