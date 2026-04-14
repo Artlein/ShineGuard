@@ -93,48 +93,50 @@ if ($res->num_rows === 1) {
                     <input type="hidden" name="email" value="<?php echo htmlspecialchars($email); ?>">
                     <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
                     
-                    <div class="form-group" style="margin-bottom: 10px;">
+                    <div class="form-group" style="margin-bottom: 25px;">
                         <label for="password">NEW PASSWORD</label>
-                        <div class="input-wrapper">
+                        <div class="input-wrapper" style="position: relative !important;">
                             <input 
                                 type="password" 
                                 id="password" 
                                 name="password" 
                                 placeholder="Enter strong password" 
                                 required
+                                style="padding-left: 45px !important; padding-right: 45px !important; width: 100% !important; box-sizing: border-box !important;"
                             >
-                            <span class="input-icon">🔒</span>
-                            <button type="button" class="eye-toggle" onclick="togglePassword('password')">👁️</button>
+                            <span class="input-icon" style="position: absolute !important; left: 15px !important; top: 50% !important; transform: translateY(-50%) !important; z-index: 5 !important; display: flex !important; align-items: center !important;">🔒</span>
+                            <button type="button" class="eye-toggle" onclick="togglePassword('password')" style="position: absolute !important; right: 10px !important; top: 50% !important; transform: translateY(-50%) !important; background: none !important; border: none !important; cursor: pointer !important; padding: 5px !important; z-index: 10 !important; font-size: 18px !important; display: flex !important; align-items: center !important;">👁️</button>
                         </div>
                     </div>
 
-                    <!-- 🛡️ Corporate Password Checklist -->
-                    <div class="pw-requirements-panel">
-                        <div class="req-title">SECURITY REQUIREMENTS</div>
-                        <ul class="req-list">
-                            <li id="req-len" class="req-item invalid"><span>❌</span> At least 8 characters</li>
-                            <li id="req-upper" class="req-item invalid"><span>❌</span> One uppercase letter (A-Z)</li>
-                            <li id="req-lower" class="req-item invalid"><span>❌</span> One lowercase letter (a-z)</li>
-                            <li id="req-num" class="req-item invalid"><span>❌</span> One number (0-9)</li>
-                            <li id="req-special" class="req-item invalid"><span>❌</span> One special character (!@#$%^&*)</li>
-                        </ul>
-                        <div class="req-note">
-                            <strong>Note:</strong> These rules are mandated by ShineGuard Corporate Security protocols to ensure your account remains resilient against unauthorized access.
-                        </div>
-                    </div>
-
-                    <div class="form-group">
+                    <div class="form-group" style="margin-bottom: 25px;">
                         <label for="confirm_password">CONFIRM PASSWORD</label>
-                        <div class="input-wrapper">
+                        <div class="input-wrapper" style="position: relative !important;">
                             <input 
                                 type="password" 
                                 id="confirm_password" 
                                 name="confirm_password" 
                                 placeholder="Repeat new password" 
                                 required
+                                style="padding-left: 45px !important; padding-right: 45px !important; width: 100% !important; box-sizing: border-box !important;"
                             >
-                            <span class="input-icon">🔒</span>
-                            <button type="button" class="eye-toggle" onclick="togglePassword('confirm_password')">👁️</button>
+                            <span class="input-icon" style="position: absolute !important; left: 15px !important; top: 50% !important; transform: translateY(-50%) !important; z-index: 5 !important; display: flex !important; align-items: center !important;">🔒</span>
+                            <button type="button" class="eye-toggle" onclick="togglePassword('confirm_password')" style="position: absolute !important; right: 10px !important; top: 50% !important; transform: translateY(-50%) !important; background: none !important; border: none !important; cursor: pointer !important; padding: 5px !important; z-index: 10 !important; font-size: 18px !important; display: flex !important; align-items: center !important;">👁️</button>
+                        </div>
+                    </div>
+
+                    <!-- 🛡️ Compact Corporate Password Checklist (Relocated) -->
+                    <div class="pw-requirements-panel" style="padding: 12px; margin-bottom: 20px; background: rgba(0,0,0,0.02); border-radius: 12px; border: 1px solid rgba(0,0,0,0.05);">
+                        <div class="req-title" style="margin-bottom: 8px; font-size: 11px; font-weight: 800; color: #64748b;">SECURITY RULES</div>
+                        <ul class="req-list" style="grid-template-columns: 1fr 1fr; display: grid; gap: 4px 12px; padding: 0; list-style: none;">
+                            <li id="req-len" class="req-item invalid" style="font-size: 11px; display: flex; align-items: center; gap: 8px;"><span>❌</span> 8+ Chars</li>
+                            <li id="req-upper" class="req-item invalid" style="font-size: 11px; display: flex; align-items: center; gap: 8px;"><span>❌</span> Uppercase</li>
+                            <li id="req-lower" class="req-item invalid" style="font-size: 11px; display: flex; align-items: center; gap: 8px;"><span>❌</span> Lowercase</li>
+                            <li id="req-num" class="req-item invalid" style="font-size: 11px; display: flex; align-items: center; gap: 8px;"><span>❌</span> Number</li>
+                            <li id="req-special" class="req-item invalid" style="font-size: 11px; display: flex; align-items: center; gap: 8px;"><span>❌</span> Symbol</li>
+                        </ul>
+                        <div class="req-note" style="margin-top: 10px; padding-top: 8px; font-size: 10px; border-top: 1px solid rgba(0,0,0,0.05); color: #94a3b8;">
+                            <strong>Note:</strong> Mandated by ShineGuard Security Protocols.
                         </div>
                     </div>
                     
