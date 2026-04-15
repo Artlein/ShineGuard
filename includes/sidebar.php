@@ -36,7 +36,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     font-family    : var(--sb-font) !important;
     overflow       : hidden !important;
     transition     : width 0.3s var(--ease), transform 0.3s var(--ease) !important;
-    box-shadow     : 4px 0 30px rgba(0,0,0,0.35) !important;
+    box-shadow     : 10px 0 40px rgba(0,0,0,0.5) !important;
     padding        : 0 !important;
     border         : none !important;
 }
@@ -185,9 +185,9 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
 .sb-toggle {
     position: absolute;
-    right: 12px;
+    right: -32px;
     top: 50%;
-    transform: translateY(-50%);
+    transform: translateY(-50%) rotate(0deg);
     width: 26px;
     height: 26px;
     border-radius: 50%;
@@ -389,7 +389,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     </div>
 </aside>
 
-<div class="sidebar-feather" style="position:fixed; top:0; bottom:0; left:280px; width:28px; background:linear-gradient(90deg, rgba(13,17,23,0.1) 0%, transparent 100%); pointer-events:none; z-index:999; transition: left 0.3s var(--ease);"></div>
+
 
 <script>
 function isMobile() {
@@ -425,10 +425,8 @@ function toggleSidebar() {
     // Desktop collapse behaviour
     const sidebar = document.querySelector('.sidebar');
     const layout = document.querySelector('.layout');
-    const feather = document.querySelector('.sidebar-feather');
     const isCollapsed = sidebar.classList.toggle('collapsed');
     if (layout) layout.classList.toggle('sidebar-collapsed', isCollapsed);
-    if (feather) feather.style.left = isCollapsed ? '70px' : '280px';
     localStorage.setItem('sidebarCollapsed', isCollapsed);
 }
 
