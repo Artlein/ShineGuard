@@ -105,7 +105,7 @@ if ($res->num_rows === 1) {
                                 style="padding-left: 45px !important; padding-right: 45px !important; width: 100% !important; box-sizing: border-box !important;"
                             >
                             <span class="input-icon" style="position: absolute !important; left: 15px !important; top: 50% !important; transform: translateY(-50%) !important; z-index: 5 !important; display: flex !important; align-items: center !important;">🔒</span>
-                            <button type="button" class="eye-toggle" onclick="togglePassword('password')" style="position: absolute !important; right: 10px !important; top: 50% !important; transform: translateY(-50%) !important; background: none !important; border: none !important; cursor: pointer !important; padding: 5px !important; z-index: 10 !important; font-size: 18px !important; display: flex !important; align-items: center !important;">👁️</button>
+                            <button type="button" class="eye-toggle" onclick="togglePassword('password', this)" style="position: absolute !important; right: 10px !important; top: 50% !important; transform: translateY(-50%) !important; background: none !important; border: none !important; cursor: pointer !important; padding: 5px !important; z-index: 10 !important; font-size: 18px !important; display: flex !important; align-items: center !important;">👁️</button>
                         </div>
                     </div>
 
@@ -121,7 +121,7 @@ if ($res->num_rows === 1) {
                                 style="padding-left: 45px !important; padding-right: 45px !important; width: 100% !important; box-sizing: border-box !important;"
                             >
                             <span class="input-icon" style="position: absolute !important; left: 15px !important; top: 50% !important; transform: translateY(-50%) !important; z-index: 5 !important; display: flex !important; align-items: center !important;">🔒</span>
-                            <button type="button" class="eye-toggle" onclick="togglePassword('confirm_password')" style="position: absolute !important; right: 10px !important; top: 50% !important; transform: translateY(-50%) !important; background: none !important; border: none !important; cursor: pointer !important; padding: 5px !important; z-index: 10 !important; font-size: 18px !important; display: flex !important; align-items: center !important;">👁️</button>
+                            <button type="button" class="eye-toggle" onclick="togglePassword('confirm_password', this)" style="position: absolute !important; right: 10px !important; top: 50% !important; transform: translateY(-50%) !important; background: none !important; border: none !important; cursor: pointer !important; padding: 5px !important; z-index: 10 !important; font-size: 18px !important; display: flex !important; align-items: center !important;">👁️</button>
                         </div>
                     </div>
 
@@ -218,9 +218,8 @@ if ($res->num_rows === 1) {
             validatePassword();
         });
 
-        function togglePassword(id) {
-            const el = document.getElementById(id);
-            const btn = el.nextElementSibling.nextElementSibling;
+        function togglePassword(inputId, btn) {
+            const el = document.getElementById(inputId);
             if (el.type === 'password') {
                 el.type = 'text';
                 btn.textContent = '🙈';
@@ -230,7 +229,6 @@ if ($res->num_rows === 1) {
             }
         }
 
-        const pwInput = document.getElementById('password');
         const confInput = document.getElementById('confirm_password');
         const statusDiv = document.getElementById('pwMatchStatus');
         const submitBtn = document.getElementById('submitBtn');
