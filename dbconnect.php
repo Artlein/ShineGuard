@@ -1,5 +1,30 @@
 <?php
-require_once __DIR__ . '/vendor/autoload.php';
+/**
+ * ── RESILIENCE BOOTSTRAPPER ──
+ * Attempts to load the modern Composer autoloader. 
+ * If missing, implements a fallback PSR-4 autoloader for internal ShineGuard classes.
+ */
+$autoload_path = __DIR__ . '/vendor/autoload.php';
+if (file_exists($autoload_path)) {
+    require_once $autoload_path;
+} else {
+    // FALLBACK: Register manual autoloader for the ShineGuard namespace
+    spl_autoload_register(function ($class) {
+        $prefix = 'ShineGuard\\';
+        $base_dir = __DIR__ . '/src/';
+        $len = strlen($prefix);
+        if (strncmp($prefix, $class, $len) !== 0) return;
+        $relative_class = substr($class, $len);
+        $file = $base_dir . str_replace('\\', '/', $relative_class) . '.php';
+        if (file_exists($file)) require $file;
+    });
+
+    // Provide a diagnostic warning in the logs (silent in production)
+    if (($_SERVER['HTTP_HOST'] ?? '') === 'localhost') {
+        error_log("⚠️ SHINEGUARD WARNING: vendor/autoload.php missing. Using fallback autoloader.");
+    }
+}
+
 /**
  * ENTERPRISE SECURITY HEADERS (Pillar 3)
  */

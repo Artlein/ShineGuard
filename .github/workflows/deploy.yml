@@ -35,11 +35,24 @@ jobs:
             
             # --- DEPENDENCY MANAGEMENT ---
             if [ -f "composer.json" ]; then
-                echo "📦 Installing Dependencies (Composer)..."
-                # Ensure composer is run as the web user or with correct permissions
-                composer install --no-dev --optimize-autoloader --no-interaction || {
-                    echo "⚠️ Composer failed. Attempting with sudo..."
-                    sudo composer install --no-dev --optimize-autoloader --no-interaction
+                echo "📦 Dependency Discovery: Initializing Composer..."
+                
+                # Check for global composer or local phar
+                if ! command -v composer &> /dev/null; then
+                    echo "⚠️ Global composer NOT found. Checking for composer.phar..."
+                    if [ ! -f "composer.phar" ]; then
+                        echo "📥 Downloading composer.phar fallback..."
+                        curl -sS https://getcomposer.org/installer | php
+                    fi
+                    COMPOSER_BIN="php composer.phar"
+                else
+                    COMPOSER_BIN="composer"
+                fi
+
+                echo "🚀 Running $COMPOSER_BIN install..."
+                $COMPOSER_BIN install --no-dev --optimize-autoloader --no-interaction || {
+                    echo "⚠️ Regular install failed. Attempting with sudo..."
+                    sudo $COMPOSER_BIN install --no-dev --optimize-autoloader --no-interaction --allow-plugins
                 }
             fi
             
