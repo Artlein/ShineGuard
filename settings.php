@@ -1618,7 +1618,8 @@ tbody td {
 
             <?php 
             $user_role = getUserRole();
-            $isRestricted = ($user_role === 'System Observer' || $user_role === 'Maintenance Operator');
+            $mandatory_roles = ['System Admin', 'Maintenance Operator', 'System Observer'];
+            $isRestricted = in_array($user_role, $mandatory_roles);
             ?>
 
             <?php if ($isRestricted): ?>

@@ -103,7 +103,7 @@ $_SESSION['login_time']    = time();
 $_SESSION['last_activity'] = time(); 
 
 // ── ZERO TRUST: Mandatory MFA Enforcement ──
-$privileged_roles = ['System Admin', 'Maintainer'];
+$privileged_roles = ['System Admin', 'Maintenance Operator', 'System Observer'];
 if (in_array($user['role'], $privileged_roles) && !$user['mfa_enabled']) {
     // If privileged user has no MFA, redirect to setup and flag the session as "MFA Setup Pending"
     $_SESSION['mfa_setup_required'] = true;

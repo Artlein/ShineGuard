@@ -334,6 +334,13 @@ function requireLoginApi($require_role = null) {
         exit();
     }
     checkSessionTimeout();
+
+    // ── ZERO TRUST: Mandatory MFA Blockade for API ──
+    if (isset($_SESSION['mfa_setup_required']) && $_SESSION['mfa_setup_required'] === true) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Security policy required: Please complete MFA setup in settings.']);
+        exit();
+    }
     if ($require_role !== null) {
         $user_role = getUserRole();
         $authorized = false;
