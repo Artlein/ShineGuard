@@ -15,6 +15,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $result = $stmt->get_result()->fetch_assoc();
 
     if ($result && password_verify($password, $result['password_hash'])) {
+        // Store verified password for PDF export encryption (session-scoped, secure)
+        $_SESSION['export_password'] = $password;
+
         if ($action === 'revoke') {
             revokeAuthorization();
             logActivity($conn, $user_id, 'Access Revocation', 'Elevated session access revoked manually');

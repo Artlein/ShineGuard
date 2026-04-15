@@ -28,7 +28,11 @@ while ($sch = $schedules->fetch_assoc()) {
     ReportingService::archiveReport($conn, "Automated " . $sch['report_type'], $sch['report_type'], "$start to $end", $filename, 0); // 0 = System
     
     // Update last run
-    $conn->query("UPDATE report_schedules SET last_run = NOW() WHERE schedule_id = " . $sch['schedule_id']);
+    // ── SECURITY HARDENING: Parameterized Cron Update ──
+    $upd_stmt = $conn->prepare("UPDATE report_schedules SET last_run = NOW() WHERE schedule_id = ?");
+    $upd_stmt->bind_param("i", $sch['schedule_id']);
+    $upd_stmt->execute();
+    $upd_stmt->close();
     
     $processed++;
 }

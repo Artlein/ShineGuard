@@ -48,8 +48,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sim_action'])) {
                 logActivity($conn, $user_id, '[SIMULATOR] Critical Fault', "Virtual Node #$light_id injected with hardware failure");
                 
                 // Simulate Automated Work Order Generation
-                $node_res = $conn->query("SELECT node_name FROM streetlights WHERE light_id = $light_id");
-                $node = $node_res->fetch_assoc();
+                $node_stmt = $conn->prepare("SELECT node_name FROM streetlights WHERE light_id = ?");
+                $node_stmt->bind_param("i", $light_id);
+                $node_stmt->execute();
+                $node = $node_stmt->get_result()->fetch_assoc();
+                $node_stmt->close();
                 $desc = "ALARM: Hardware failure detected in virtual node " . $node['node_name'];
                 $action = "Replace virtual light module and reset sensor array";
                 

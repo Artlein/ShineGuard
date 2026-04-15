@@ -25,12 +25,15 @@ if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
         'map_center_lng'   => $_POST['map_center_lng'],
         'map_zoom_level'   => $_POST['map_zoom_level']
     ];
+    // ── SECURITY HARDENING: Parameterized Branding ──
+    $stmt = $conn->prepare("INSERT INTO system_config (config_key, config_value, description, updated_by) 
+                           VALUES (?, ?, 'System preference', ?)
+                           ON DUPLICATE KEY UPDATE config_value = ?, updated_by = ?");
     foreach ($updates as $key => $value) {
-        $value_escaped = $conn->real_escape_string($value);
-        $conn->query("INSERT INTO system_config (config_key, config_value, description, updated_by) 
-                     VALUES ('$key', '$value_escaped', 'System preference', {$_SESSION['user_id']})
-                     ON DUPLICATE KEY UPDATE config_value = '$value_escaped', updated_by = {$_SESSION['user_id']}");
+        $stmt->bind_param("ssisi", $key, $value, $_SESSION['user_id'], $value, $_SESSION['user_id']);
+        $stmt->execute();
     }
+    $stmt->close();
     logActivity($conn, $_SESSION['user_id'], 'System Preferences Updated', 'Updated system preferences and branding');
     header('Location: settings.php?tab=preferences&success=settings_saved');
     exit();
@@ -54,11 +57,13 @@ if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
         'humidity_threshold_max'         => $_POST['humidity_threshold_max'],
         'humidity_threshold_critical'    => $_POST['humidity_threshold_critical']
     ];
+    // ── SECURITY HARDENING: Parameterized Thresholds ──
+    $stmt = $conn->prepare("UPDATE system_config SET config_value = ?, updated_by = ? WHERE config_key = ?");
     foreach ($thresholds as $key => $value) {
-        $value_escaped = $conn->real_escape_string($value);
-        $conn->query("UPDATE system_config SET config_value = '$value_escaped', updated_by = {$_SESSION['user_id']} 
-                     WHERE config_key = '$key'");
+        $stmt->bind_param("sis", $value, $_SESSION['user_id'], $key);
+        $stmt->execute();
     }
+    $stmt->close();
     logActivity($conn, $_SESSION['user_id'], 'Thresholds Updated', 'Updated predictive maintenance thresholds');
     header('Location: settings.php?tab=thresholds&success=settings_saved');
     exit();
@@ -78,12 +83,15 @@ if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
         'critical_alert_sound'   => isset($_POST['critical_alert_sound'])   ? '1' : '0',
         'alert_retention_days'   => $_POST['alert_retention_days']
     ];
+    // ── SECURITY HARDENING: Parameterized Alerts ──
+    $stmt = $conn->prepare("INSERT INTO system_config (config_key, config_value, description, updated_by) 
+                           VALUES (?, ?, 'Alert preference', ?)
+                           ON DUPLICATE KEY UPDATE config_value = ?, updated_by = ?");
     foreach ($alerts as $key => $value) {
-        $value_escaped = $conn->real_escape_string($value);
-        $conn->query("INSERT INTO system_config (config_key, config_value, description, updated_by) 
-                     VALUES ('$key', '$value_escaped', 'Alert preference', {$_SESSION['user_id']})
-                     ON DUPLICATE KEY UPDATE config_value = '$value_escaped', updated_by = {$_SESSION['user_id']}");
+        $stmt->bind_param("ssisi", $key, $value, $_SESSION['user_id'], $value, $_SESSION['user_id']);
+        $stmt->execute();
     }
+    $stmt->close();
     logActivity($conn, $_SESSION['user_id'], 'Alert Settings Updated', 'Updated alert and notification preferences');
     header('Location: settings.php?tab=alerts&success=settings_saved');
     exit();
@@ -103,12 +111,15 @@ if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
         'auto_create_work_orders'         => isset($_POST['auto_create_work_orders'])         ? '1' : '0',
         'maintenance_prediction_days'     => $_POST['maintenance_prediction_days']
     ];
+    // ── SECURITY HARDENING: Parameterized Automation ──
+    $stmt = $conn->prepare("INSERT INTO system_config (config_key, config_value, description, updated_by) 
+                           VALUES (?, ?, 'Automation setting', ?)
+                           ON DUPLICATE KEY UPDATE config_value = ?, updated_by = ?");
     foreach ($automation as $key => $value) {
-        $value_escaped = $conn->real_escape_string($value);
-        $conn->query("INSERT INTO system_config (config_key, config_value, description, updated_by) 
-                     VALUES ('$key', '$value_escaped', 'Automation setting', {$_SESSION['user_id']})
-                     ON DUPLICATE KEY UPDATE config_value = '$value_escaped', updated_by = {$_SESSION['user_id']}");
+        $stmt->bind_param("ssisi", $key, $value, $_SESSION['user_id'], $value, $_SESSION['user_id']);
+        $stmt->execute();
     }
+    $stmt->close();
     logActivity($conn, $_SESSION['user_id'], 'Automation Settings Updated', 'Updated automation preferences');
     header('Location: settings.php?tab=automation&success=settings_saved');
     exit();
@@ -127,12 +138,15 @@ if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
         'backup_frequency'        => $_POST['backup_frequency'],
         'export_format_default'   => $_POST['export_format_default']
     ];
+    // ── SECURITY HARDENING: Parameterized Data Mgmt ──
+    $stmt = $conn->prepare("INSERT INTO system_config (config_key, config_value, description, updated_by) 
+                           VALUES (?, ?, 'Data setting', ?)
+                           ON DUPLICATE KEY UPDATE config_value = ?, updated_by = ?");
     foreach ($data as $key => $value) {
-        $value_escaped = $conn->real_escape_string($value);
-        $conn->query("INSERT INTO system_config (config_key, config_value, description, updated_by) 
-                     VALUES ('$key', '$value_escaped', 'Data setting', {$_SESSION['user_id']})
-                     ON DUPLICATE KEY UPDATE config_value = '$value_escaped', updated_by = {$_SESSION['user_id']}");
+        $stmt->bind_param("ssisi", $key, $value, $_SESSION['user_id'], $value, $_SESSION['user_id']);
+        $stmt->execute();
     }
+    $stmt->close();
     logActivity($conn, $_SESSION['user_id'], 'Data Settings Updated', 'Updated data retention and backup settings');
     header('Location: settings.php?tab=data&success=settings_saved');
     exit();
@@ -180,7 +194,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_mfa'])) {
 
         // 3. SEC-POLICY: Restricted Roles cannot disable their own MFA
         $user_role = getUserRole();
-        if ($user_role === 'System Observer' || $user_role === 'Maintenance Operator') {
+        $mandatory_mfa_roles = ['System Admin', 'Maintainer'];
+        if (in_array($user_role, $mandatory_mfa_roles)) {
             header('Location: settings.php?tab=security&error=mfa_mandatory_role');
             exit();
         }
@@ -218,6 +233,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_mfa_setup']))
         $stmt->execute();
         
         unset($_SESSION['mfa_setup_secret']);
+        unset($_SESSION['mfa_setup_required']); // Clear the Zero Trust blockade
         logActivity($conn, $_SESSION['user_id'], 'Security Update', 'User verified and enabled MFA pairing');
         header('Location: settings.php?tab=security&success=mfa_enabled');
         exit();
@@ -476,6 +492,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_user'])) {
         header('Location: settings.php?tab=users&error=invalid_admin_password');
         exit();
     }
+
+    // 4. ZERO TRUST: Action Stepping (MFA Verification for Admin Action)
+    $mfa_check_stmt = $conn->prepare("SELECT mfa_secret, mfa_enabled FROM users WHERE user_id = ?");
+    $mfa_check_stmt->bind_param("i", $active_admin_id);
+    $mfa_check_stmt->execute();
+    $admin_security = $mfa_check_stmt->get_result()->fetch_assoc();
+    $mfa_check_stmt->close();
+
+    if ($admin_security && $admin_security['mfa_enabled']) {
+        $admin_totp = $_POST['admin_mfa_code'] ?? '';
+        require_once 'src/Services/TOTPService.php';
+        if (!\ShineGuard\Services\TOTPService::verifyCode($admin_security['mfa_secret'], $admin_totp)) {
+            header('Location: settings.php?tab=users&error=invalid_mfa_code&target_id=' . $target_user_id);
+            exit();
+        }
+    }
+
     setAuthorized();
 
     // 4. Password verified. Proceed with destructive deletion.
@@ -534,7 +567,7 @@ if (!$isAdmin && $active_tab !== 'security') {
 <html>
 <head>
 <meta charset="utf-8"/>
-<title>System Settings - <?php echo $settings['system_name']; ?></title>
+<title>System Settings - <?php echo htmlspecialchars($settings['system_name']); ?></title>
 <link rel="icon" type="image/png" href="img/ShineGuard3.png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -703,6 +736,38 @@ body {
   overflow: hidden;
   transition: all 0.3s ease;
   box-shadow: var(--shadow-md);
+}
+
+.btn-verify {
+    width: 100%;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+    padding: 16px;
+    border-radius: 16px;
+    font-weight: 800;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-verify::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    transition: left 0.6s;
+}
+
+.btn-verify:hover::before { left: 100%; }
+
+.btn-verify:hover {
+    background: #059669;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(16, 185, 129, 0.3);
 }
 
 .setting-group:hover {
@@ -1421,6 +1486,18 @@ tbody td {
     $mfa_stmt->close();
     $mfa_enabled = (bool)$mfa_user['mfa_enabled'];
 
+    // ── ZERO TRUST: Mandatory Setup Banner ──
+    if (isset($_GET['force']) && $_GET['force'] === 'true'): ?>
+    <div style="background: linear-gradient(135deg, #ef44440a, #ef444415); border: 2px solid #ef444433; padding: 24px; border-radius: 20px; margin-bottom: 30px; display: flex; align-items: center; gap: 20px; animation: slideDown 0.5s ease-out;">
+        <div style="background: #ef4444; width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; box-shadow: 0 8px 16px -4px #ef444466;">🛡️</div>
+        <div>
+            <h3 style="margin: 0; font-size: 1.1rem; color: #b91c1c; font-weight: 800;">Mandatory Security Policy</h3>
+            <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: #7f1d1d; opacity: 0.8; line-height: 1.5;">Your role as <strong><?php echo htmlspecialchars(getUserRole()); ?></strong> requires Multi-Factor Authentication. Account access is restricted until pairing is complete.</p>
+        </div>
+    </div>
+    <style>@keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }</style>
+    <?php endif;
+
     // Setup Pairing View
     if (isset($_GET['setup']) && $_GET['setup'] == 1 && isset($_SESSION['mfa_setup_secret'])): 
         $setup_secret = $_SESSION['mfa_setup_secret'];
@@ -1486,7 +1563,7 @@ tbody td {
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <button type="button" class="btn" style="background: var(--surface-2);" onclick="window.location.href='settings.php?tab=security'">Cancel</button>
-                <button type="submit" class="btn-primary">Verify & Activate</button>
+                <button type="submit" class="btn-verify">Verify & Activate</button>
             </div>
         </form>
     </div>
@@ -1776,6 +1853,16 @@ tbody td {
               <input type="password" name="admin_password" placeholder="Enter your password" required autocomplete="current-password">
             </div>
           </div>
+
+          <?php if ($mfa_enabled): ?>
+          <div class="setting-row" style="grid-template-columns: 1fr; gap: 0; margin-top: 15px;">
+            <div class="setting-item" style="background: rgba(99, 102, 241, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(99, 102, 241, 0.2);">
+              <label style="color: #6366f1; font-weight: 700; margin-bottom: 8px; display: block;">🛡️ MFA Verification Required</label>
+              <input type="text" name="admin_mfa_code" placeholder="000 000" maxlength="6" style="text-align: center; font-size: 1.2rem; letter-spacing: 0.2em; font-weight: 700;" required>
+              <p style="font-size: 11px; color: var(--text-muted); margin-top: 5px;">Enter the code from your Authenticator app.</p>
+            </div>
+          </div>
+          <?php endif; ?>
           
           <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 20px;">
             <button type="button" class="btn" onclick="closeModal('deleteUserModal')">Cancel</button>
@@ -1965,6 +2052,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const tab = urlParams.get('tab');
     const userId = urlParams.get('id');
+    const error = urlParams.get('error');
+    const targetId = urlParams.get('target_id');
     
     if (tab === 'users' && userId) {
         const user = allUsers.find(u => u.user_id == userId);
@@ -1973,6 +2062,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 openEditModal(user);
             }, 500);
         }
+    }
+    
+    // ── ZERO TRUST: MFA Auto-Restore ──
+    if (error === 'invalid_mfa_code' && targetId) {
+        openModal('deleteUserModal');
+        document.getElementById('delete_user_id').value = targetId;
+        document.getElementById('delete_user_name_display').textContent = urlParams.get('name') || "Selected User";
     }
 });
 </script>

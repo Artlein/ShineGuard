@@ -31,19 +31,29 @@ GROUP BY DATE(timestamp)
 ORDER BY date DESC
 LIMIT 15");
 
-$problematic_lights = $conn->query("SELECT 
+// ── SECURITY HARDENING: Parameterized Report Queries ──
+$prob_stmt = $conn->prepare("SELECT 
     s.node_name,
     s.location,
     COUNT(a.alert_id) as alert_count,
     COUNT(CASE WHEN a.severity = 'High' THEN 1 END) as critical_count
 FROM streetlights s
-LEFT JOIN alerts a ON s.light_id = a.light_id AND a.created_at BETWEEN '$start_date' AND '$end_date 23:59:59'
+LEFT JOIN alerts a ON s.light_id = a.light_id AND a.created_at BETWEEN ? AND ?
 GROUP BY s.light_id
 HAVING alert_count > 0
 ORDER BY critical_count DESC, alert_count DESC
 LIMIT 8");
+$end_date_full = $end_date . " 23:59:59";
+$prob_stmt->bind_param("ss", $start_date, $end_date_full);
+$prob_stmt->execute();
+$problematic_lights = $prob_stmt->get_result();
+$prob_stmt->close();
 
-$snapshots_query = $conn->query("SELECT COUNT(*) as snapshot_count FROM camera_snapshots WHERE created_at BETWEEN '$start_date' AND '$end_date 23:59:59'");
+$snap_stmt = $conn->prepare("SELECT COUNT(*) as snapshot_count FROM camera_snapshots WHERE created_at BETWEEN ? AND ?");
+$snap_stmt->bind_param("ss", $start_date, $end_date_full);
+$snap_stmt->execute();
+$snapshots_query = $snap_stmt->get_result();
+$snap_stmt->close();
 $snapshot_count = ($snapshots_query) ? $snapshots_query->fetch_assoc()['snapshot_count'] : 0;
 
 $report_archives = \ShineGuard\Services\ReportingService::getArchive($conn, 10);
@@ -132,12 +142,12 @@ $report_archives = \ShineGuard\Services\ReportingService::getArchive($conn, 10);
             letter-spacing: -0.04em;
             margin: 0;
             text-transform: uppercase;
-            color: #0f172a !important;
+            color: var(--sg-text) !important;
         }
 
         .hero-branding p {
             font-size: 1.1rem; 
-            color: #475569 !important;
+            color: var(--sg-text-dim) !important;
             max-width: 600px;
             margin: 0 auto;
             line-height: 1.6;
@@ -556,11 +566,19 @@ $report_archives = \ShineGuard\Services\ReportingService::getArchive($conn, 10);
 
 <!-- Simplified Export Modal -->
 <div id="exportModal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.4); backdrop-filter:blur(8px); z-index:9999; align-items:center; justify-content:center;">
-    <div class="glass-panel modal-spring" style="max-width: 400px; width: 90%; background: var(--sg-glass); text-align: center;">
+    <div class="glass-panel modal-spring" style="max-width: 420px; width: 90%; background: var(--sg-glass); text-align: center;">
         <h2 style="margin-top: 0; font-size: 1.25rem; font-weight: 800;">Export Ledger</h2>
         <p style="font-size: 13px; color: var(--sg-text-dim);">Select signature format for the selected period.</p>
-        <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem;">
-            <a href="reports.php?export=pdf&start_date=<?php echo $start_date; ?>&end_date=<?php echo $end_date; ?>" class="btn-sg btn-emerald" style="justify-content: center; text-decoration: none;">
+
+        <!-- Password Info Box -->
+        <div style="background: rgba(59,130,246,0.08); border: 1.5px solid rgba(59,130,246,0.2); border-radius: 14px; padding: 14px 18px; margin: 1rem 0; text-align: left;">
+            <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: #3b82f6; margin-bottom: 6px;">&#128274; PDF File Password</div>
+            <div style="font-size: 14px; font-weight: 700; color: #0f172a;">Your ShineGuard login password</div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 4px;">The exported file is encrypted with your account password for security.</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem;">
+            <a href="report_pdf.php?start_date=<?php echo $start_date; ?>&end_date=<?php echo $end_date; ?>" class="btn-sg btn-emerald" style="justify-content: center; text-decoration: none;" onclick="onPdfDownload()">
                 📄 DOWNLOAD PDF SIGNATURE
             </a>
             <button onclick="document.getElementById('exportModal').style.display='none'" class="btn-sg" style="background: rgba(0,0,0,0.05); justify-content: center;">
@@ -570,7 +588,7 @@ $report_archives = \ShineGuard\Services\ReportingService::getArchive($conn, 10);
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
     let activeGateAction = null;
 
@@ -637,13 +655,15 @@ $report_archives = \ShineGuard\Services\ReportingService::getArchive($conn, 10);
 
             if (result.success) {
                 if (activeGateAction === 'generate') {
-                    // Logic for "GENERATE REPORT"
-                    document.querySelector('.filter-terminal').submit();
+                    window.sgToast('🔐', 'Identity Verified', 'Generating report signatures...', '#10b981', '#ecfdf5');
+                    setTimeout(() => document.querySelector('.filter-terminal').submit(), 900);
                 } else if (activeGateAction === 'download') {
                     closeSecurityGate();
-                    document.getElementById('exportModal').style.display = 'flex';
+                    window.sgToast('✅', 'Export Authorized', 'Select your download format below.', '#10b981', '#ecfdf5');
+                    setTimeout(() => { document.getElementById('exportModal').style.display = 'flex'; }, 800);
                 } else if (activeGateAction === 'unlock_vault') {
-                    location.reload();
+                    window.sgToast('🔓', 'Vault Unlocked', 'Archive ledger is now accessible.', '#3b82f6', '#eff6ff');
+                    setTimeout(() => location.reload(), 1000);
                 }
             } else {
                 error.textContent = result.error || 'Invalid password. Access denied.';
@@ -669,6 +689,22 @@ $report_archives = \ShineGuard\Services\ReportingService::getArchive($conn, 10);
     function openExportModal() {
         document.getElementById('exportModal').style.display = 'flex';
     }
+
+    function onPdfDownload() {
+        // Close modal after a brief moment (download starts in background)
+        setTimeout(() => { document.getElementById('exportModal').style.display = 'none'; }, 400);
+        // Show password reminder toast
+        setTimeout(() => {
+            window.sgToast('🔐', 'PDF Downloaded — Protected', 'Use your ShineGuard login password to open the file.', '#3b82f6', '#eff6ff');
+        }, 600);
+    }
+
+    // Toast on page load if report was just filtered
+    <?php if (isset($_GET['start_date']) && !isset($_GET['export'])): ?>
+    window.addEventListener('DOMContentLoaded', () => {
+        if(window.sgToast) window.sgToast('📊', 'Report Generated', 'Displaying data for the selected period.', '#3b82f6', '#eff6ff');
+    });
+    <?php endif; ?>
 </script>
 </body>
 </html>

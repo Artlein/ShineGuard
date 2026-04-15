@@ -102,6 +102,15 @@ $_SESSION['role']          = $user['role'];
 $_SESSION['login_time']    = time();
 $_SESSION['last_activity'] = time(); 
 
+// ── ZERO TRUST: Mandatory MFA Enforcement ──
+$privileged_roles = ['System Admin', 'Maintainer'];
+if (in_array($user['role'], $privileged_roles) && !$user['mfa_enabled']) {
+    // If privileged user has no MFA, redirect to setup and flag the session as "MFA Setup Pending"
+    $_SESSION['mfa_setup_required'] = true;
+    header('Location: settings.php?tab=security&setup=1&force=true');
+    exit();
+}
+
 clearLoginAttempts($conn, $ip);
 
 $reset_stmt = $conn->prepare("UPDATE users SET failed_attempts = 0, last_failed_attempt = NULL, lockout_until = NULL WHERE user_id = ?");

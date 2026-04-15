@@ -2,13 +2,18 @@
 
 class FirebaseConfig {
     
-    const API_KEY = 'AIzaSyBM69Xh5_d2lhiwGEi1gz9OfNHBEyEYrSQ';
-    const AUTH_DOMAIN = 'sg-hulo.firebaseapp.com';
-    const DATABASE_URL = 'https://sg-hulo-default-rtdb.asia-southeast1.firebasedatabase.app';
-    const PROJECT_ID = 'sg-hulo';
-    const STORAGE_BUCKET = 'sg-hulo.firebasestorage.app';
-    const MESSAGING_SENDER_ID = '1098036753407';
-    const APP_ID = '1:1098036753407:web:a0b564a0c18d11e9a52dca';
+    public static function getConstant($key) {
+        $envMap = [
+            'API_KEY'             => 'FIREBASE_API_KEY',
+            'AUTH_DOMAIN'         => 'FIREBASE_AUTH_DOMAIN',
+            'DATABASE_URL'        => 'FIREBASE_DATABASE_URL',
+            'PROJECT_ID'          => 'FIREBASE_PROJECT_ID',
+            'STORAGE_BUCKET'      => 'FIREBASE_STORAGE_BUCKET',
+            'MESSAGING_SENDER_ID' => 'FIREBASE_MESSAGING_SENDER_ID',
+            'APP_ID'              => 'FIREBASE_APP_ID'
+        ];
+        return $_ENV[$envMap[$key]] ?? '';
+    }
 
     const IOT_DEVICES = [
         'SG-NODE2' => [
@@ -33,13 +38,13 @@ class FirebaseConfig {
 
     public static function getConfig() {
         return [
-            'apiKey' => self::API_KEY,
-            'authDomain' => self::AUTH_DOMAIN,
-            'databaseURL' => self::DATABASE_URL,
-            'projectId' => self::PROJECT_ID,
-            'storageBucket' => self::STORAGE_BUCKET,
-            'messagingSenderId' => self::MESSAGING_SENDER_ID,
-            'appId' => self::APP_ID
+            'apiKey'            => self::getConstant('API_KEY'),
+            'authDomain'        => self::getConstant('AUTH_DOMAIN'),
+            'databaseURL'       => self::getConstant('DATABASE_URL'),
+            'projectId'         => self::getConstant('PROJECT_ID'),
+            'storageBucket'     => self::getConstant('STORAGE_BUCKET'),
+            'messagingSenderId' => self::getConstant('MESSAGING_SENDER_ID'),
+            'appId'             => self::getConstant('APP_ID')
         ];
     }
 
@@ -49,7 +54,7 @@ class FirebaseConfig {
         }
 
         $path = str_replace('SG-NODE2', $nodeId, self::ENDPOINTS[$endpoint]);
-        return self::DATABASE_URL . $path;
+        return self::getConstant('DATABASE_URL') . $path;
     }
 
     public static function getMySQLNode($firebaseNode) {
@@ -113,7 +118,7 @@ class FirebaseConfig {
     }
 
     public static function updateField($endpoint, $field, $value, $nodeId = 'SG-NODE2') {
-        $url = self::DATABASE_URL . '/' . $nodeId . '/' . $endpoint . '/' . $field . '.json';
+        $url = self::getConstant('DATABASE_URL') . '/' . $nodeId . '/' . $endpoint . '/' . $field . '.json';
         
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");

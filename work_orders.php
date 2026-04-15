@@ -19,8 +19,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_work_order']))
     $stmt->bind_param("iiisss", $light_id, $alert_id, $technician_id, $action_taken, $notes, $scheduled_date);
     $stmt->execute();
 
-    $conn->query("UPDATE alerts SET status = 'Acknowledged', acknowledged_at = NOW(), acknowledged_by = {$_SESSION['user_id']} 
-                  WHERE alert_id = $alert_id");
+    // ── SECURITY HARDENING: Parameterized Acknowledgment ──
+    $upd_stmt = $conn->prepare("UPDATE alerts SET status = 'Acknowledged', acknowledged_at = NOW(), acknowledged_by = ? WHERE alert_id = ?");
+    $upd_stmt->bind_param("ii", $_SESSION['user_id'], $alert_id);
+    $upd_stmt->execute();
+    $upd_stmt->close();
 
     logActivity($conn, $_SESSION['user_id'], 'Work Order Created', "Work order created for alert #$alert_id");
     header('Location: work_orders.php?success=created');
@@ -295,9 +298,9 @@ endif; ?>
     </div>
     <?php
 else: ?>
-    <div style="text-align: center; padding: 60px 20px; background: #f9fafb; border-radius: 8px;">
+    <div style="text-align: center; padding: 60px 20px; background: var(--muted); border: 1px dashed var(--border); border-radius: 8px;">
         <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
-        <p style="color: #64748b; font-size: 16px; margin: 0;">No active work orders at this time.</p>
+        <p style="color: var(--dim); font-size: 16px; margin: 0;">No active work orders at this time.</p>
     </div>
     <?php
 endif; ?>
@@ -338,9 +341,9 @@ endif; ?>
     </div>
     <?php
 else: ?>
-    <div style="text-align: center; padding: 60px 20px; background: #f9fafb; border-radius: 8px;">
+    <div style="text-align: center; padding: 60px 20px; background: var(--muted); border: 1px dashed var(--border); border-radius: 8px;">
         <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
-        <p style="color: #64748b; font-size: 16px; margin: 0;">No completed work orders in the last 30 days.</p>
+        <p style="color: var(--dim); font-size: 16px; margin: 0;">No completed work orders in the last 30 days.</p>
     </div>
     <?php
 endif; ?>
@@ -398,13 +401,13 @@ endif; ?>
     
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px;">
     <?php foreach ($pending_pm as $node): ?>
-        <div style="background: #ffffff; border: 1px solid #fde68a; padding: 16px 20px; border-radius: 14px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); transition: transform 0.2s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+        <div style="background: var(--panel); border: 1px solid var(--border); padding: 16px 20px; border-radius: 14px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); transition: transform 0.2s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
             <div style="display: flex; flex-direction: column; gap: 4px;">
-                <div style="font-weight: 800; font-size: 1.1rem; color: #1e293b; letter-spacing: -0.5px;"><?php echo htmlspecialchars($node['node_name']); ?></div>
-                <div style="font-size: 0.8rem; color: #64748b; font-weight: 500;">
-                    Installed: <span style="color: #475569; font-weight: 600;"><?php echo date('M Y', strtotime($node['installed_at'] ?? $node['installation_date'])); ?></span> 
+                <div style="font-weight: 800; font-size: 1.1rem; color: var(--text); letter-spacing: -0.5px;"><?php echo htmlspecialchars($node['node_name']); ?></div>
+                <div style="font-size: 0.8rem; color: var(--text); opacity: 0.8; font-weight: 500;">
+                    Installed: <span style="color: var(--text); font-weight: 600;"><?php echo date('M Y', strtotime($node['installed_at'] ?? $node['installation_date'])); ?></span> 
                     <span style="margin: 0 6px; opacity: 0.3;">|</span> 
-                    Hours: <span style="color: #475569; font-weight: 600;"><?php echo number_format($node['runtime_hours'] ?? 0); ?></span>
+                    Hours: <span style="color: var(--text); font-weight: 600;"><?php echo number_format($node['runtime_hours'] ?? 0); ?></span>
                 </div>
             </div>
             <button onclick="showWorkOrderForm(0, <?php echo $node['light_id']; ?>, 'Routine Preventative Maintenance (Service Interval Reached)', '<?php echo htmlspecialchars($node['node_name']); ?>')" 
@@ -628,7 +631,7 @@ function viewDetails(logId, action, notes, nodeName, location, lat, lng) {
                 } else {
                     // If the div was somehow lost, reconstruct the wrapper
                     mapWrapper.innerHTML = `
-                        <div style="background: #f8fafc; padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 700; color: #475569;">📍 Node Location Map</div>
+                        <div style="background: var(--muted); padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 700; color: var(--dim);">📍 Node Location Map</div>
                         <div id="wo-map" style="height: 220px; width: 100%;"></div>
                     `;
                 }

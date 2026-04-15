@@ -299,6 +299,31 @@ nav a.active {
    background: linear-gradient(135deg, #f5f3ff, #ede9fe);
 }
 
+.dark-mode .kpi-card.green {
+   border-color: rgba(134, 239, 172, 0.2);
+   background: rgba(22, 163, 74, 0.1);
+}
+
+.dark-mode .kpi-card.red {
+   border-color: rgba(252, 165, 165, 0.2);
+   background: rgba(220, 38, 38, 0.1);
+}
+
+.dark-mode .kpi-card.yellow {
+   border-color: rgba(252, 211, 77, 0.2);
+   background: rgba(217, 119, 6, 0.1);
+}
+
+.dark-mode .kpi-card.blue {
+   border-color: rgba(147, 197, 253, 0.2);
+   background: rgba(37, 99, 235, 0.1);
+}
+
+.dark-mode .kpi-card.purple {
+   border-color: rgba(196, 181, 253, 0.2);
+   background: rgba(124, 58, 237, 0.1);
+}
+
 .kpi-icon {
    font-size: 28px;
    width: 48px;

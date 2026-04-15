@@ -107,9 +107,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             include __DIR__ . '/includes/access_denied_ui.php';
             exit();
         }
-        $conn->query("DELETE FROM camera_snapshots WHERE camera_id = $camera_id");
-        $conn->query("DELETE FROM camera_events WHERE camera_id = $camera_id");
-        $conn->query("DELETE FROM cctv_footage WHERE camera_id = $camera_id");
+        // ── SECURITY HARDENING: Parameterized Cleanup ──
+        foreach (['camera_snapshots', 'camera_events', 'cctv_footage'] as $table) {
+            $del_stmt = $conn->prepare("DELETE FROM $table WHERE camera_id = ?");
+            $del_stmt->bind_param("i", $camera_id);
+            $del_stmt->execute();
+            $del_stmt->close();
+        }
 
         $stmt = $conn->prepare("DELETE FROM cameras WHERE camera_id = ?");
         $stmt->bind_param("i", $camera_id);
@@ -342,7 +346,7 @@ $cameras_result->data_seek(0);
             width: 38px;
             height: 38px;
             border-radius: 10px;
-            background: white;
+            background: var(--panel);
             border: 1px solid var(--border);
             color: var(--text);
             display: flex;
@@ -1063,12 +1067,12 @@ $cameras_result->data_seek(0);
                     style="background: #d1fae5; width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;">
                     ▶️</div>
                 <div>
-                    <div style="font-size: 1.1rem; font-weight: 800; color: #0f172a;">Live Stream</div>
-                    <div style="font-size: 0.8rem; color: #64748b; margin-top: 2px;" id="playModalCamName">Camera Name
+                    <div style="font-size: 1.1rem; font-weight: 800; color: var(--text);">Live Stream</div>
+                    <div style="font-size: 0.8rem; color: var(--dim); margin-top: 2px;" id="playModalCamName">Camera Name
                     </div>
                 </div>
             </div>
-            <p style="font-size: 0.9rem; color: #475569; line-height: 1.6; margin-bottom: 24px;">
+            <p style="font-size: 0.9rem; color: var(--dim); line-height: 1.6; margin-bottom: 24px;">
                 The system is now connecting to the camera's RTSP stream. The live feed will be displayed in the camera
                 preview window shortly.
             </p>
@@ -1086,12 +1090,12 @@ $cameras_result->data_seek(0);
                     style="background: #eff6ff; width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;">
                     📸</div>
                 <div>
-                    <div style="font-size: 1.1rem; font-weight: 800; color: #0f172a;">Capture Snapshot</div>
-                    <div style="font-size: 0.8rem; color: #64748b; margin-top: 2px;" id="snapshotModalCamName">Camera
+                    <div style="font-size: 1.1rem; font-weight: 800; color: var(--text);">Capture Snapshot</div>
+                    <div style="font-size: 0.8rem; color: var(--dim); margin-top: 2px;" id="snapshotModalCamName">Camera
                         Name</div>
                 </div>
             </div>
-            <p style="font-size: 0.9rem; color: #475569; line-height: 1.6; margin-bottom: 24px;">
+            <p style="font-size: 0.9rem; color: var(--dim); line-height: 1.6; margin-bottom: 24px;">
                 The current frame has been successfully captured and saved to the snapshot gallery. You can view it in
                 the reports section.
             </p>
@@ -1115,8 +1119,8 @@ $cameras_result->data_seek(0);
                         style="background: #f5f3ff; width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;">
                         🔐</div>
                     <div>
-                        <div style="font-size: 1.1rem; font-weight: 800; color: #0f172a;">Secure Snapshot Gallery</div>
-                        <div style="font-size: 0.8rem; color: #64748b; margin-top: 2px;">End-to-End Encrypted Storage
+                        <div style="font-size: 1.1rem; font-weight: 800; color: var(--text);">Secure Snapshot Gallery</div>
+                        <div style="font-size: 0.8rem; color: var(--dim); margin-top: 2px;">End-to-End Encrypted Storage
                         </div>
                     </div>
                 </div>
@@ -1126,13 +1130,13 @@ $cameras_result->data_seek(0);
             <div id="galleryViewOnlyMessage"
                 style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px; text-align: center; margin: auto; width: 100%; max-width: 400px;">
                 <span style="font-size: 32px; display: block; margin-bottom: 12px;">🔒</span>
-                <h3 style="margin-top: 0; color: #0f172a; margin-bottom: 8px;">View Only Access</h3>
-                <p style="font-size: 0.875rem; color: #64748b; margin-bottom: 20px;">
+                <h3 style="margin-top: 0; color: var(--text); margin-bottom: 8px;">View Only Access</h3>
+                <p style="font-size: 0.875rem; color: var(--dim); margin-bottom: 20px;">
                     The snapshot gallery is encrypted and restricted to administrators. Observers have view-only access
                     to live feeds but cannot view captured evidence.
                 </p>
                 <div
-                    style="padding: 12px; background: #f1f5f9; border-radius: 8px; color: #64748b; font-weight: 600; font-size: 0.875rem; border: 1px dashed #cbd5e1;">
+                    style="padding: 12px; background: var(--muted); border-radius: 8px; color: var(--dim); font-weight: 600; font-size: 0.875rem; border: 1px dashed var(--border);">
                     RESTRICTED ACCESS
                 </div>
                 <button onclick="closeCCTVModal('snapshotGalleryModal')" class="btn"
@@ -1142,8 +1146,8 @@ $cameras_result->data_seek(0);
             <div id="galleryAuthGate"
                 style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px; text-align: center; margin: auto; width: 100%; max-width: 400px;">
                 <span style="font-size: 32px; display: block; margin-bottom: 12px;">🔒</span>
-                <h3 style="margin-top: 0; color: #0f172a; margin-bottom: 8px;">Authentication Required</h3>
-                <p style="font-size: 0.875rem; color: #64748b; margin-bottom: 20px;">
+                <h3 style="margin-top: 0; color: var(--text); margin-bottom: 8px;">Authentication Required</h3>
+                <p style="font-size: 0.875rem; color: var(--dim); margin-bottom: 20px;">
                     These images are encrypted on disk. Please enter your administrator password to unlock and decrypt
                     the gallery.
                 </p>
@@ -1168,7 +1172,7 @@ $cameras_result->data_seek(0);
                     style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px;">
 
                 </div>
-                <div id="galleryLoading" style="text-align: center; padding: 40px; color: #64748b; font-size: 0.9rem;">
+                <div id="galleryLoading" style="text-align: center; padding: 40px; color: var(--dim); font-size: 0.9rem;">
                     Loading encrypted snapshots...
                 </div>
             </div>
@@ -1183,12 +1187,12 @@ $cameras_result->data_seek(0);
                     style="background: #fef2f2; width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;">
                     🗑️</div>
                 <div>
-                    <div style="font-size: 1.1rem; font-weight: 800; color: #0f172a;">Remove Camera?</div>
-                    <div style="font-size: 0.8rem; color: #64748b; margin-top: 2px;" id="deleteModalCamName">Camera ID
+                    <div style="font-size: 1.1rem; font-weight: 800; color: var(--text);">Remove Camera?</div>
+                    <div style="font-size: 0.8rem; color: var(--dim); margin-top: 2px;" id="deleteModalCamName">Camera ID
                     </div>
                 </div>
             </div>
-            <p style="font-size: 0.9rem; color: #475569; line-height: 1.6; margin-bottom: 24px;">
+            <p style="font-size: 0.9rem; color: var(--dim); line-height: 1.6; margin-bottom: 24px;">
                 Are you sure you want to completely remove this camera and its footage history from the system?
                 <strong>This action cannot be undone.</strong>
             </p>
@@ -1425,7 +1429,7 @@ $cameras_result->data_seek(0);
                 loader.style.display = 'none';
 
                 if (snapshots.length === 0) {
-                    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #64748b; padding: 40px;">No snapshots captured yet.</div>';
+                    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--dim); padding: 40px;">No snapshots captured yet.</div>';
                     return;
                 }
 
@@ -1446,8 +1450,8 @@ $cameras_result->data_seek(0);
                     const info = document.createElement('div');
                     info.style.cssText = 'padding: 12px 14px;';
                     info.innerHTML = `
-                <div style="font-weight: 700; font-size: 0.85rem; color: #0f172a; margin-bottom: 4px;">Camera ${snap.camera_id}</div>
-                <div style="font-size: 0.75rem; color: #64748b;">📅 ${new Date(snap.created_at).toLocaleString()}</div>
+                <div style="font-weight: 700; font-size: 0.85rem; color: var(--text); margin-bottom: 4px;">Camera ${snap.camera_id}</div>
+                <div style="font-size: 0.75rem; color: var(--dim);">📅 ${new Date(snap.created_at).toLocaleString()}</div>
             `;
 
                     card.appendChild(img);

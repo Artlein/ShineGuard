@@ -6,12 +6,13 @@
  */
 
 require_once 'dbconnect.php';
-require_once 'includes/phpMQTT.php';
+// Autoloaded via Composer in dbconnect.php
 
-$server   = 'broker.emqx.io';
-$port     = 1883;
-$username = '';
-$password = '';
+
+$server   = $_ENV['MQTT_SERVER'] ?? 'broker.emqx.io';
+$port     = (int)($_ENV['MQTT_PORT'] ?? 1883);
+$username = $_ENV['MQTT_USER'] ?? '';
+$password = $_ENV['MQTT_PASS'] ?? '';
 $client_id = 'shineguard_bridge_' . uniqid();
 
 function log_message($msg) {

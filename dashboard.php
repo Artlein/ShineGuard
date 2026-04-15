@@ -271,11 +271,11 @@ if (!isset($theme_color)) {
                 ?>
                 <div class="alert-item <?php echo $sev_class; ?>">
                     <div class="alert-header">
-                        <span class="alert-node"><?php echo $alert['node_name']; ?></span>
+                        <span class="alert-node"><?php echo htmlspecialchars($alert['node_name']); ?></span>
                         <span class="alert-time"><?php echo date('H:i', strtotime($alert['created_at'])); ?></span>
                     </div>
                     <div class="alert-description">
-                        <?php echo substr($alert['description'], 0, 80); ?>...
+                        <?php echo htmlspecialchars(substr($alert['description'], 0, 80)); ?>...
                     </div>
                 </div>
                 <?php endwhile; ?>
@@ -361,9 +361,9 @@ if (!isset($theme_color)) {
                         ?>
                     </div>
                     <div class="activity-content">
-                        <div class="activity-action"><?php echo $log['action']; ?></div>
+                        <div class="activity-action"><?php echo htmlspecialchars($log['action']); ?></div>
                         <div class="activity-details">
-                            <?php echo $log['username'] ?? 'System'; ?> • 
+                            <?php echo htmlspecialchars($log['username'] ?? 'System'); ?> • 
                             <?php echo date('M d, H:i', strtotime($log['created_at'])); ?>
                         </div>
                     </div>

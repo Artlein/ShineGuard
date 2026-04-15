@@ -160,54 +160,64 @@ if ($res->num_rows === 1) {
     </div>
 
     <!-- UI Enhancement Styles -->
+    <!-- 🛡️ Interactive Scaling & Animation Styles -->
     <style>
-        .pw-requirements-panel {
-            background: rgba(15, 23, 42, 0.03);
-            border: 1px solid rgba(15, 23, 42, 0.08);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 24px;
-            transition: all 0.3s ease;
+        .login-container { 
+            max-width: 800px;
+            transition: transform 0.3s ease;
         }
-        .req-title {
-            font-size: 11px;
-            font-weight: 800;
-            color: #64748b;
-            letter-spacing: 0.05em;
-            margin-bottom: 12px;
-        }
-        .req-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 8px;
-        }
-        .req-item {
-            font-size: 13px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            transition: all 0.2s ease;
-            opacity: 0.6;
-        }
-        .req-item span { font-size: 14px; }
-        .req-item.valid { opacity: 1; color: #10b981; }
-        .req-item.invalid { color: #64748b; }
         
-        .req-note {
-            margin-top: 15px;
-            padding-top: 12px;
-            border-top: 1px solid rgba(15, 23, 42, 0.05);
-            font-size: 11px;
-            color: #94a3b8;
-            line-height: 1.5;
+        /* Interactive Expand Logic */
+        .pw-requirements-panel {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            padding: 0 12px !important;
+            margin-bottom: 0 !important;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none !important;
+        }
+        
+        .pw-requirements-panel.active {
+            max-height: 200px;
+            opacity: 1;
+            padding: 12px !important;
+            margin-bottom: 20px !important;
+            border: 1px solid rgba(0,0,0,0.05) !important;
+            background: rgba(0,0,0,0.02);
+        }
+
+        /* 📱 Responsive Height Scaling */
+        @media (max-height: 850px) {
+            .login-container { transform: scale(0.9); }
+            .login-left { padding: 30px !important; }
+            .login-right { padding: 30px 40px !important; }
+            .logo-circle { width: 80px !important; height: 80px !important; }
+            .brand-text h1 { font-size: 28px !important; }
+        }
+        
+        @media (max-height: 720px) {
+            .login-container { transform: scale(0.8); margin: 0; }
+            body { align-items: flex-start; padding-top: 20px; }
+        }
+
+        @media (max-width: 768px) { 
+            .login-container { max-width: 360px; transform: scale(1) !important; } 
         }
     </style>
     
     <script>
+        const pwInput = document.getElementById('password');
+        const reqPanel = document.querySelector('.pw-requirements-panel');
+
+        // Interactive Expansion
+        pwInput.addEventListener('focus', () => reqPanel.classList.add('active'));
+        // We keep it open once they start typing so they can see progress
+        pwInput.addEventListener('input', () => {
+            if (pwInput.value.length > 0) reqPanel.classList.add('active');
+            validatePassword();
+        });
+
         function togglePassword(id) {
             const el = document.getElementById(id);
             const btn = el.nextElementSibling.nextElementSibling;

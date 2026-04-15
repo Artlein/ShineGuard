@@ -49,3 +49,11 @@ task.md
 
 # --- PHP Session Files ---
 sess_*
+
+# --- Local Staging & Managed Dependencies ---
+vendor/
+.env
+composer.phar
+*.pdf
+exports/
+

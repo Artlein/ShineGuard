@@ -33,6 +33,16 @@ jobs:
             git clean -fd
             git reset --hard origin/main
             
+            # --- DEPENDENCY MANAGEMENT ---
+            if [ -f "composer.json" ]; then
+                echo "📦 Installing Dependencies (Composer)..."
+                # Ensure composer is run as the web user or with correct permissions
+                composer install --no-dev --optimize-autoloader --no-interaction || {
+                    echo "⚠️ Composer failed. Attempting with sudo..."
+                    sudo composer install --no-dev --optimize-autoloader --no-interaction
+                }
+            fi
+            
             # Restore Permissions for Web Server
             echo "🛡️ Finalizing Permissions..."
             sudo chown -R www-data:www-data /var/www/html/ShineGuard

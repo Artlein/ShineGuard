@@ -55,7 +55,11 @@ function triggerScheduleAction($conn, $schedule_id, $action, $dimming_level, $to
     $power_state = ($action === 'ON') ? 'ON' : 'OFF';
     $dim_level = ($action === 'ON') ? $dimming_level : 0;
     
-    $conn->query("UPDATE streetlights SET power_state = '$power_state', dimming_level = $dim_level WHERE status != 'Maintenance'");
+    // ── SECURITY HARDENING: Parameterized Schedule Action ──
+    $upd_stmt = $conn->prepare("UPDATE streetlights SET power_state = ?, dimming_level = ? WHERE status != 'Maintenance'");
+    $upd_stmt->bind_param("si", $power_state, $dim_level);
+    $upd_stmt->execute();
+    $upd_stmt->close();
     
     $firebaseUpdate = [
         'mode' => ($action === 'ON') ? 1 : 2, 
@@ -178,7 +182,11 @@ function createPredictiveAlert($conn, $light_id, $parameter, $value, $status, $t
     $stmt->execute();
     
     if ($status === 'CRITICAL') {
-        $conn->query("UPDATE streetlights SET status = 'Maintenance' WHERE light_id = $light_id");
+        // ── SECURITY HARDENING: Parameterized Status Update ──
+        $maint_stmt = $conn->prepare("UPDATE streetlights SET status = 'Maintenance' WHERE light_id = ?");
+        $maint_stmt->bind_param("i", $light_id);
+        $maint_stmt->execute();
+        $maint_stmt->close();
     }
 }
 

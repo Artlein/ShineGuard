@@ -7,12 +7,19 @@
  * Usage: php mqtt_simulate.php --node=1
  */
 
-require_once __DIR__ . '/../includes/phpMQTT.php';
+require_once __DIR__ . '/../vendor/autoload.php';
+use Bluerhinos\phpMQTT;
 
-$server   = 'broker.emqx.io';
-$port     = 1883;
-$username = '';
-$password = '';
+// Load Environment Variables
+if (file_exists(__DIR__ . '/../.env')) {
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
+    $dotenv->load();
+}
+
+$server   = $_ENV['MQTT_SERVER'] ?? 'broker.emqx.io';
+$port     = (int)($_ENV['MQTT_PORT'] ?? 1883);
+$username = $_ENV['MQTT_USER'] ?? '';
+$password = $_ENV['MQTT_PASS'] ?? '';
 
 // Get Node ID from CLI
 $options = getopt("", ["node:"]);

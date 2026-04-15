@@ -118,7 +118,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
         // If the first log in our filter isn't the global first log, we need its actual predecessor
         if ($v_data[0]['log_id'] != $first_log['log_id']) {
             $pred_id = $v_data[0]['log_id'];
-            $pred_res = $conn->query("SELECT log_hash FROM activity_logs WHERE log_id < $pred_id ORDER BY log_id DESC LIMIT 1");
+            // ── SECURITY HARDENING: Parameterized Chain Verification ──
+            $pred_stmt = $conn->prepare("SELECT log_hash FROM activity_logs WHERE log_id < ? ORDER BY log_id DESC LIMIT 1");
+            $pred_stmt->bind_param("i", $pred_id);
+            $pred_stmt->execute();
+            $pred_res = $pred_stmt->get_result();
+            $pred_stmt->close();
             if ($pred_row = $pred_res->fetch_assoc()) {
                 $current_prev_hash = $pred_row['log_hash'];
             }
@@ -393,14 +398,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
                     <p>Comprehensive audit trail for ShineGuard Hulo</p>
                 </div>
                 <div style="display: flex; gap: 12px; align-items: center;">
-                    <form method="POST" style="margin: 0;">
+                    <form method="POST" style="margin: 0;" id="integrityForm">
                         <input type="hidden" name="verify_integrity" value="1">
-                        <button type="submit" class="btn-filter" style="background: #6366f1; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);">
+                        <button type="button" class="btn-filter" style="background: #6366f1; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);" onclick="runIntegrityCheck()">
                             🛡️ Verify Log Integrity
                         </button>
                     </form>
-                    <a href="activity_logs.php?export=csv&start_date=<?php echo $start_date; ?>&end_date=<?php echo $end_date; ?>&action=<?php echo urlencode($action_filter); ?>&user_id=<?php echo $user_filter; ?>" class="btn-export">
+                    <a href="activity_logs.php?export=csv&start_date=<?php echo $start_date; ?>&end_date=<?php echo $end_date; ?>&action=<?php echo urlencode($action_filter); ?>&user_id=<?php echo $user_filter; ?>" class="btn-export" id="exportCsvBtn" onclick="handleCsvExport(event)">
                         <span>📥 Export to CSV</span>
+                    </a>
+                    <a href="activity_logs_pdf.php?start_date=<?php echo $start_date; ?>&end_date=<?php echo $end_date; ?>&action=<?php echo urlencode($action_filter); ?>&user_id=<?php echo $user_filter; ?>" class="btn-export" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border-color: transparent;" onclick="handlePdfExport()">
+                        <span>📄 Download PDF</span>
                     </a>
                 </div>
             </div>
@@ -509,7 +517,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
                                             <div class="user-pill">
                                                 <div class="user-avatar"><?php echo $initials; ?></div>
                                                 <div class="user-info">
-                                                    <strong><?php echo maskPII($log['full_name'] ?: 'System Interface'); ?></strong>
+                                                    <strong><?php echo htmlspecialchars(maskPII($log['full_name'] ?: 'System Interface')); ?></strong>
                                                     <span><?php echo htmlspecialchars($log['role'] ?: 'Automated'); ?></span>
                                                 </div>
                                             </div>
@@ -565,5 +573,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
             </div>
         </main>
     </div>
+
+<!-- Integrity Confirm Modal -->
+<div id="integrityConfirmModal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.55); backdrop-filter:blur(10px); z-index:99999; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:20px; padding:2rem 2.5rem; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.2); font-family:'Inter',sans-serif; text-align:center; animation:slideInRight 0.35s cubic-bezier(0.34,1.56,0.64,1);">
+        <div style="font-size:40px; margin-bottom:1rem;">🛡️</div>
+        <div style="font-size:1.1rem; font-weight:800; color:#0f172a; margin-bottom:0.5rem;">Run Integrity Audit?</div>
+        <p style="font-size:13px; color:#64748b; margin:0 0 1.5rem; line-height:1.6;">This will perform a mathematical forensic verification of all visible log entries.</p>
+        <div style="display:flex; gap:0.75rem;">
+            <button onclick="cancelIntegrity()" style="flex:1; padding:12px; border-radius:12px; border:2px solid #e2e8f0; background:white; font-weight:700; font-size:14px; cursor:pointer; color:#64748b; transition:all 0.2s;" onmouseenter="this.style.background='#f8fafc'" onmouseleave="this.style.background='white'">Cancel</button>
+            <button onclick="confirmIntegrity()" style="flex:1; padding:12px; border-radius:12px; border:none; background:#6366f1; color:white; font-weight:700; font-size:14px; cursor:pointer; box-shadow:0 4px 12px rgba(99,102,241,0.3); transition:all 0.2s;" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform='none'">🛡️ Yes, Verify</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // CSV Export: show toast then proceed
+    function handleCsvExport(e) {
+        window.sgToast('📥', 'Exporting CSV', 'Preparing audit log download...', '#3b82f6', '#eff6ff');
+    }
+
+    // PDF Export: show password toast
+    function handlePdfExport() {
+        setTimeout(() => {
+            window.sgToast('🔐', 'PDF Downloaded — Protected', 'Use your ShineGuard login password to open the file.', '#3b82f6', '#eff6ff');
+        }, 500);
+    }
+
+    // Integrity Check: show inline confirm then submit form
+    function runIntegrityCheck() {
+        document.getElementById('integrityConfirmModal').style.display = 'flex';
+    }
+
+    function confirmIntegrity() {
+        document.getElementById('integrityConfirmModal').style.display = 'none';
+        window.sgToast('🔍', 'Verifying Integrity', 'Running cryptographic audit on log chain...', '#6366f1', '#eef2ff');
+        setTimeout(() => document.getElementById('integrityForm').submit(), 800);
+    }
+
+    function cancelIntegrity() {
+        document.getElementById('integrityConfirmModal').style.display = 'none';
+    }
+
+    // Show result toast on page load if integrity check just ran
+    <?php if (!empty($integrity_results)): ?>
+    <?php
+        $total = count($integrity_results);
+        $tampered = count(array_filter($integrity_results, fn($v) => !$v));
+    ?>
+    window.addEventListener('DOMContentLoaded', () => {
+        <?php if ($tampered > 0): ?>
+        window.sgToast('🚨', 'Integrity Alert', '<?php echo $tampered; ?> tampered record(s) detected out of <?php echo $total; ?> entries.', '#ef4444', 'rgba(239,68,68,0.1)');
+        <?php else: ?>
+        window.sgToast('✅', 'Integrity Confirmed', 'All <?php echo $total; ?> log entries verified — chain intact.', '#10b981', '#ecfdf5');
+        <?php endif; ?>
+    });
+    <?php endif; ?>
+</script>
 </body>
 </html>

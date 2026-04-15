@@ -37,7 +37,10 @@ if ($res->num_rows === 1) {
         
         if ($update_stmt->execute()) {
             // 3. Delete token
-            $conn->query("DELETE FROM password_resets WHERE email = '$email'");
+            $del_stmt = $conn->prepare("DELETE FROM password_resets WHERE email = ?");
+            $del_stmt->bind_param("s", $email);
+            $del_stmt->execute();
+            $del_stmt->close();
             
             // 4. Log activity
             // Find user_id

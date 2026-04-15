@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/vendor/autoload.php';
 /**
  * ENTERPRISE SECURITY HEADERS (Pillar 3)
  */
@@ -12,31 +13,34 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-$host     = 'localhost';
-$host     = 'localhost';
-$database = 'Hulo';
+// ── CORPORATE STANDARDS: Configuration Layer ──
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->safeLoad();
 
 // Auto-detect environment
 $is_aws = file_exists('/var/www/html/ShineGuard');
 
+$host     = $_ENV['DB_HOST'] ?? 'localhost';
+$database = $_ENV['DB_NAME'] ?? 'Hulo';
+
 if ($is_aws) {
     // AWS EC2 Environment
-    $user     = 'shineguard';
-    $password = 'ShineGuard2026';
+    $user     = $_ENV['DB_USER_AWS'] ?? 'shineguard';
+    $password = $_ENV['DB_PASS_AWS'] ?? 'ShineGuard2026';
 } else {
     // Local XAMPP Environment
-    $user     = 'root';
-    $password = '';
+    $user     = $_ENV['DB_USER'] ?? 'root';
+    $password = $_ENV['DB_PASS'] ?? '';
 }
 
 /**
  * CORPORATE EMAIL INFRASTRUCTURE (Mailtrap Sandbox)
- * Grab your credentials from https://mailtrap.io
  */
-define('MAILTRAP_API_TOKEN', '1455d7c786b90dcc3450dfd347ca82ba');
-define('MAILTRAP_INBOX_ID',  '4546141');
-define('SYSTEM_EMAIL',       'noreply@hulo.barangay.ph');
-define('SYSTEM_NAME',        'ShineGuard Security');
+define('MAILTRAP_API_TOKEN', $_ENV['MAILTRAP_TOKEN'] ?? '1455d7c786b90dcc3450dfd347ca82ba');
+define('MAILTRAP_INBOX_ID',  $_ENV['MAILTRAP_INBOX'] ?? '4546141');
+define('SYSTEM_EMAIL',       $_ENV['SYSTEM_EMAIL'] ?? 'noreply@hulo.barangay.ph');
+define('SYSTEM_NAME',        $_ENV['SYSTEM_NAME']  ?? 'ShineGuard Security');
+
 
 try {
     $conn = @new mysqli($host, $user, $password, $database);
@@ -53,112 +57,7 @@ try {
 
 $conn->set_charset("utf8mb4");
 
-// Auto-create missing activity_logs table for AWS (without strict FK constraint)
-$conn->query("CREATE TABLE IF NOT EXISTS `activity_logs` (
-  `log_id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) DEFAULT NULL,
-  `action` varchar(255) NOT NULL,
-  `details` text DEFAULT NULL,
-  `ip_address` varchar(45) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`log_id`),
-  KEY `idx_user_created` (`user_id`,`created_at`),
-  KEY `idx_created` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
-
-// Patch: add created_at column if it was missing when the table was first created
-$col_check = $conn->query("SHOW COLUMNS FROM `activity_logs` LIKE 'created_at'");
-if ($col_check && $col_check->num_rows === 0) {
-    $conn->query("ALTER TABLE `activity_logs` ADD COLUMN `created_at` timestamp NOT NULL DEFAULT current_timestamp()");
-    $conn->query("ALTER TABLE `activity_logs` ADD KEY `idx_created` (`created_at`)");
-    $conn->query("ALTER TABLE `activity_logs` ADD KEY `idx_user_created` (`user_id`, `created_at`)");
-}
-
-// Patch: add log_hash column for Tamper-Evident Logging (Immutable Audit)
-$hash_check = $conn->query("SHOW COLUMNS FROM `activity_logs` LIKE 'log_hash'");
-if ($hash_check && $hash_check->num_rows === 0) {
-    $conn->query("ALTER TABLE `activity_logs` ADD COLUMN `log_hash` varchar(64) DEFAULT NULL");
-}
-
-// Security & MFA Patch for `users` table
-$users_cols = $conn->query("SHOW COLUMNS FROM `users`")->fetch_all(MYSQLI_ASSOC);
-$existing_cols = array_column($users_cols, 'Field');
-
-if (!in_array('mfa_enabled', $existing_cols)) {
-    $conn->query("ALTER TABLE `users` ADD COLUMN `mfa_enabled` tinyint(1) DEFAULT 0");
-}
-if (!in_array('mfa_secret', $existing_cols)) {
-    $conn->query("ALTER TABLE `users` ADD COLUMN `mfa_secret` varchar(32) DEFAULT NULL");
-}
-if (!in_array('failed_attempts', $existing_cols)) {
-    $conn->query("ALTER TABLE `users` ADD COLUMN `failed_attempts` int(11) DEFAULT 0");
-}
-if (!in_array('last_failed_attempt', $existing_cols)) {
-    $conn->query("ALTER TABLE `users` ADD COLUMN `last_failed_attempt` datetime DEFAULT NULL");
-}
-if (!in_array('lockout_until', $existing_cols)) {
-    $conn->query("ALTER TABLE `users` ADD COLUMN `lockout_until` datetime DEFAULT NULL");
-}
-
-// Maintenance & Lifecycle Patch for `streetlights` table
-$light_check = $conn->query("SHOW COLUMNS FROM `streetlights` LIKE 'installed_at'");
-if ($light_check && $light_check->num_rows === 0) {
-    // We detected missing maintenance columns, let's mature the schema
-    $conn->query("ALTER TABLE `streetlights` ADD COLUMN `installed_at` date DEFAULT NULL");
-    $conn->query("ALTER TABLE `streetlights` ADD COLUMN `runtime_hours` int(11) DEFAULT 0");
-    $conn->query("ALTER TABLE `streetlights` ADD COLUMN `hardware_revision` varchar(50) DEFAULT 'v1.0'");
-    
-    // Backfill installed_at from installation_date if it exists
-    $conn->query("UPDATE `streetlights` SET installed_at = installation_date WHERE installed_at IS NULL AND installation_date IS NOT NULL");
-}
-
-// Reporting Archive Patch (Historical Governance)
-$conn->query("CREATE TABLE IF NOT EXISTS `report_archive` (
-  `report_id` int(11) NOT NULL AUTO_INCREMENT,
-  `report_name` varchar(255) NOT NULL,
-  `report_type` varchar(50) NOT NULL,
-  `period_range` varchar(100) NOT NULL,
-  `generated_by` int(11) DEFAULT NULL,
-  `generated_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `filename` varchar(255) NOT NULL,
-  `file_hash` char(64) DEFAULT NULL,
-  PRIMARY KEY (`report_id`),
-  KEY `idx_generated_at` (`generated_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
-
-// Inventory Stock Patch (Workforce Logistics)
-$conn->query("CREATE TABLE IF NOT EXISTS `inventory_stock` (
-  `item_id` int(11) NOT NULL AUTO_INCREMENT,
-  `part_name` varchar(255) NOT NULL,
-  `part_number` varchar(100) NOT NULL,
-  `quantity` int(11) DEFAULT 0,
-  `min_stock_level` int(11) DEFAULT 5,
-  `unit_cost` decimal(10,2) DEFAULT 0.00,
-  `category` enum('Lighting','Sensors','Connectivity','Power') NOT NULL,
-  PRIMARY KEY (`item_id`),
-  UNIQUE KEY `part_number` (`part_number`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
-
-// Maintenance Logs Patch (MTTR Analytics)
-$conn->query("CREATE TABLE IF NOT EXISTS `maintenance_logs` (
-  `log_id` int(11) NOT NULL AUTO_INCREMENT,
-  `light_id` int(11) NOT NULL,
-  `alert_id` int(11) DEFAULT NULL,
-  `user_id` int(11) NOT NULL,
-  `action_taken` text NOT NULL,
-  `notes` text DEFAULT NULL,
-  `parts_replaced` text DEFAULT NULL,
-  `maintenance_date` datetime DEFAULT current_timestamp(),
-  `completion_time` int(11) DEFAULT NULL,
-  `cost` decimal(10,2) DEFAULT NULL,
-  `status` enum('Scheduled','In Progress','Completed','Cancelled') DEFAULT 'Scheduled',
-  PRIMARY KEY (`log_id`),
-  KEY `idx_light` (`light_id`),
-  KEY `idx_user` (`user_id`),
-  KEY `idx_maintenance_date` (`maintenance_date`),
-  KEY `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
-
+// ── CORPORATE STANDARDS: System Configuration ──
 date_default_timezone_set('Asia/Manila');
 
 $baseDir = str_replace('\\', '/', dirname(__FILE__));
@@ -172,20 +71,7 @@ define('BASE_URL', $protocol . $host . rtrim($relPath, '/') . '/');
 
 define('SESSION_IDLE_TIMEOUT', 1800); 
 
-// ── CORPORATE STANDARDS: Self-Healing Database Migration ──
-if (isset($conn)) {
-    try {
-        // Check if the recovery tracking system is initialized
-        $check = $conn->query("SHOW COLUMNS FROM `password_resets` LIKE 'status'");
-        if ($check && $check->num_rows == 0) {
-            $conn->query("ALTER TABLE password_resets 
-                         ADD COLUMN status ENUM('Pending', 'Fulfilled', 'Dismissed') DEFAULT 'Pending',
-                         ADD COLUMN admin_notes TEXT AFTER status");
-        }
-    } catch (Exception $e) {
-        // Silently continue if table doesn't exist yet or other transient issues.
-    }
-}
+// ── CORPORATE STANDARDS: Identitiy & Security ──
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -206,6 +92,8 @@ require_once __DIR__ . '/src/Services/IOTService.php';
 require_once __DIR__ . '/src/Services/SecurityService.php';
 require_once __DIR__ . '/src/Services/ReportingService.php';
 require_once __DIR__ . '/src/Services/MaintenanceService.php';
+require_once __DIR__ . '/firebase_config.php';
+
 
 /**
  * RESTORED STUBS
@@ -384,6 +272,16 @@ function requireLogin($require_role = null) {
 
     checkSessionTimeout();
 
+    // ── ZERO TRUST: Mandatory MFA Blockade ──
+    if (isset($_SESSION['mfa_setup_required']) && $_SESSION['mfa_setup_required'] === true) {
+        $allowed_pages = ['settings.php', 'logout.php'];
+        $current_page = basename($_SERVER['PHP_SELF']);
+        if (!in_array($current_page, $allowed_pages)) {
+            header('Location: settings.php?tab=security&setup=1&force=true&msg=mfa_required');
+            exit();
+        }
+    }
+
     if ($require_role !== null) {
         $user_role = getUserRole();
         $authorized = false;
@@ -437,6 +335,21 @@ function logActivity($conn, $user_id, $action, $details = '') {
 
 function sanitize($data) {
     return htmlspecialchars(strip_tags(trim($data)));
+}
+
+/**
+ * Retrieves a value from the system_config table with an optional default.
+ */
+function getSystemConfig($key, $default = null) {
+    global $conn;
+    $stmt = $conn->prepare("SELECT config_value FROM system_config WHERE config_key = ? LIMIT 1");
+    $stmt->bind_param("s", $key);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    if ($row = $res->fetch_assoc()) {
+        return $row['config_value'];
+    }
+    return $default;
 }
 
 /**

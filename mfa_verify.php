@@ -205,7 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .btn-verify {
             width: 100%;
-            background: #3b82f6;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
             border: none;
             padding: 16px;
@@ -213,10 +213,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-weight: 800;
             font-size: 16px;
             cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);
+            position: relative;
+            overflow: hidden;
         }
-        .btn-verify:hover { background: #2563eb; transform: translateY(-2px); box-shadow: 0 12px 24px rgba(59, 130, 246, 0.3); }
+
+        .btn-verify::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            transition: left 0.6s;
+        }
+
+        .btn-verify:hover::before { left: 100%; }
+
+        .btn-verify:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(16, 185, 129, 0.3);
+        }
 
         .btn-cancel { color: rgba(255, 255, 255, 0.4); text-decoration: none; font-size: 14px; font-weight: 600; display: inline-block; margin-top: 25px; transition: color 0.2s;}
         .btn-cancel:hover { color: white; }

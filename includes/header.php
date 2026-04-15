@@ -142,10 +142,19 @@ $toast_map = [
     'report_exported'  => ['📥', 'Export Started',        'Your CSV report is being generated and downloaded.', '#10b981', '#ecfdf5'],
     'diagnostic_run'   => ['🔧', 'Diagnostic Complete',  'The self-check test has been completed successfully.', '#3b82f6', '#eff6ff'],
     'bulk_success'     => ['🎛️', 'Control Updated',     'Bulk operation executed successfully.', '#10b981', '#ecfdf5'],
+    'toggle_success'   => ['💡', 'Light Toggled',        'Streetlight power state updated successfully.', '#10b981', '#ecfdf5'],
+    'add_success'      => ['🏗️', 'Node Registered',     'New streetlight has been added to the network.', '#10b981', '#ecfdf5'],
+    'remove_success'   => ['🗑️',  'Node Removed',         'The streetlight has been removed from the system.', '#ef4444', '#fef2f2'],
     
     'user_added'       => ['👤', 'User Registered',      'New user account has been created successfully.', '#10b981', '#ecfdf5'],
     'user_updated'     => ['👤', 'User Updated',         'User account details have been updated successfully.', '#10b981', '#ecfdf5'],
     'user_deleted'     => ['🗑️',  'User Removed',         'The user account has been permanently deleted.', '#ef4444', '#fef2f2'],
+    
+    'password_reset'   => ['🔑', 'Password Reset',       'Your password has been updated. Please log in with your new credentials.', '#10b981', '#ecfdf5'],
+    'status_updated'   => ['✅', 'Status Updated',       'The account status has been updated successfully.', '#10b981', '#ecfdf5'],
+    'mfa_enabled'      => ['🛡️', 'MFA Enabled',         'Multi-factor authentication has been activated.', '#10b981', '#ecfdf5'],
+    'mfa_disabled'     => ['🔓', 'MFA Disabled',         'Multi-factor authentication has been deactivated.', '#f59e0b', '#fffbeb'],
+    'mfa_reset_success'=> ['🔄', 'MFA Reset',            'MFA has been reset for the selected user.', '#3b82f6', '#eff6ff'],
 ];
 
 $error_map = [
@@ -170,6 +179,9 @@ $error_map = [
     'self_deactivate'    => ['⚠️', 'Action Blocked',     'You cannot deactivate your own account.'],
     'self_demote'        => ['⚠️', 'Action Blocked',     'You cannot change your own role away from System Admin.'],
     'rate_limit'         => ['❄️', 'Cooling Period',      'Too many requests. Please wait a moment before trying again.'],
+    'invalid_mfa_code'   => ['🛡️', 'MFA Code Invalid',   'The 6-digit authenticator code you entered is incorrect or expired.'],
+    'mfa_mandatory_role' => ['⚠️', 'Security Policy',    'Administrator accounts are required to have MFA enabled at all times.'],
+    'invalid_mfa'        => ['🛡️', 'MFA Verification',   'An active MFA code is required to authorize this destructive action.'],
 ];
 
 if ($success_param && isset($toast_map[$success_param])) {
@@ -184,26 +196,7 @@ if ($success_param && isset($toast_map[$success_param])) {
     }
 }
 
-if ($toast):
 ?>
-<div id="globalToast" class="toast-item" style="
-    position:fixed; top:24px; right:24px; z-index:99999;
-    background:white; border-radius:16px;
-    box-shadow:0 8px 32px rgba(0,0,0,0.12),0 2px 8px rgba(0,0,0,0.08);
-    padding:18px 24px; display:flex; align-items:center; gap:16px;
-    max-width:380px; border-left:4px solid <?php echo $toast['color']; ?>;
-    animation:slideInRight 0.4s cubic-bezier(0.34,1.56,0.64,1);
-    font-family:'Inter',sans-serif;
-">
-    <div style="background:<?php echo $toast['bg']; ?>;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">
-        <?php echo $toast['icon']; ?>
-    </div>
-    <div style="flex:1;">
-        <div style="font-weight:800;color:#0f172a;font-size:0.9rem;margin-bottom:2px;"><?php echo $toast['title']; ?></div>
-        <div style="color:#64748b;font-size:0.8rem;"><?php echo $toast['msg']; ?></div>
-    </div>
-    <button onclick="this.closest('.toast-item').remove()" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:18px;line-height:1;padding:0;flex-shrink:0;">✕</button>
-</div>
 <style>
 @keyframes slideInRight {
     from { opacity:0; transform:translateX(60px); }
@@ -211,16 +204,6 @@ if ($toast):
 }
 </style>
 <script>
-(function() {
-    const t = document.getElementById('globalToast');
-    if (t) {
-        setTimeout(() => {
-            t.style.transition='opacity 0.4s'; t.style.opacity='0'; 
-            setTimeout(()=>t.remove(), 400); 
-        }, 4000);
-    }
-})();
-
 window.sgToast = function(icon, title, msg, color, bg) {
     const id = 'toast-' + Date.now();
     const html = `
@@ -246,15 +229,42 @@ window.sgToast = function(icon, title, msg, color, bg) {
     const div = document.createElement('div');
     div.innerHTML = html;
     document.body.appendChild(div.firstElementChild);
-    
     setTimeout(() => {
         const t = document.getElementById(id);
-        if (t) {
-            t.style.transition='opacity 0.4s'; t.style.opacity='0'; 
-            setTimeout(()=>t.remove(), 400); 
-        }
+        if (t) { t.style.transition='opacity 0.4s'; t.style.opacity='0'; setTimeout(()=>t.remove(), 400); }
     }, 4000);
 };
+</script>
+
+<?php if ($toast): ?>
+<div id="globalToast" class="toast-item" style="
+    position:fixed; top:24px; right:24px; z-index:99999;
+    background:white; border-radius:16px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.12),0 2px 8px rgba(0,0,0,0.08);
+    padding:18px 24px; display:flex; align-items:center; gap:16px;
+    max-width:380px; border-left:4px solid <?php echo $toast['color']; ?>;
+    animation:slideInRight 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    font-family:'Inter',sans-serif;
+">
+    <div style="background:<?php echo $toast['bg']; ?>;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">
+        <?php echo $toast['icon']; ?>
+    </div>
+    <div style="flex:1;">
+        <div style="font-weight:800;color:#0f172a;font-size:0.9rem;margin-bottom:2px;"><?php echo $toast['title']; ?></div>
+        <div style="color:#64748b;font-size:0.8rem;"><?php echo $toast['msg']; ?></div>
+    </div>
+    <button onclick="this.closest('.toast-item').remove()" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:18px;line-height:1;padding:0;flex-shrink:0;">✕</button>
+</div>
+<script>
+(function() {
+    const t = document.getElementById('globalToast');
+    if (t) {
+        setTimeout(() => {
+            t.style.transition='opacity 0.4s'; t.style.opacity='0'; 
+            setTimeout(()=>t.remove(), 400); 
+        }, 4000);
+    }
+})();
 </script>
 <?php endif; ?>
 

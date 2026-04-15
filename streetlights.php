@@ -2,296 +2,26 @@
 require_once 'dbconnect.php';
 requireLogin();
 
-// Retrieve Theme Color from System Configuration
-$theme_color = '#3b82f6'; // Default brand color
-if (isset($conn)) {
-    $theme_result = $conn->query("SELECT config_value FROM system_config WHERE config_key = 'theme_color' LIMIT 1");
-    if ($theme_result && $row = $theme_result->fetch_assoc()) {
-        $theme_color = $row['config_value'];
-    }
-}
+use ShineGuard\Controllers\StreetlightController;
+use ShineGuard\Services\IOTService;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'verify_password') {
-    checkCsrf();
-    if (isRecentlyAuthorized()) {
-        echo json_encode(['success' => true]);
-        exit();
-    }
+// ── ARCHITECTURE MODERNIZATION: Streetlight Controller ──
+$controller = new StreetlightController($conn);
+$controller->handleAction(); // Handle POST actions (Bulk, Toggle, Add, Delete)
+$data = $controller->index();  // Fetch all dashboard data
 
-    $admin_password = $_POST['admin_password'] ?? '';
+// Interface mapping for the View
+$streetlights = $data['streetlights'];
+$stats        = $data['stats'];
+$mttr_global  = $data['mttr'];
+$pending_pm   = $data['pending_pm'];
+$user_ctx     = $data['user'];
+$theme_color  = getSystemConfig('theme_color', '#10b981');
 
-    $user_id = $_SESSION['user_id'];
-    $stmt = $conn->prepare("SELECT password_hash FROM users WHERE user_id = ?");
-    $stmt->bind_param("i", $user_id);
-    $stmt->execute();
-    $user_data = $stmt->get_result()->fetch_assoc();
-
-    if ($user_data && password_verify($admin_password, $user_data['password_hash'])) {
-        setAuthorized();
-        
-        $source = $_POST['source'] ?? 'general';
-        $log_action = ($source === 'gallery') ? 'Gallery Access' : 'Elevated Access';
-        $log_details = ($source === 'gallery') ? 'User authorized access to encrypted snapshot gallery' : 'User successfully elevated session access';
-        
-        logActivity($conn, $user_id, $log_action, $log_details);
-        
-        echo json_encode(['success' => true]);
-    }
-    else {
-        echo json_encode(['success' => false]);
-    }
-    exit();
-}
-
-function getDimmingLabel($level)
-{
-    $level = intval($level);
-    if ($level <= 30)
-        return ['🌒 Low', '#3b82f6', '#eff6ff'];
-    if ($level <= 50)
-        return ['🌓 Medium', '#8b5cf6', '#f5f3ff'];
-    if ($level <= 75)
-        return ['🌔 High', '#f59e0b', '#fffbeb'];
-    return ['🌕 Full', '#10b981', '#ecfdf5'];
-}
-
-require_once 'firebase_config.php';
-
-
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
-    checkCsrf();
-    if (!canDo('control_streetlights')) {
-        include __DIR__ . '/includes/access_denied_ui.php';
-        exit();
-    }
-
-    $action = $_POST['bulk_action'];
-    $dimming = intval($_POST['dimming_level'] ?? 70);
-    $admin_password = $_POST['bulk_admin_password'] ?? '';
-    $range_val = $_POST['bulk_range'] ?? '';
-
-    if (!isRecentlyAuthorized()) {
-        $user_id = $_SESSION['user_id'];
-        $stmt = $conn->prepare("SELECT password_hash FROM users WHERE user_id = ?");
-        $stmt->bind_param("i", $user_id);
-        $stmt->execute();
-        $user_data = $stmt->get_result()->fetch_assoc();
-
-        if (!$user_data || !password_verify($admin_password, $user_data['password_hash'])) {
-            header('Location: streetlights.php?error=invalid_password');
-            exit();
-        }
-        setAuthorized();
-    }
-
-    $where_clause = "";
-    $scope_desc = "all streetlights";
-
-    if (!empty($range_val)) {
-        if (strpos($range_val, '-') !== false) {
-            // Handle Range (e.g. 1-10)
-            $parts = explode('-', $range_val);
-            $start = intval(trim($parts[0]));
-            $end = intval(trim($parts[1]));
-            if ($start > 0 && $end >= $start) {
-                $where_clause = " WHERE light_id BETWEEN $start AND $end";
-                $scope_desc = "streetlights #$start to #$end";
-            }
-        }
-        else {
-            // Handle List (e.g. 1, 5, 10 or 1 5 10)
-            $raw_ids = preg_split('/[\s,]+/', trim($range_val));
-            $clean_ids = [];
-            foreach ($raw_ids as $id) {
-                if (is_numeric($id))
-                    $clean_ids[] = intval($id);
-            }
-            if (!empty($clean_ids)) {
-                $where_clause = " WHERE light_id IN (" . implode(',', $clean_ids) . ")";
-                $scope_desc = "streetlights #" . implode(', #', $clean_ids);
-            }
-        }
-    }
-
-    if ($action === 'ON') {
-        $conn->query("UPDATE streetlights SET power_state = 'ON', dimming_level = $dimming" . $where_clause);
-        logActivity($conn, $_SESSION['user_id'], 'Bulk Control', "Turned $scope_desc ON at $dimming%");
-
-        // Note: IoT sync currently targets first node demo
-        $firebaseUpdate = [
-            'mode' => 1,
-            'targetBrightness' => $dimming,
-            'commandTimestamp' => round(microtime(true) * 1000)
-        ];
-        $url = FirebaseConfig::DATABASE_URL . '/SG-NODE2/Control.json';
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PATCH");
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($firebaseUpdate));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
-        curl_exec($ch);
-        curl_close($ch);
-
-    }
-    elseif ($action === 'OFF') {
-        $conn->query("UPDATE streetlights SET power_state = 'OFF'" . $where_clause);
-        logActivity($conn, $_SESSION['user_id'], 'Bulk Control', "Turned $scope_desc OFF");
-
-        $firebaseUpdate = [
-            'mode' => 2,
-            'targetBrightness' => 0,
-            'commandTimestamp' => round(microtime(true) * 1000)
-        ];
-        $url = FirebaseConfig::DATABASE_URL . '/SG-NODE2/Control.json';
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PATCH");
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($firebaseUpdate));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
-        curl_exec($ch);
-        curl_close($ch);
-    }
-
-    header('Location: streetlights.php?success=bulk_success');
-    exit();
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_streetlight') {
-    if (!canDo('manage_streetlights')) {
-        include __DIR__ . '/includes/access_denied_ui.php';
-        exit();
-    }
-
-    checkCsrf();
-
-    $node_name = sanitize($_POST['node_name']);
-    $location = sanitize($_POST['location']);
-    $lat = floatval($_POST['latitude']);
-    $lng = floatval($_POST['longitude']);
-    $install_date = !empty($_POST['installation_date']) ? $_POST['installation_date'] : date('Y-m-d');
-
-    $stmt = $conn->prepare("INSERT INTO streetlights (node_name, location, latitude, longitude, installation_date, status, power_state, dimming_level) VALUES (?, ?, ?, ?, ?, 'Active', 'OFF', 70)");
-    $stmt->bind_param("ssdds", $node_name, $location, $lat, $lng, $install_date);
-
-    if ($stmt->execute()) {
-        logActivity($conn, $_SESSION['user_id'], 'Add Streetlight', "Added new streetlight: $node_name at $location");
-        header('Location: streetlights.php?success=add_success');
-    }
-    else {
-        header('Location: streetlights.php?error=db_error');
-    }
-    $stmt->close();
-    exit();
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'remove_streetlight') {
-    if (!canDo('manage_streetlights')) {
-        include __DIR__ . '/includes/access_denied_ui.php';
-        exit();
-    }
-
-    checkCsrf();
-
-    $light_id = intval($_POST['light_id']);
-
-    // Get node name for logging before deletion
-    $stmt = $conn->prepare("SELECT node_name FROM streetlights WHERE light_id = ?");
-    $stmt->bind_param("i", $light_id);
-    $stmt->execute();
-    $name_res = $stmt->get_result()->fetch_assoc();
-    $node_name = $name_res['node_name'] ?? "Unknown (#$light_id)";
-
-    $stmt = $conn->prepare("DELETE FROM streetlights WHERE light_id = ?");
-    $stmt->bind_param("i", $light_id);
-
-    if ($stmt->execute()) {
-        logActivity($conn, $_SESSION['user_id'], 'Remove Streetlight', "Removed streetlight node: $node_name");
-        header('Location: streetlights.php?success=remove_success');
-    }
-    else {
-        header('Location: streetlights.php?error=db_error');
-    }
-    $stmt->close();
-    exit();
-}
-
-
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['light_id'])) {
-    checkCsrf();
-    if (!canDo('control_streetlights')) {
-        include __DIR__ . '/includes/access_denied_ui.php';
-        exit();
-    }
-
-    $light_id = intval($_POST['light_id']);
-    $action = $_POST['action'];
-
-    if ($action === 'toggle') {
-        $power = $_POST['power_state'] === 'ON' ? 'OFF' : 'ON';
-        $admin_password = $_POST['admin_password'] ?? '';
-
-        // Accept session-authorized window OR verify raw password
-        $authorized = isRecentlyAuthorized();
-        if (!$authorized) {
-            $user_id = $_SESSION['user_id'];
-            $stmt = $conn->prepare("SELECT password_hash FROM users WHERE user_id = ?");
-            $stmt->bind_param("i", $user_id);
-            $stmt->execute();
-            $user_data = $stmt->get_result()->fetch_assoc();
-
-            if (!$user_data || !password_verify($admin_password, $user_data['password_hash'])) {
-                header('Location: streetlights.php?error=invalid_password');
-                exit();
-            }
-            setAuthorized(); // start/refresh the 5-min window on successful password
-        }
-
-        $stmt = $conn->prepare("UPDATE streetlights SET power_state = ? WHERE light_id = ?");
-        $stmt->bind_param("si", $power, $light_id);
-        $stmt->execute();
-
-        $nodeQuery = $conn->prepare("SELECT node_name, dimming_level FROM streetlights WHERE light_id = ?");
-        $nodeQuery->bind_param("i", $light_id);
-        $nodeQuery->execute();
-        $nodeResult = $nodeQuery->get_result();
-        $nodeData = $nodeResult->fetch_assoc();
-
-        if ($nodeData['node_name'] === 'SL-001') {
-            $firebaseUpdate = [
-                'mode' => ($power === 'ON') ? 1 : 2,
-                'targetBrightness' => ($power === 'ON') ? $nodeData['dimming_level'] : 0,
-                'commandTimestamp' => round(microtime(true) * 1000)
-            ];
-            $url = FirebaseConfig::DATABASE_URL . '/SG-NODE2/Control.json';
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PATCH");
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($firebaseUpdate));
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
-            curl_exec($ch);
-            curl_close($ch);
-        }
-
-        logActivity($conn, $_SESSION['user_id'], 'Light Control', "Toggled light #$light_id to $power");
-    }
-
-    header('Location: streetlights.php');
-    exit();
-}
-
-$streetlights_query = "SELECT * FROM streetlights ORDER BY node_name";
-$streetlights_result = $conn->query($streetlights_query);
-
-if (!$streetlights_result) {
-    die("Query failed: " . $conn->error);
+// Helper proxy for UI continuity
+function getDimmingLabel($level) {
+    $d = IOTService::getDimmingLabel($level);
+    return [$d['label'], $d['color'], $d['bg']];
 }
 
 $diagnostic_message = '';
@@ -805,8 +535,7 @@ if (isset($_GET['diagnostic_id'])) {
                 <div style="padding: 20px;">
                     <div class="grid-map">
                         <?php
-$streetlights_result->data_seek(0);
-while ($light = $streetlights_result->fetch_assoc()):
+foreach ($streetlights as $light):
     $status_class = $light['power_state'] === 'ON' ? 'online' : 'offline';
 ?>
                         <div class="node-card <?php echo $status_class; ?>"
@@ -823,7 +552,7 @@ while ($light = $streetlights_result->fetch_assoc()):
                             </small>
                         </div>
                         <?php
-endwhile; ?>
+endforeach; ?>
                     </div>
                 </div>
             </div>
@@ -865,8 +594,7 @@ endwhile; ?>
                             </thead>
                             <tbody>
                                 <?php
-$streetlights_result->data_seek(0);
-while ($light = $streetlights_result->fetch_assoc()):
+foreach ($streetlights as $light):
 ?>
                                 <tr>
                                     <td><strong>
@@ -876,11 +604,11 @@ while ($light = $streetlights_result->fetch_assoc()):
                                         <?php echo htmlspecialchars($light['location']); ?>
                                     </td>
                                     <td><span class="badge <?php echo strtolower($light['status']); ?>">
-                                            <?php echo $light['status']; ?>
+                                            <?php echo htmlspecialchars($light['status']); ?>
                                         </span></td>
                                     <td><span
                                             class="badge <?php echo $light['power_state'] === 'ON' ? 'ok' : 'fail'; ?>">
-                                            <?php echo $light['power_state']; ?>
+                                            <?php echo htmlspecialchars($light['power_state']); ?>
                                         </span></td>
                                     <td>
                                         <?php list($label, $color, $bg) = getDimmingLabel($light['dimming_level']); ?>
@@ -924,7 +652,7 @@ while ($light = $streetlights_result->fetch_assoc()):
                                     </td>
                                 </tr>
                                 <?php
-endwhile; ?>
+endforeach; ?>
                             </tbody>
                         </table>
                     </div>
@@ -941,7 +669,7 @@ endwhile; ?>
                     </div>
                     <div>
                         <h2
-                            style="margin: 0; font-size: 1.5rem; color: #0f172a; font-weight: 800; letter-spacing: -0.5px;">
+                            style="margin: 0; font-size: 1.5rem; color: var(--text); font-weight: 800; letter-spacing: -0.5px;">
                             Bulk Control</h2>
                         <p style="margin: 4px 0 0 0; font-size: 0.95rem; color: #64748b; font-weight: 500;">Manage total
                             network or custom ranges</p>
@@ -962,7 +690,7 @@ endwhile; ?>
                         <!-- Column 1: Scope -->
                         <div class="command-section">
                             <label
-                                style="display: block; font-size: 0.9rem; font-weight: 700; color: #1e293b; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px;">🎯
+                                style="display: block; font-size: 0.9rem; font-weight: 700; color: var(--text); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px;">🎯
                                 Control Scope</label>
                             <div class="selector-grid">
                                 <div class="selector-card active" onclick="selectScope(this, 'all')">
@@ -990,7 +718,7 @@ endwhile; ?>
                                     style="width: 100%; padding: 14px; border-radius: 12px; border: 2px solid #e2e8f0; font-size: 15px; outline: none; transition: border-color 0.2s;"
                                     onfocus="this.style.borderColor='#3b82f6'">
                                 <div
-                                    style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 14px; border-radius: 12px; margin-top: 12px; font-size: 13px; color: #475569; display: flex; gap: 12px;">
+                                    style="background: var(--muted); border: 1px solid var(--border); padding: 14px; border-radius: 12px; margin-top: 12px; font-size: 13px; color: var(--dim); display: flex; gap: 12px;">
                                     <div style="font-size: 18px;">💡</div>
                                     <div>
                                         <strong>Smart Syntax:</strong> <br>
@@ -1008,7 +736,7 @@ endwhile; ?>
                         <!-- Column 2: Dimming -->
                         <div class="command-section">
                             <label
-                                style="display: block; font-size: 0.9rem; font-weight: 700; color: #1e293b; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px;">🔆
+                                style="display: block; font-size: 0.9rem; font-weight: 700; color: var(--text); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px;">🔆
                                 Target Dimming Level</label>
                             <div class="selector-grid">
                                 <div class="selector-card" onclick="setPremiumDim(this, 30)">
@@ -1092,7 +820,7 @@ endif; ?>
         <div class="modal-content modal-spring" style="max-width: 600px;">
             <div class="modal-header"
                 style="border-bottom: 1px solid var(--border); margin-bottom: 24px; padding-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-                <h2 style="margin: 0; font-size: 1.4rem; color: #1e293b;">🏗️ Register New Streetlight</h2>
+                <h2 style="margin: 0; font-size: 1.4rem; color: var(--text);">🏗️ Register New Streetlight</h2>
                 <button type="button" class="btn-sm" onclick="closeModal('addNodeModal')"
                     style="border: none; background: none; font-size: 1.2rem; cursor: pointer; color: #64748b;">✕</button>
             </div>
@@ -1313,17 +1041,27 @@ endif; ?>
             <p style="font-size:0.875rem; color:#475569; margin-bottom:24px; line-height:1.6;">Are you sure you want to
                 <strong>permanently delete</strong> this streetlight from the system? This action cannot be undone.</p>
 
-            <div style="display:flex; gap:12px; justify-content:flex-end;">
-                <button onclick="closeDeleteModal()" class="btn">Cancel</button>
-                <form method="POST" id="deleteNodeForm">
-                    <input type="hidden" name="action" value="remove_streetlight">
-                    <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
-                    <input type="hidden" name="light_id" id="delete_light_id">
+            <form method="POST" id="deleteNodeForm">
+                <input type="hidden" name="action" value="remove_streetlight">
+                <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                <input type="hidden" name="light_id" id="delete_light_id">
+
+                <?php if ($user_ctx['mfa_enabled']): ?>
+                <div style="margin-bottom: 24px; padding: 16px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
+                    <label style="display:block; font-size:12px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:10px;">🛡️ MFA Verification Required</label>
+                    <input type="text" name="mfa_code" placeholder="Enter 6-digit code" maxlength="6" required
+                        style="width:100%; padding:12px; border-radius:8px; border:1.5px solid #cbd5e1; font-family:'JetBrains Mono',monospace; letter-spacing:4px; text-align:center; font-size:18px;">
+                    <p style="font-size:11px; color:#94a3b8; margin-top:8px;">Enter the code from your authenticator app to authorize deletion.</p>
+                </div>
+                <?php endif; ?>
+
+                <div style="display:flex; gap:12px; justify-content:flex-end;">
+                    <button type="button" onclick="closeDeleteModal()" class="btn">Cancel</button>
                     <button type="submit"
                         style="padding:10px 22px; border-radius:10px; border:none; background:#ef4444; font-family:'Inter',sans-serif; font-size:0.875rem; font-weight:700; color:white; cursor:pointer; transition:all 0.2s; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);">Permanently
                         Delete</button>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
     </div>
     <?php
@@ -1479,17 +1217,7 @@ endif; ?>
     </script>
 
     <script>
-        const streetlights = <?php
-$streetlights_result->data_seek(0);
-$lights_array = [];
-while ($light = $streetlights_result->fetch_assoc()) {
-    $lights_array[] = $light;
-}
-echo json_encode($lights_array);
-?>;
-
-        let map;
-        let markers = [];
+        const streetlights = <?php echo json_encode($streetlights); ?>;
         const markerMap = {};
 
         function initMap() {
@@ -1767,10 +1495,10 @@ echo json_encode($lights_array);
                 inner.innerHTML = `
             <div style="text-align: center; padding: 20px 0;">
                 <div style="font-size: 30px; margin-bottom: 10px;">⏳</div>
-                <h3 style="margin: 0 0 10px 0; color: #0f172a;">Running Smart Diagnostics</h3>
-                <p style="color: #64748b; font-size: 14px; margin-bottom: 25px;">Please wait while we test hardware and network telemetry...</p>
+                <h3 style="margin: 0 0 10px 0; color: var(--text);">Running Smart Diagnostics</h3>
+                <p style="color: var(--dim); font-size: 14px; margin-bottom: 25px;">Please wait while we test hardware and network telemetry...</p>
                 
-                <div style="text-align: left; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 13px; color: #334155;">
+                <div style="text-align: left; background: var(--muted); padding: 20px; border-radius: 12px; border: 1px solid var(--border); font-family: monospace; font-size: 13px; color: var(--text);">
                     <div id="diag-step-1" style="margin-bottom: 8px;">[ ] Pinging IoT Node (Firebase)...</div>
                     <div id="diag-step-2" style="margin-bottom: 8px;">[ ] Reading Hardware Sensors...</div>
                     <div id="diag-step-3" style="margin-bottom: 8px;">[ ] Checking Relay States...</div>
@@ -1811,42 +1539,42 @@ echo json_encode($lights_array);
                     <div style="background: ${healthColor}20; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto;">
                         <span style="font-size: 28px;">${res.health === 'Excellent' ? '✅' : (res.health === 'Warning' ? '⚠️' : '❌')}</span>
                     </div>
-                    <h2 style="margin: 0 0 5px 0; color: #0f172a;">System Health: ${res.score}%</h2>
+                    <h2 style="margin: 0 0 5px 0; color: var(--text);">System Health: ${res.score}%</h2>
                     <div style="color: ${healthColor}; font-weight: 700; margin-bottom: 25px;">${res.health}</div>
                     
-                    <div style="text-align: left; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 25px;">
-                        <div style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; background: ${res.network.status === 'Pass' ? '#f0fdf4' : (res.network.status === 'Warning' ? '#fffbeb' : '#fef2f2')}">
+                    <div style="text-align: left; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 25px;">
+                        <div style="padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; background: ${res.network.status === 'Pass' ? 'rgba(16,185,129,0.05)' : (res.network.status === 'Warning' ? 'rgba(245,158,11,0.05)' : 'rgba(239,68,68,0.05)')}">
                             <span style="font-size: 16px; margin-right: 12px;">${res.network.status === 'Pass' ? '✅' : (res.network.status === 'Warning' ? '⚠️' : '❌')}</span>
                             <div>
-                                <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase;">Network Connection</div>
-                                <div style="font-size: 14px; font-weight: 600; color: #1e293b; line-height: 1.3;">${res.network.message}</div>
+                                <div style="font-size: 12px; font-weight: 700; color: var(--dim); text-transform: uppercase;">Network Connection</div>
+                                <div style="font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3;">${res.network.message}</div>
                             </div>
                         </div>
-                        <div style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; background: ${res.sensors.status === 'Pass' ? '#f0fdf4' : (res.sensors.status === 'Warning' ? '#fffbeb' : '#fef2f2')}">
+                        <div style="padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; background: ${res.sensors.status === 'Pass' ? 'rgba(16,185,129,0.05)' : (res.sensors.status === 'Warning' ? 'rgba(245,158,11,0.05)' : 'rgba(239,68,68,0.05)')}">
                             <span style="font-size: 16px; margin-right: 12px;">${res.sensors.status === 'Pass' ? '✅' : (res.sensors.status === 'Warning' ? '⚠️' : '❌')}</span>
                             <div>
-                                <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase;">Hardware Sensors</div>
-                                <div style="font-size: 14px; font-weight: 600; color: #1e293b; line-height: 1.3;">${res.sensors.message}</div>
+                                <div style="font-size: 12px; font-weight: 700; color: var(--dim); text-transform: uppercase;">Hardware Sensors</div>
+                                <div style="font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3;">${res.sensors.message}</div>
                             </div>
                         </div>
-                        <div style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; background: ${res.relay.status === 'Pass' ? '#f0fdf4' : (res.relay.status === 'Warning' ? '#fffbeb' : '#fef2f2')}">
+                        <div style="padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; background: ${res.relay.status === 'Pass' ? 'rgba(16,185,129,0.05)' : (res.relay.status === 'Warning' ? 'rgba(245,158,11,0.05)' : 'rgba(239,68,68,0.05)')}">
                             <span style="font-size: 16px; margin-right: 12px;">${res.relay.status === 'Pass' ? '✅' : (res.relay.status === 'Warning' ? '⚠️' : '❌')}</span>
                             <div>
-                                <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase;">Relay State</div>
-                                <div style="font-size: 14px; font-weight: 600; color: #1e293b; line-height: 1.3;">${res.relay.message}</div>
+                                <div style="font-size: 12px; font-weight: 700; color: var(--dim); text-transform: uppercase;">Relay State</div>
+                                <div style="font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3;">${res.relay.message}</div>
                             </div>
                         </div>
-                        <div style="padding: 12px 16px; display: flex; align-items: center; background: ${res.history.status === 'Pass' ? '#f0fdf4' : (res.history.status === 'Warning' ? '#fffbeb' : '#fef2f2')}">
+                        <div style="padding: 12px 16px; display: flex; align-items: center; background: ${res.history.status === 'Pass' ? 'rgba(16,185,129,0.05)' : (res.history.status === 'Warning' ? 'rgba(245,158,11,0.05)' : 'rgba(239,68,68,0.05)')}">
                             <span style="font-size: 16px; margin-right: 12px;">${res.history.status === 'Pass' ? '✅' : (res.history.status === 'Warning' ? '⚠️' : '❌')}</span>
                             <div>
-                                <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase;">History Check</div>
-                                <div style="font-size: 14px; font-weight: 600; color: #1e293b; line-height: 1.3;">${res.history.message}</div>
+                                <div style="font-size: 12px; font-weight: 700; color: var(--dim); text-transform: uppercase;">History Check</div>
+                                <div style="font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3;">${res.history.message}</div>
                             </div>
                         </div>
                     </div>
                     
                     <div style="display:flex; justify-content: center;">
-                        <button onclick="window.location.reload()" style="padding:10px 24px; border-radius:10px; border:none; background:#0f172a; font-family:'Inter',sans-serif; font-size:0.875rem; font-weight:700; color:white; cursor:pointer;">Close Report</button>
+                        <button class="btn" onclick="window.location.reload()" style="padding:10px 24px; font-size:0.875rem; font-weight:700;">Close Report</button>
                     </div>
                 </div>
             `;
@@ -2006,18 +1734,14 @@ echo json_encode($lights_array);
 
             // Deep-linking from search
             const urlParams = new URLSearchParams(window.location.search);
-            const lightId = urlParams.get('id');
-            if (lightId) {
-                // Find node data
-                const node = streetlights.find(n => n.light_id == lightId);
+            // ── ZERO TRUST: MFA Auto-Restore ──
+            const error = urlParams.get('error');
+            const action = urlParams.get('action');
+            const targetId = urlParams.get('light_id');
+            if (error === 'invalid_mfa' && action === 'remove' && targetId) {
+                const node = streetlights.find(n => n.light_id == targetId);
                 if (node) {
-                    openModal(node);
-
-                    // Pan map to node if possible
-                    if (map && markerMap[lightId]) {
-                        const marker = markerMap[lightId];
-                        map.setView(marker.getLatLng(), 18);
-                    }
+                    openDeleteModal(node.light_id, node.node_name);
                 }
             }
         };

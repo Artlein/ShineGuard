@@ -94,6 +94,11 @@ $pending_res = $conn->query($pending_query);
                         <h1>Security Operations Center</h1>
                         <p>Manage administrative password recovery and perishable links</p>
                     </div>
+                    <div class="hdr-right" style="margin-left: auto;">
+                        <a href="database/run_migrations.php" target="_blank" class="action-btn" style="background: #1e293b; color: white; gap: 8px;">
+                            ⚙️ Run Database Migrations
+                        </a>
+                    </div>
                 </div>
 
                 <div class="glass-panel">

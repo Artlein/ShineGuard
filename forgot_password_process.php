@@ -28,7 +28,10 @@ $user_data = $res->fetch_assoc();
 $full_name = $user_data['full_name'];
 
 // 2. Clear any old tokens for this email
-$conn->query("DELETE FROM password_resets WHERE email = '$email'");
+$del_stmt = $conn->prepare("DELETE FROM password_resets WHERE email = ?");
+$del_stmt->bind_param("s", $email);
+$del_stmt->execute();
+$del_stmt->close();
 
 // 3. Generate token
 $token = bin2hex(random_bytes(32));

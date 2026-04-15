@@ -32,4 +32,45 @@ class IOTService {
         $stmt->execute();
         $stmt->close();
     }
+
+    /**
+     * Sends a bulk command to the IoT nodes via Firebase.
+     */
+    public static function sendBulkCommand($mode, $brightness) {
+        $firebaseUpdate = [
+            'mode' => $mode,
+            'targetBrightness' => $brightness,
+            'commandTimestamp' => round(microtime(true) * 1000)
+        ];
+
+        $url = \FirebaseConfig::getConstant('DATABASE_URL') . '/SG-NODE2/Control.json';
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PATCH");
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($firebaseUpdate));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        return ($httpCode === 200);
+    }
+
+    /**
+     * Map a dimming percentage to a human-readable label and color scheme.
+     */
+    public static function getDimmingLabel($level) {
+        $level = intval($level);
+        if ($level <= 30)
+            return ['label' => '🌒 Low', 'color' => '#3b82f6', 'bg' => '#eff6ff'];
+        if ($level <= 50)
+            return ['label' => '🌓 Medium', 'color' => '#8b5cf6', 'bg' => '#f5f3ff'];
+        if ($level <= 75)
+            return ['label' => '🌔 High', 'color' => '#f59e0b', 'bg' => '#fffbeb'];
+        return ['label' => '🌕 Full', 'color' => '#10b981', 'bg' => '#ecfdf5'];
+    }
 }
