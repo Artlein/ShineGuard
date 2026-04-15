@@ -1218,7 +1218,6 @@ endif; ?>
 
     <script>
         const streetlights = <?php echo json_encode($streetlights); ?>;
-        const canControl = <?php echo canDo('control_streetlights') ? 'true' : 'false'; ?>;
         const markerMap = {};
         const markers = [];
         let map;
