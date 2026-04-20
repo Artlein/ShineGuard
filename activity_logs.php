@@ -24,11 +24,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit();
 }
 
+// ── SECURITY FEATURE: BASE DEVICE ENFORCEMENT ──
+$current_device_token = $_COOKIE['sg_device_fp'] ?? '';
+$is_base_device = false;
+if ($current_device_token && isset($_SESSION['user_id'])) {
+    $base_check = $conn->prepare("SELECT device_token FROM user_devices WHERE user_id = ? ORDER BY created_at ASC LIMIT 1");
+    $base_check->bind_param("i", $_SESSION['user_id']);
+    $base_check->execute();
+    $base_res = $base_check->get_result()->fetch_assoc();
+    $base_check->close();
+    
+    if ($base_res && $base_res['device_token'] === $current_device_token) {
+        $is_base_device = true;
+    }
+}
+
 // ── SECURITY FEATURE: DEVICE REVOCATION (KILL SWITCH) ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['block_device_token'])) {
     if (!isset($_SESSION['activity_logs_authorized']) || !$_SESSION['activity_logs_authorized']) {
         exit("Unauthorized");
     }
+    
+    // ENFORCEMENT: Only Base Device can block others
+    if (!$is_base_device) {
+        logActivity($conn, $_SESSION['user_id'], 'Security Alert', "Unauthorized attempt to revoke a device from a non-base hardware unit.");
+        exit("Security Alert: Only your original Base Device is authorized to use the Kill Switch.");
+    }
+    
     checkCsrf();
     $token_to_block = $_POST['block_device_token'];
     
@@ -626,7 +648,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
                                                 echo htmlspecialchars(trim($details)); 
                                                 
                                                 // If a device token was flagged, render the Revoke button right next to the log text
-                                                if ($device_token && $log['action'] === 'Security Alert') {
+                                                // ENFORCEMENT: Button only appears if the user is on their Base Device
+                                                if ($is_base_device && $device_token && $log['action'] === 'Security Alert') {
                                                     echo '<form method="POST" style="display:inline-block; margin-left: 10px;" onsubmit="return confirm(\'Are you absolutely sure you want to permanently revoke this device? They will be forcefully logged out.\');">';
                                                     echo '<input type="hidden" name="csrf_token" value="' . $_SESSION['csrf_token'] . '">';
                                                     echo '<input type="hidden" name="block_device_token" value="' . htmlspecialchars($device_token) . '">';
