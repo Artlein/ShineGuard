@@ -1184,51 +1184,7 @@ tbody td {
         </div>
       </div>
 
-      <div class="setting-group group-brand">
-        <h2>🎨 Branding & Appearance</h2>
-        <div class="setting-row">
-          <div class="setting-item">
-            <label>Theme Color</label>
-            <div class="color-row">
-              <input type="color" name="theme_color" value="<?php echo $settings['theme_color']; ?>">
-              <div class="color-preview" style="background: <?php echo $settings['theme_color']; ?>;"></div>
-            </div>
-            <small>Primary color for buttons and highlights</small>
-          </div>
-          <div class="setting-item">
-            <label>Logo/Icon</label>
-            <input type="text" name="logo_text" value="<?php echo htmlspecialchars($settings['logo_text']); ?>" maxlength="5">
-            <small>Emoji or text (max 5 characters)</small>
-          </div>
-        </div>
-        <div class="setting-row">
-          <div class="setting-item">
-            <label>Language</label>
-            <select name="language">
-              <option value="English"  <?php echo $settings['language'] === 'English'  ? 'selected' : ''; ?>>English</option>
-              <option value="Filipino" <?php echo $settings['language'] === 'Filipino' ? 'selected' : ''; ?>>Filipino</option>
-              <option value="Tagalog"  <?php echo $settings['language'] === 'Tagalog'  ? 'selected' : ''; ?>>Tagalog</option>
-            </select>
-            <small>System interface language</small>
-          </div>
-        </div>
-      </div>
 
-      <div class="setting-group group-contact">
-        <h2>📞 Contact Information</h2>
-        <div class="setting-row">
-          <div class="setting-item">
-            <label>Contact Email</label>
-            <input type="email" name="contact_email" value="<?php echo htmlspecialchars($settings['contact_email']); ?>">
-            <small>Primary contact email address</small>
-          </div>
-          <div class="setting-item">
-            <label>Contact Phone</label>
-            <input type="tel" name="contact_phone" value="<?php echo htmlspecialchars($settings['contact_phone']); ?>">
-            <small>Primary contact phone number</small>
-          </div>
-        </div>
-      </div>
 
       <div class="setting-group group-map">
         <h2>🗺️ Map Configuration</h2>
