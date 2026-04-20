@@ -13,7 +13,7 @@ if (isset($_GET['proxy_stream']) && isset($_GET['cam'])) {
         http_response_code(404);
         exit();
     }
-    
+
     // ── SECURITY HARDENING: Decryption on Read ──
     $url = \ShineGuard\Services\SecurityService::decrypt($row['stream_url']);
 
@@ -812,8 +812,13 @@ $cameras_result->data_seek(0);
                 transform: translate(1%, 1%);
             }
 
-            30% { transform: translate(-2%, -2%); }
-            40% { transform: translate(2%, 2%); }
+            30% {
+                transform: translate(-2%, -2%);
+            }
+
+            40% {
+                transform: translate(2%, 2%);
+            }
         }
 
         .nv-indicator {
@@ -868,8 +873,9 @@ $cameras_result->data_seek(0);
         <?php include 'includes/header.php'; ?>
 
         <main class="main-content">
-            <div class="page-header" style="text-align: center; padding-bottom: 2rem;">
-                <h1>📹 CCTV Camera Monitoring</h1>
+            <div class="page-header" style="text-align: center; padding-bottom: 5rem;">
+                <br>
+                <h1>📹 CCTV Camera Viewing</h1>
                 <p style="margin-top: 5px;">Live feed and surveillance management for cameras across Barangay Hulo</p>
             </div>
 
@@ -925,7 +931,7 @@ $cameras_result->data_seek(0);
             <div class="panel">
                 <div
                     style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 20px;">
-                    <h2 style="margin: 0;">📹 Camera Monitoring Matrix</h2>
+                    <h2 style="margin: 0;">📹 Camera Viewing Matrix</h2>
                     <?php if (canDo('manage_cctv')): ?>
                         <button class="btn primary" onclick="openAddCameraModal()"
                             style="padding: 10px 18px; font-size: 14px;">
@@ -988,7 +994,8 @@ $cameras_result->data_seek(0);
                                     <div class="hud-tool focus-trigger-<?php echo $camera['camera_id']; ?>"
                                         title="Signal Focus"
                                         onclick="toggleFullscreen(<?php echo $camera['camera_id']; ?>, this)">⛶</div>
-                                    <div class="hud-tool nv-btn-<?php echo $camera['camera_id']; ?>" title="Night Vision (ENI)"
+                                    <div class="hud-tool nv-btn-<?php echo $camera['camera_id']; ?>"
+                                        title="Night Vision (ENI)"
                                         onclick="toggleNightMode(<?php echo $camera['camera_id']; ?>, this)">🌙</div>
                                     <?php if (canDo('manage_cctv')): ?>
                                         <div class="hud-tool" title="Node Configuration"
@@ -1013,8 +1020,7 @@ $cameras_result->data_seek(0);
                                 <div class="obs-spec-grid" style="margin-top: 15px; border-top: none; padding-top: 0;">
                                     <div class="spec-item">
                                         <span class="spec-label">RESOLUTION MATRIX</span>
-                                        <span
-                                            class="spec-value"><?php echo $camera['resolution'] ?: 'AUTO_DETECT'; ?></span>
+                                        <span class="spec-value">160x1200</span>
                                     </div>
                                 </div>
                             </div>
@@ -1184,7 +1190,8 @@ $cameras_result->data_seek(0);
                     ▶️</div>
                 <div>
                     <div style="font-size: 1.1rem; font-weight: 800; color: var(--text);">Live Stream</div>
-                    <div style="font-size: 0.8rem; color: var(--dim); margin-top: 2px;" id="playModalCamName">Camera Name
+                    <div style="font-size: 0.8rem; color: var(--dim); margin-top: 2px;" id="playModalCamName">Camera
+                        Name
                     </div>
                 </div>
             </div>
@@ -1235,7 +1242,8 @@ $cameras_result->data_seek(0);
                         style="background: #f5f3ff; width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;">
                         🔐</div>
                     <div>
-                        <div style="font-size: 1.1rem; font-weight: 800; color: var(--text);">Secure Snapshot Gallery</div>
+                        <div style="font-size: 1.1rem; font-weight: 800; color: var(--text);">Secure Snapshot Gallery
+                        </div>
                         <div style="font-size: 0.8rem; color: var(--dim); margin-top: 2px;">End-to-End Encrypted Storage
                         </div>
                     </div>
@@ -1288,7 +1296,8 @@ $cameras_result->data_seek(0);
                     style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px;">
 
                 </div>
-                <div id="galleryLoading" style="text-align: center; padding: 40px; color: var(--dim); font-size: 0.9rem;">
+                <div id="galleryLoading"
+                    style="text-align: center; padding: 40px; color: var(--dim); font-size: 0.9rem;">
                     Loading encrypted snapshots...
                 </div>
             </div>
@@ -1304,7 +1313,8 @@ $cameras_result->data_seek(0);
                     🗑️</div>
                 <div>
                     <div style="font-size: 1.1rem; font-weight: 800; color: var(--text);">Remove Camera?</div>
-                    <div style="font-size: 0.8rem; color: var(--dim); margin-top: 2px;" id="deleteModalCamName">Camera ID
+                    <div style="font-size: 0.8rem; color: var(--dim); margin-top: 2px;" id="deleteModalCamName">Camera
+                        ID
                     </div>
                 </div>
             </div>
