@@ -660,7 +660,7 @@ body {
 .tab-content.active { 
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-  gap: 1.5rem;
+  gap: 2.5rem;
   animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
 }
 
@@ -674,8 +674,8 @@ body {
   backdrop-filter: var(--glass);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 2.5rem;
-  margin-bottom: 0;
+  padding: 3rem;
+  margin-bottom: 2rem;
   position: relative;
   overflow: hidden;
   transition: all 0.3s ease;
@@ -738,8 +738,8 @@ body {
 .setting-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.1rem 1.6rem;
-  margin-bottom: 1.1rem;
+  gap: 2rem 2.5rem;
+  margin-bottom: 2rem;
 }
 
 .setting-row:last-of-type { margin-bottom: 0; }
@@ -805,14 +805,14 @@ body {
 .checkbox-group {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
-  padding: 0.75rem 1rem;
+  gap: 1rem;
+  padding: 1.2rem 1.5rem;
   background: var(--surface-2);
   border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: border-color .15s, background .15s;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
 }
 
 .checkbox-group:last-of-type { margin-bottom: 0; }
@@ -863,8 +863,8 @@ body {
 .form-footer {
   display: flex;
   justify-content: flex-end;
-  padding-top: 1rem;
-  margin-top: 0.4rem;
+  padding-top: 2rem;
+  margin-top: 1rem;
 }
 
 .btn-primary {
