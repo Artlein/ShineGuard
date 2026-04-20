@@ -69,62 +69,6 @@ if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
     exit();
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_alerts'])) {
-if (!$isAdmin) { header('Location: settings.php?error=unauthorized'); exit(); }
-if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
-    header('Location: settings.php?tab=alerts&error=invalid_csrf');
-    exit();
-}
-    $alerts = [
-        'alert_email_enabled'    => isset($_POST['alert_email_enabled'])    ? '1' : '0',
-        'alert_sms_enabled'      => isset($_POST['alert_sms_enabled'])      ? '1' : '0',
-        'alert_email_recipients' => $_POST['alert_email_recipients'],
-        'alert_sms_recipients'   => $_POST['alert_sms_recipients'],
-        'critical_alert_sound'   => isset($_POST['critical_alert_sound'])   ? '1' : '0',
-        'alert_retention_days'   => $_POST['alert_retention_days']
-    ];
-    // ── SECURITY HARDENING: Parameterized Alerts ──
-    $stmt = $conn->prepare("INSERT INTO system_config (config_key, config_value, description, updated_by) 
-                           VALUES (?, ?, 'Alert preference', ?)
-                           ON DUPLICATE KEY UPDATE config_value = ?, updated_by = ?");
-    foreach ($alerts as $key => $value) {
-        $stmt->bind_param("ssisi", $key, $value, $_SESSION['user_id'], $value, $_SESSION['user_id']);
-        $stmt->execute();
-    }
-    $stmt->close();
-    logActivity($conn, $_SESSION['user_id'], 'Alert Settings Updated', 'Updated alert and notification preferences');
-    header('Location: settings.php?tab=alerts&success=settings_saved');
-    exit();
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_automation'])) {
-if (!$isAdmin) { header('Location: settings.php?error=unauthorized'); exit(); }
-if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
-    header('Location: settings.php?tab=automation&error=invalid_csrf');
-    exit();
-}
-    $automation = [
-        'auto_dim_enabled'                => isset($_POST['auto_dim_enabled'])                ? '1' : '0',
-        'default_dimming_level'           => $_POST['default_dimming_level'],
-        'auto_sync_interval'              => $_POST['auto_sync_interval'],
-        'predictive_maintenance_enabled'  => isset($_POST['predictive_maintenance_enabled'])  ? '1' : '0',
-        'auto_create_work_orders'         => isset($_POST['auto_create_work_orders'])         ? '1' : '0',
-        'maintenance_prediction_days'     => $_POST['maintenance_prediction_days']
-    ];
-    // ── SECURITY HARDENING: Parameterized Automation ──
-    $stmt = $conn->prepare("INSERT INTO system_config (config_key, config_value, description, updated_by) 
-                           VALUES (?, ?, 'Automation setting', ?)
-                           ON DUPLICATE KEY UPDATE config_value = ?, updated_by = ?");
-    foreach ($automation as $key => $value) {
-        $stmt->bind_param("ssisi", $key, $value, $_SESSION['user_id'], $value, $_SESSION['user_id']);
-        $stmt->execute();
-    }
-    $stmt->close();
-    logActivity($conn, $_SESSION['user_id'], 'Automation Settings Updated', 'Updated automation preferences');
-    header('Location: settings.php?tab=automation&success=settings_saved');
-    exit();
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_data'])) {
 if (!$isAdmin) { header('Location: settings.php?error=unauthorized'); exit(); }
 if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
@@ -1136,8 +1080,6 @@ tbody td {
     <?php if ($isAdmin): ?>
     <button class="tab <?php echo $active_tab === 'preferences' ? 'active' : ''; ?>" onclick="switchTab('preferences', this)">🎨 System Preferences</button>
     <button class="tab <?php echo $active_tab === 'thresholds'  ? 'active' : ''; ?>" onclick="switchTab('thresholds', this)">📊 Predictive Thresholds</button>
-    <button class="tab <?php echo $active_tab === 'alerts'      ? 'active' : ''; ?>" onclick="switchTab('alerts', this)">🚨 Alerts & Notifications</button>
-    <button class="tab <?php echo $active_tab === 'automation'  ? 'active' : ''; ?>" onclick="switchTab('automation', this)">🤖 Automation</button>
     <button class="tab <?php echo $active_tab === 'data'        ? 'active' : ''; ?>" onclick="switchTab('data', this)">💾 Data & Backup</button>
     <?php endif; ?>
     <button class="tab <?php echo $active_tab === 'security'    ? 'active' : ''; ?>" onclick="switchTab('security', this)">🛡️ Security</button>
@@ -1269,108 +1211,6 @@ tbody td {
   </div>
   <?php endif; ?>
 
-  <?php if ($isAdmin): ?>
-  <div id="alerts" class="tab-content <?php echo $active_tab === 'alerts' ? 'active' : ''; ?>">
-    <form method="POST">
-      <input type="hidden" name="update_alerts" value="1">
-      <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
-
-      <div class="setting-group group-alerts">
-        <h2>📧 Email Alerts</h2>
-        <div class="checkbox-group">
-          <input type="checkbox" name="alert_email_enabled" id="alert_email_enabled" <?php echo ($settings['alert_email_enabled'] ?? '1') == '1' ? 'checked' : ''; ?>>
-          <label for="alert_email_enabled">Enable email notifications for alerts</label>
-        </div>
-        <div class="setting-item" style="margin-top: 0.9rem;">
-          <label>Email Recipients (comma-separated)</label>
-          <textarea name="alert_email_recipients" rows="3" placeholder="admin@example.com, tech@example.com"><?php echo htmlspecialchars($settings['alert_email_recipients'] ?? ''); ?></textarea>
-          <small>Multiple email addresses separated by commas</small>
-        </div>
-      </div>
-
-      <div class="setting-group group-alerts">
-        <h2>📱 SMS Alerts</h2>
-        <div class="checkbox-group">
-          <input type="checkbox" name="alert_sms_enabled" id="alert_sms_enabled" <?php echo ($settings['alert_sms_enabled'] ?? '0') == '1' ? 'checked' : ''; ?>>
-          <label for="alert_sms_enabled">Enable SMS notifications for critical alerts</label>
-        </div>
-        <div class="setting-item" style="margin-top: 0.9rem;">
-          <label>SMS Recipients (comma-separated phone numbers)</label>
-          <textarea name="alert_sms_recipients" rows="3" placeholder="+63XXXXXXXXXX, +63XXXXXXXXXX"><?php echo htmlspecialchars($settings['alert_sms_recipients'] ?? ''); ?></textarea>
-          <small>Phone numbers with country code (+63 for Philippines)</small>
-        </div>
-      </div>
-
-      <div class="setting-group group-alerts">
-        <h2>🔔 System Notifications</h2>
-        <div class="checkbox-group">
-          <input type="checkbox" name="critical_alert_sound" id="critical_alert_sound" <?php echo ($settings['critical_alert_sound'] ?? '1') == '1' ? 'checked' : ''; ?>>
-          <label for="critical_alert_sound">Play sound on critical alerts</label>
-        </div>
-        <div class="setting-item" style="margin-top: 0.9rem;">
-          <label>Alert Retention Period (days)</label>
-          <input type="number" name="alert_retention_days" value="<?php echo $settings['alert_retention_days'] ?? 90; ?>" required>
-          <small>How long to keep resolved alerts in database</small>
-        </div>
-      </div>
-
-      <div class="form-footer">
-        <button type="submit" class="btn-primary">💾 Save Alert Settings</button>
-      </div>
-    </form>
-  </div>
-  <?php endif; ?>
-
-  <?php if ($isAdmin): ?>
-  <div id="automation" class="tab-content <?php echo $active_tab === 'automation' ? 'active' : ''; ?>">
-    <form method="POST">
-      <input type="hidden" name="update_automation" value="1">
-      <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
-
-      <div class="setting-group group-auto">
-        <h2>💡 Automatic Dimming</h2>
-        <div class="checkbox-group">
-          <input type="checkbox" name="auto_dim_enabled" id="auto_dim_enabled" <?php echo ($settings['auto_dim_enabled'] ?? '1') == '1' ? 'checked' : ''; ?>>
-          <label for="auto_dim_enabled">Enable automatic dimming based on schedule</label>
-        </div>
-        <div class="setting-item" style="margin-top: 0.9rem;">
-          <label>Default Dimming Level (%)</label>
-          <input type="number" min="0" max="100" name="default_dimming_level" value="<?php echo $settings['default_dimming_level'] ?? 70; ?>" required>
-          <small>Default brightness percentage for new lights</small>
-        </div>
-      </div>
-
-      <div class="setting-group group-auto">
-        <h2>🔄 Firebase Sync</h2>
-        <div class="setting-item">
-          <label>Auto-sync Interval (seconds)</label>
-          <input type="number" min="10" max="300" name="auto_sync_interval" value="<?php echo $settings['auto_sync_interval'] ?? 30; ?>" required>
-          <small>How often to sync Firebase data (10–300 seconds)</small>
-        </div>
-      </div>
-
-      <div class="setting-group group-auto">
-        <h2>🤖 Predictive Maintenance</h2>
-        <div class="checkbox-group">
-          <input type="checkbox" name="predictive_maintenance_enabled" id="predictive_maintenance_enabled" <?php echo ($settings['predictive_maintenance_enabled'] ?? '1') == '1' ? 'checked' : ''; ?>>
-          <label for="predictive_maintenance_enabled">Enable predictive maintenance alerts</label>
-        </div>
-        <div class="checkbox-group">
-          <input type="checkbox" name="auto_create_work_orders" id="auto_create_work_orders" <?php echo ($settings['auto_create_work_orders'] ?? '0') == '1' ? 'checked' : ''; ?>>
-          <label for="auto_create_work_orders">Automatically create work orders for critical alerts</label>
-        </div>
-        <div class="setting-item" style="margin-top: 0.9rem;">
-          <label>Maintenance Prediction Window (days)</label>
-          <input type="number" min="1" max="90" name="maintenance_prediction_days" value="<?php echo $settings['maintenance_prediction_days'] ?? 14; ?>" required>
-          <small>Days ahead to predict maintenance needs</small>
-        </div>
-      </div>
-
-      <div class="form-footer">
-        <button type="submit" class="btn-primary">💾 Save Automation Settings</button>
-      </div>
-    </form>
-  </div>
   <?php endif; ?>
 
   <?php if ($isAdmin): ?>
