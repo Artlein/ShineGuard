@@ -38,27 +38,45 @@ if (isset($conn)) {
     }
 }
 
-// Filters
-$start_date = $_GET['start_date'] ?? date('Y-m-d', strtotime('-7 days'));
-$end_date = $_GET['end_date'] ?? date('Y-m-d');
-$action_filter = $_GET['action'] ?? '';
-$user_filter = $_GET['user_id'] ?? '';
+// ── SECURITY: Strict input validation ──────────────────────────────────────
+function validateLogDate($str) {
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $str)) return null;
+    $d = DateTime::createFromFormat('Y-m-d', $str);
+    return ($d && $d->format('Y-m-d') === $str) ? $str : null;
+}
 
-// Build Query
-$where = ["al.created_at BETWEEN '$start_date 00:00:00' AND '$end_date 23:59:59'"];
-if ($action_filter) $where[] = "al.action = '" . $conn->real_escape_string($action_filter) . "'";
-if ($user_filter) $where[] = "al.user_id = " . intval($user_filter);
+$start_date    = validateLogDate($_GET['start_date'] ?? '') ?? date('Y-m-d', strtotime('-7 days'));
+$end_date      = validateLogDate($_GET['end_date']   ?? '') ?? date('Y-m-d');
+$action_filter = trim($_GET['action']   ?? '');
+$user_filter   = intval($_GET['user_id'] ?? 0);
 
-$where_clause = implode(' AND ', $where);
+$start_full = $start_date . ' 00:00:00';
+$end_full   = $end_date   . ' 23:59:59';
 
-// Base Query
-$query = "SELECT al.*, u.username, u.full_name, u.role 
-          FROM activity_logs al 
-          LEFT JOIN users u ON al.user_id = u.user_id 
-          WHERE $where_clause 
-          ORDER BY al.created_at DESC";
+// Whitelist action_filter against real values in DB
+$valid_action = '';
+if ($action_filter) {
+    $af_check = $conn->prepare("SELECT action FROM activity_logs WHERE action = ? LIMIT 1");
+    $af_check->bind_param("s", $action_filter);
+    $af_check->execute();
+    $af_row = $af_check->get_result()->fetch_assoc();
+    $af_check->close();
+    if ($af_row) $valid_action = $af_row['action'];
+}
 
-$logs = $conn->query($query);
+// Build parameterized log query
+$base_sql = "SELECT al.*, u.username, u.full_name, u.role FROM activity_logs al LEFT JOIN users u ON al.user_id = u.user_id WHERE al.created_at BETWEEN ? AND ?";
+$params = [$start_full, $end_full];
+$types  = "ss";
+if ($valid_action) { $base_sql .= " AND al.action = ?"; $params[] = $valid_action; $types .= "s"; }
+if ($user_filter)  { $base_sql .= " AND al.user_id = ?"; $params[] = $user_filter;  $types .= "i"; }
+$base_sql .= " ORDER BY al.created_at DESC";
+
+$log_stmt = $conn->prepare($base_sql);
+$log_stmt->bind_param($types, ...$params);
+$log_stmt->execute();
+$logs = $log_stmt->get_result();
+$log_stmt->close();
 
 // Get unique actions for filter
 $actions_res = $conn->query("SELECT DISTINCT action FROM activity_logs ORDER BY action ASC");
@@ -78,10 +96,10 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv' && $logs) {
         fputcsv($output, [
             $row['log_id'],
             $row['created_at'],
-            $row['full_name'] ?: ($row['username'] ?: 'System Interface'),
+            \ShineGuard\Services\SecurityService::decrypt($row['full_name'] ?: ($row['username'] ?: 'System Interface')),
             $row['role'] ?: 'Automated',
             $row['action'],
-            $row['details'],
+            \ShineGuard\Services\SecurityService::decrypt($row['details']),
             $row['ip_address']
         ]);
     }
@@ -90,13 +108,16 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv' && $logs) {
 }
 
 // Stats for the current period
-$stats_res = $conn->query("SELECT 
-    COUNT(*) as total,
-    COUNT(CASE WHEN action LIKE '%Security%' THEN 1 END) as security,
-    COUNT(DISTINCT user_id) as users
-    FROM activity_logs al
-    WHERE $where_clause");
-$stats = $stats_res ? $stats_res->fetch_assoc() : ['total' => 0, 'security' => 0, 'users' => 0];
+$stats_sql = "SELECT COUNT(*) as total, COUNT(CASE WHEN action LIKE '%Security%' THEN 1 END) as security, COUNT(DISTINCT user_id) as users FROM activity_logs al WHERE al.created_at BETWEEN ? AND ?";
+$s_params = [$start_full, $end_full];
+$s_types  = "ss";
+if ($valid_action) { $stats_sql .= " AND al.action = ?"; $s_params[] = $valid_action; $s_types .= "s"; }
+if ($user_filter)  { $stats_sql .= " AND al.user_id = ?"; $s_params[] = $user_filter;  $s_types .= "i"; }
+$s_stmt = $conn->prepare($stats_sql);
+$s_stmt->bind_param($s_types, ...$s_params);
+$s_stmt->execute();
+$stats = $s_stmt->get_result()->fetch_assoc() ?? ['total' => 0, 'security' => 0, 'users' => 0];
+$s_stmt->close();
 
 // ── SECURITY FEATURE: INTEGRITY VALIDATOR SCRIPT ──
 $integrity_results = [];
@@ -130,11 +151,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
         }
 
         foreach ($v_data as $row) {
+            // ZERO-TRUST: Decrypt details before re-computing signature
+            // (signature was computed on plaintext, so we must verify against plaintext)
+            $plaintext_details = \ShineGuard\Services\SecurityService::decrypt($row['details']);
             $expected = \ShineGuard\Services\SecurityService::generateLogSignature(
                 $current_prev_hash, 
                 $row['user_id'], 
                 $row['action'], 
-                $row['details'], 
+                $plaintext_details, 
                 $row['ip_address']
             );
             
@@ -183,9 +207,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
             animation: fadeIn 0.6s ease-out;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .sentinel-alert {
+            animation: pulse-red 2s infinite;
+            background: #fef2f2 !important;
+            border-left: 4px solid #ef4444 !important;
+        }
+
+        @keyframes pulse-red {
+            0% { background-color: #fef2f2; }
+            50% { background-color: #fee2e2; }
+            100% { background-color: #fef2f2; }
+        }
+
+        .action-badge.badge-unauthorized {
+            background: #ef4444;
+            color: white;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
         }
 
         .page-header { margin-bottom: 2.5rem; display: flex; justify-content: space-between; align-items: flex-end; }

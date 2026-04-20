@@ -10,58 +10,80 @@ if (strlen($q) < 2) {
     exit;
 }
 
-$like = '%' . $conn->real_escape_string($q) . '%';
+$like = '%' . $q . '%';
 $results = [];
 
-$stmt = $conn->query("SELECT light_id, node_name, location, status 
+// ── SECURITY: Parameterized Streetlights Search ──
+$stmt = $conn->prepare("SELECT light_id, node_name, location, location_index, status 
                        FROM streetlights 
-                       WHERE node_name LIKE '$like' OR location LIKE '$like'
+                       WHERE node_name LIKE ? OR location_index LIKE ?
                        LIMIT 5");
-if ($stmt && $stmt->num_rows > 0) {
-    while ($row = $stmt->fetch_assoc()) {
+$stmt->bind_param("ss", $like, $like);
+$stmt->execute();
+$res = $stmt->get_result();
+if ($res && $res->num_rows > 0) {
+    while ($row = $res->fetch_assoc()) {
         $status = strtolower($row['status']);
+        $display_location = \ShineGuard\Services\SecurityService::decrypt($row['location']);
         $results[] = [
             'type'  => 'streetlight',
             'icon'  => '💡',
             'title' => $row['node_name'],
-            'sub'   => $row['location'] . ' · ' . ucfirst($status),
+            'sub'   => $display_location . ' · ' . ucfirst($status),
             'url'   => 'streetlights.php?id=' . $row['light_id'],
             'badge' => $status === 'active' ? 'online' : 'offline'
         ];
     }
 }
+$stmt->close();
 
-$stmt = $conn->query("SELECT camera_id, camera_name, location, status 
+// ── SECURITY: Parameterized Cameras Search ──
+$stmt = $conn->prepare("SELECT camera_id, camera_name, location, location_index, status 
                        FROM cameras 
-                       WHERE camera_name LIKE '$like' OR location LIKE '$like'
+                       WHERE camera_name LIKE ? OR location_index LIKE ?
                        LIMIT 5");
-if ($stmt && $stmt->num_rows > 0) {
-    while ($row = $stmt->fetch_assoc()) {
+$stmt->bind_param("ss", $like, $like);
+$stmt->execute();
+$res = $stmt->get_result();
+if ($res && $res->num_rows > 0) {
+    while ($row = $res->fetch_assoc()) {
         $status = strtolower($row['status']);
+        $display_location = \ShineGuard\Services\SecurityService::decrypt($row['location']);
         $results[] = [
             'type'  => 'camera',
             'icon'  => '📹',
             'title' => $row['camera_name'],
-            'sub'   => $row['location'] . ' · ' . ucfirst($status),
+            'sub'   => $display_location . ' · ' . ucfirst($status),
             'url'   => 'cctv.php?id=' . $row['camera_id'],
             'badge' => $status === 'online' ? 'online' : 'offline'
         ];
     }
 }
+$stmt->close();
 
-// Special case for ID search (e.g., #5)
+// ── SECURITY: Parameterized Alerts Search ──
 $id_search = null;
 if (preg_match('/^#(\d+)$/', $q, $matches)) {
     $id_search = intval($matches[1]);
 }
 
-$stmt = $conn->query("SELECT a.alert_id, a.alert_type, a.severity, a.status, a.description
-                       FROM alerts a 
-                       WHERE " . ($id_search ? "a.alert_id = $id_search OR " : "") . "
-                             a.alert_type LIKE '$like' OR a.description LIKE '$like'
-                       ORDER BY a.created_at DESC LIMIT 5");
-if ($stmt && $stmt->num_rows > 0) {
-    while ($row = $stmt->fetch_assoc()) {
+if ($id_search) {
+    $stmt = $conn->prepare("SELECT a.alert_id, a.alert_type, a.severity, a.status, a.description
+                           FROM alerts a 
+                           WHERE a.alert_id = ? OR a.alert_type LIKE ? OR a.description LIKE ?
+                           ORDER BY a.created_at DESC LIMIT 5");
+    $stmt->bind_param("iss", $id_search, $like, $like);
+} else {
+    $stmt = $conn->prepare("SELECT a.alert_id, a.alert_type, a.severity, a.status, a.description
+                           FROM alerts a 
+                           WHERE a.alert_type LIKE ? OR a.description LIKE ?
+                           ORDER BY a.created_at DESC LIMIT 5");
+    $stmt->bind_param("ss", $like, $like);
+}
+$stmt->execute();
+$res = $stmt->get_result();
+if ($res && $res->num_rows > 0) {
+    while ($row = $res->fetch_assoc()) {
         $badge = strtolower($row['severity']);
         $results[] = [
             'type'  => 'alert',
@@ -73,18 +95,26 @@ if ($stmt && $stmt->num_rows > 0) {
         ];
     }
 }
+$stmt->close();
 
-$stmt = $conn->query("SELECT user_id, username, full_name, role 
+// ── SECURITY: Parameterized Users Search ──
+$stmt = $conn->prepare("SELECT user_id, username, full_name, role 
                        FROM users 
-                       WHERE username LIKE '$like' OR full_name LIKE '$like'
+                       WHERE username_blind_index LIKE ? OR email_blind_index LIKE ?
                        LIMIT 5");
-if ($stmt && $stmt->num_rows > 0) {
-    while ($row = $stmt->fetch_assoc()) {
+$stmt->bind_param("ss", $like, $like);
+$stmt->execute();
+$res = $stmt->get_result();
+if ($res && $res->num_rows > 0) {
+    while ($row = $res->fetch_assoc()) {
+        $dec_name = \ShineGuard\Services\SecurityService::decrypt($row['full_name']);
+        $dec_user = \ShineGuard\Services\SecurityService::decrypt($row['username']);
+        $dec_role = \ShineGuard\Services\SecurityService::decrypt($row['role']);
         $results[] = [
             'type'  => 'user',
             'icon'  => '👤',
-            'title' => $row['full_name'],
-            'sub'   => '@' . $row['username'] . ' · ' . ucfirst($row['role']),
+            'title' => $dec_name,
+            'sub'   => '@' . $dec_user . ' · ' . ucfirst($dec_role),
             'url'   => 'settings.php?tab=users&id=' . $row['user_id'],
             'badge' => 'user'
         ];

@@ -45,8 +45,12 @@ class StreetlightController {
         $pending_pm = MaintenanceService::getPendingPM($this->conn);
 
         // Fetch User Security Context
-        $user_id = $_SESSION['user_id'];
-        $user_ctx = $this->conn->query("SELECT mfa_enabled FROM users WHERE user_id = $user_id")->fetch_assoc();
+        $user_id = intval($_SESSION['user_id']);
+        $ctx_stmt = $this->conn->prepare("SELECT mfa_enabled FROM users WHERE user_id = ?");
+        $ctx_stmt->bind_param("i", $user_id);
+        $ctx_stmt->execute();
+        $user_ctx = $ctx_stmt->get_result()->fetch_assoc();
+        $ctx_stmt->close();
 
         return [
             'streetlights' => $streetlights,

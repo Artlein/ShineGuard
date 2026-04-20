@@ -13,7 +13,9 @@ if (isset($_GET['proxy_stream']) && isset($_GET['cam'])) {
         http_response_code(404);
         exit();
     }
-    $url = $row['stream_url'];
+    
+    // ── SECURITY HARDENING: Decryption on Read ──
+    $url = \ShineGuard\Services\SecurityService::decrypt($row['stream_url']);
 
     // Log the surveillance access
     logActivity($conn, $_SESSION['user_id'], 'CCTV Stream', "Started live stream for Camera #$cam_id");
@@ -56,11 +58,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode(['error' => 'Unauthorized']);
             exit();
         }
-        $camera_ip = $_POST['camera_ip'];
+        // ── SECURITY HARDENING: Encryption on Write ──
+        $camera_ip = \ShineGuard\Services\SecurityService::encrypt($_POST['camera_ip']);
         $camera_port = intval($_POST['camera_port']);
         $channel = intval($_POST['channel']);
-        $username = $_POST['username'];
-        $password = $_POST['password'];
+        $username = \ShineGuard\Services\SecurityService::encrypt($_POST['username']);
+        $password = \ShineGuard\Services\SecurityService::encrypt($_POST['password']);
         $stream_type = $_POST['stream_type'];
         $protocol = $_POST['protocol'];
 
@@ -91,8 +94,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = $_POST['new_status'] ?? 'Online';
 
         if (!empty($camera_name) && !empty($location) && !empty($camera_ip)) {
+            // ── SECURITY HARDENING: Encryption on Write ──
+            $enc_ip = \ShineGuard\Services\SecurityService::encrypt($camera_ip);
+            $enc_user = \ShineGuard\Services\SecurityService::encrypt($username);
+            $enc_pass = \ShineGuard\Services\SecurityService::encrypt($password);
+
             $stmt = $conn->prepare("INSERT INTO cameras (camera_name, location, camera_ip, camera_port, channel, username, password, stream_type, protocol, status, installation_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE())");
-            $stmt->bind_param("sssiisssss", $camera_name, $location, $camera_ip, $camera_port, $channel, $username, $password, $stream_type, $protocol, $status);
+            $stmt->bind_param("sssiisssss", $camera_name, $location, $enc_ip, $camera_port, $channel, $enc_user, $enc_pass, $stream_type, $protocol, $status);
 
             if ($stmt->execute()) {
                 logActivity($conn, $_SESSION['user_id'], 'Camera Added', "Added new camera: $camera_name");
@@ -751,6 +759,106 @@ $cameras_result->data_seek(0);
         .form-group input::placeholder {
             color: #94a3b8;
         }
+
+        /* --- TACTICAL NIGHT VISION (ENI) --- */
+        .night-vision-stream {
+            filter: brightness(1.6) contrast(1.2) sepia(100%) hue-rotate(85deg) grayscale(0.2) saturate(1.5) !important;
+            transition: filter 0.5s ease;
+        }
+
+        .nv-hud {
+            position: absolute;
+            inset: 0;
+            z-index: 6;
+            pointer-events: none;
+            display: none;
+            overflow: hidden;
+            border: 2px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .night-vision-active .nv-hud {
+            display: block;
+        }
+
+        .nv-scanlines {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%),
+                linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+            background-size: 100% 3px, 3px 100%;
+            opacity: 0.3;
+        }
+
+        .nv-noise {
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.08;
+            animation: grain 0.5s steps(1) infinite;
+        }
+
+        @keyframes grain {
+
+            0%,
+            100% {
+                transform: translate(0, 0);
+            }
+
+            10% {
+                transform: translate(-1%, -1%);
+            }
+
+            20% {
+                transform: translate(1%, 1%);
+            }
+
+            30% { transform: translate(-2%, -2%); }
+            40% { transform: translate(2%, 2%); }
+        }
+
+        .nv-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #22c55e;
+            font-size: 10px;
+            font-weight: 900;
+            text-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+            letter-spacing: 0.05em;
+        }
+
+        .nv-indicator::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+            animation: nv-blink 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes nv-blink {
+
+            0%,
+            100% {
+                opacity: 1;
+                box-shadow: 0 0 10px #22c55e;
+            }
+
+            50% {
+                opacity: 0.3;
+                box-shadow: 0 0 0 #22c55e;
+            }
+        }
+
+        .hud-tool.nv-active {
+            background: #22c55e !important;
+            color: white !important;
+            border-color: #22c55e !important;
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.4) !important;
+        }
     </style>
 </head>
 
@@ -843,6 +951,12 @@ $cameras_result->data_seek(0);
                                     <?php echo strtoupper($camera['status']); ?>
                                 </div>
 
+                                <div class="nv-hud">
+                                    <div class="nv-scanlines"></div>
+                                    <div class="nv-noise"></div>
+                                    <div class="nv-indicator">ENI AUTO-GAIN</div>
+                                </div>
+
                                 <div class="camera-placeholder" id="placeholder-<?php echo $camera['camera_id']; ?>">
                                     <i style="font-size: 40px; opacity: 0.3;">📹</i>
                                     <div style="font-size: 11px; margin-top: 12px; font-weight: 700; color: #94a3b8;">SIGNAL
@@ -874,6 +988,8 @@ $cameras_result->data_seek(0);
                                     <div class="hud-tool focus-trigger-<?php echo $camera['camera_id']; ?>"
                                         title="Signal Focus"
                                         onclick="toggleFullscreen(<?php echo $camera['camera_id']; ?>, this)">⛶</div>
+                                    <div class="hud-tool nv-btn-<?php echo $camera['camera_id']; ?>" title="Night Vision (ENI)"
+                                        onclick="toggleNightMode(<?php echo $camera['camera_id']; ?>, this)">🌙</div>
                                     <?php if (canDo('manage_cctv')): ?>
                                         <div class="hud-tool" title="Node Configuration"
                                             onclick="openSettings(<?php echo $camera['camera_id']; ?>, <?php echo htmlspecialchars(json_encode($camera)); ?>)">
@@ -1488,9 +1604,34 @@ $cameras_result->data_seek(0);
             }
         }
 
+        function toggleNightMode(camId, btn) {
+            const preview = document.getElementById('preview-' + camId);
+            const card = preview.closest('.obs-card');
+            const streamImg = document.getElementById('stream-img-' + camId);
+
+            card.classList.toggle('night-vision-active');
+            btn.classList.toggle('nv-active');
+
+            if (streamImg) {
+                streamImg.classList.toggle('night-vision-stream');
+            }
+
+            // Visual Feedback for "Digital Optimization"
+            if (card.classList.contains('night-vision-active')) {
+                const indicator = card.querySelector('.nv-indicator');
+                if (indicator) {
+                    indicator.textContent = 'ENI STABILIZING...';
+                    setTimeout(() => {
+                        indicator.textContent = 'ENI AUTO-GAIN: ACTIVE';
+                    }, 1500);
+                }
+            }
+        }
+
         function toggleStream(camId, btn) {
             const preview = document.getElementById('preview-' + camId);
             const placeholder = document.getElementById('placeholder-' + camId);
+            const card = preview.closest('.obs-card');
 
             if (!document.getElementById('stream-img-' + camId)) {
                 placeholder.style.display = 'none';
@@ -1506,6 +1647,12 @@ $cameras_result->data_seek(0);
                 img.style.height = '100%';
                 img.style.objectFit = 'cover';
                 img.id = 'stream-img-' + camId;
+
+                // Sync Night Mode state
+                if (card.classList.contains('night-vision-active')) {
+                    img.classList.add('night-vision-stream');
+                }
+
                 preview.appendChild(img);
             } else {
                 placeholder.style.display = 'flex';

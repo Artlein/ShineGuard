@@ -17,39 +17,57 @@ if (!isset($_SESSION['activity_logs_authorized']) || !$_SESSION['activity_logs_a
 // Autoloaded via Composer in dbconnect.php
 
 
-// ── Filters ─────────────────────────────────────────────────────────────────
-$start_date    = $_GET['start_date'] ?? date('Y-m-d', strtotime('-7 days'));
-$end_date      = $_GET['end_date']   ?? date('Y-m-d');
-$action_filter = $_GET['action']     ?? '';
-$user_filter   = $_GET['user_id']    ?? '';
+// ── SECURITY: Strict date validation ────────────────────────────────────────
+function validateAuditDate($str) {
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $str)) return null;
+    $d = DateTime::createFromFormat('Y-m-d', $str);
+    return ($d && $d->format('Y-m-d') === $str) ? $str : null;
+}
 
-// Sanitize
-$start_date = preg_replace('/[^0-9\-]/', '', $start_date);
-$end_date   = preg_replace('/[^0-9\-]/', '', $end_date);
+$start_date    = validateAuditDate($_GET['start_date'] ?? '') ?? date('Y-m-d', strtotime('-7 days'));
+$end_date      = validateAuditDate($_GET['end_date']   ?? '') ?? date('Y-m-d');
+$action_filter = trim($_GET['action']  ?? '');
+$user_filter   = intval($_GET['user_id'] ?? 0);
 
-// Build WHERE
-$where = ["al.created_at BETWEEN '$start_date 00:00:00' AND '$end_date 23:59:59'"];
-if ($action_filter) $where[] = "al.action = '" . $conn->real_escape_string($action_filter) . "'";
-if ($user_filter)   $where[] = "al.user_id = " . intval($user_filter);
-$where_clause = implode(' AND ', $where);
+$start_full = $start_date . ' 00:00:00';
+$end_full   = $end_date   . ' 23:59:59';
 
-// Fetch logs
-$query = "SELECT al.*, u.username, u.full_name, u.role 
-          FROM activity_logs al 
-          LEFT JOIN users u ON al.user_id = u.user_id 
-          WHERE $where_clause 
-          ORDER BY al.created_at DESC
-          LIMIT 200";
-$logs = $conn->query($query);
+// Whitelist action_filter against real DB values
+$valid_action = '';
+if ($action_filter) {
+    $af_check = $conn->prepare("SELECT action FROM activity_logs WHERE action = ? LIMIT 1");
+    $af_check->bind_param("s", $action_filter);
+    $af_check->execute();
+    $af_row = $af_check->get_result()->fetch_assoc();
+    $af_check->close();
+    if ($af_row) $valid_action = $af_row['action'];
+}
 
-// Stats
-$stats_res = $conn->query("SELECT 
-    COUNT(*) as total,
-    COUNT(CASE WHEN action LIKE '%Security%' THEN 1 END) as security,
-    COUNT(DISTINCT user_id) as users
-    FROM activity_logs al
-    WHERE $where_clause");
-$stats = $stats_res ? $stats_res->fetch_assoc() : ['total' => 0, 'security' => 0, 'users' => 0];
+// Build parameterized log query
+$log_sql = "SELECT al.*, u.username, u.full_name, u.role FROM activity_logs al LEFT JOIN users u ON al.user_id = u.user_id WHERE al.created_at BETWEEN ? AND ?";
+$l_params = [$start_full, $end_full];
+$l_types  = "ss";
+if ($valid_action) { $log_sql .= " AND al.action = ?"; $l_params[] = $valid_action; $l_types .= "s"; }
+if ($user_filter)  { $log_sql .= " AND al.user_id = ?"; $l_params[] = $user_filter;  $l_types .= "i"; }
+$log_sql .= " ORDER BY al.created_at DESC LIMIT 200";
+
+$l_stmt = $conn->prepare($log_sql);
+$l_stmt->bind_param($l_types, ...$l_params);
+$l_stmt->execute();
+$logs = $l_stmt->get_result();
+$l_stmt->close();
+
+// Stats — parameterized
+$stats_sql = "SELECT COUNT(*) as total, COUNT(CASE WHEN action LIKE '%Security%' THEN 1 END) as security, COUNT(DISTINCT user_id) as users FROM activity_logs al WHERE al.created_at BETWEEN ? AND ?";
+$s_params = [$start_full, $end_full];
+$s_types  = "ss";
+if ($valid_action) { $stats_sql .= " AND al.action = ?"; $s_params[] = $valid_action; $s_types .= "s"; }
+if ($user_filter)  { $stats_sql .= " AND al.user_id = ?"; $s_params[] = $user_filter;  $s_types .= "i"; }
+$s_stmt = $conn->prepare($stats_sql);
+$s_stmt->bind_param($s_types, ...$s_params);
+$s_stmt->execute();
+$stats = $s_stmt->get_result()->fetch_assoc() ?? ['total' => 0, 'security' => 0, 'users' => 0];
+$s_stmt->close();
 
 $generated_by = $_SESSION['full_name'] ?? 'Administrator';
 $generated_at = date('F d, Y h:i A');

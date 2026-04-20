@@ -17,14 +17,19 @@ class AuditService {
         // 1. Get the hash of the PREVIOUS log entry (The "Chain")
         $prev_hash = self::getLatestLogHash($conn);
         
-        // 2. Generate the signature for THIS log entry
+        // 2. Generate the signature for THIS log entry using PLAINTEXT details
+        //    (The chain-of-trust is based on the original text, not the encrypted form)
         $signature = \ShineGuard\Services\SecurityService::generateLogSignature($prev_hash, $user_id, $action, $details, $ip);
 
-        // 3. Insert into DB
+        // 3. Encrypt the details for Zero-Trust storage
+        //    A hacker who reads the DB will see only Base64 gibberish here.
+        $enc_details = \ShineGuard\Services\SecurityService::encrypt($details);
+
+        // 4. Insert encrypted details + chain signature into DB
         $stmt = $conn->prepare(
             "INSERT INTO activity_logs (user_id, action, details, log_hash, ip_address) VALUES (?, ?, ?, ?, ?)"
         );
-        $stmt->bind_param("issss", $user_id, $action, $details, $signature, $ip);
+        $stmt->bind_param("issss", $user_id, $action, $enc_details, $signature, $ip);
         $stmt->execute();
         $stmt->close();
     }
@@ -83,5 +88,41 @@ class AuditService {
         $stmt->bind_param("s", $ip);
         $stmt->execute();
         $stmt->close();
+    }
+
+    /**
+     * VERIFICATION ENGINE: Recalculates the entire audit chain
+     * Returns ['success' => true] or ['success' => false, 'log_id' => X]
+     */
+    public static function verifyLogIntegrity($conn) {
+        $res = $conn->query("SELECT log_id, user_id, action, details, log_hash, ip_address FROM activity_logs ORDER BY log_id ASC");
+        
+        $prev_hash = str_repeat('0', 64);
+        $verified_count = 0;
+
+        while ($row = $res->fetch_assoc()) {
+            $expected = SecurityService::generateLogSignature(
+                $prev_hash, 
+                $row['user_id'], 
+                $row['action'], 
+                $row['details'], 
+                $row['ip_address']
+            );
+
+            if ($expected !== $row['log_hash']) {
+                return [
+                    'success' => false, 
+                    'error' => 'Integrity mismatch detected', 
+                    'log_id' => $row['log_id'],
+                    'expected' => substr($expected, 0, 8) . '...',
+                    'found' => substr($row['log_hash'], 0, 8) . '...'
+                ];
+            }
+
+            $prev_hash = $row['log_hash'];
+            $verified_count++;
+        }
+
+        return ['success' => true, 'count' => $verified_count];
     }
 }

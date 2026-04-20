@@ -16,42 +16,62 @@ if (!canDo('export_reports')) {
 // Autoloaded via Composer in dbconnect.php
 
 
-$start_date = isset($_GET['start_date']) ? preg_replace('/[^0-9\-]/', '', $_GET['start_date']) : date('Y-m-d', strtotime('-30 days'));
-$end_date   = isset($_GET['end_date'])   ? preg_replace('/[^0-9\-]/', '', $_GET['end_date'])   : date('Y-m-d');
+// ── SECURITY: Strict date validation — rejects anything that isn't a real date ──
+function validateReportDate($str) {
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $str)) return null;
+    $d = DateTime::createFromFormat('Y-m-d', $str);
+    return ($d && $d->format('Y-m-d') === $str) ? $str : null;
+}
 
-// ── Fetch Data ──────────────────────────────────────────────────────────────
-$system_stats = $conn->query("SELECT 
+$start_date = validateReportDate($_GET['start_date'] ?? '') ?? date('Y-m-d', strtotime('-30 days'));
+$end_date   = validateReportDate($_GET['end_date']   ?? '') ?? date('Y-m-d');
+$end_date_full = $end_date . ' 23:59:59';
+
+// ── Fetch Data (all parameterized) ──────────────────────────────────────────
+$stats_stmt = $conn->prepare("SELECT 
     (SELECT COUNT(*) FROM streetlights) as total_lights,
     (SELECT COUNT(*) FROM streetlights WHERE status = 'Active') as active_lights,
-    (SELECT COUNT(*) FROM alerts WHERE created_at BETWEEN '$start_date' AND '$end_date 23:59:59') as total_alerts,
-    (SELECT COUNT(*) FROM alerts WHERE severity = 'High' AND created_at BETWEEN '$start_date' AND '$end_date 23:59:59') as critical_alerts,
-    (SELECT COUNT(*) FROM maintenance_logs WHERE maintenance_date BETWEEN '$start_date' AND '$end_date 23:59:59') as maintenance_count")->fetch_assoc();
+    (SELECT COUNT(*) FROM alerts WHERE created_at BETWEEN ? AND ?) as total_alerts,
+    (SELECT COUNT(*) FROM alerts WHERE severity = 'High' AND created_at BETWEEN ? AND ?) as critical_alerts,
+    (SELECT COUNT(*) FROM maintenance_logs WHERE maintenance_date BETWEEN ? AND ?) as maintenance_count");
+$stats_stmt->bind_param("ssssss", $start_date, $end_date_full, $start_date, $end_date_full, $start_date, $end_date_full);
+$stats_stmt->execute();
+$system_stats = $stats_stmt->get_result()->fetch_assoc();
+$stats_stmt->close();
 
 $energy_rows = [];
-$energy_res = $conn->query("SELECT 
+$energy_stmt = $conn->prepare("SELECT 
     DATE(timestamp) as date,
     COUNT(*) as readings,
     AVG(voltage) as avg_voltage,
     AVG(current_consumption) as avg_current,
     AVG(temperature) as avg_temperature
 FROM sensor_data 
-WHERE timestamp BETWEEN '$start_date' AND '$end_date 23:59:59'
+WHERE timestamp BETWEEN ? AND ?
 GROUP BY DATE(timestamp)
 ORDER BY date DESC
 LIMIT 20");
+$energy_stmt->bind_param("ss", $start_date, $end_date_full);
+$energy_stmt->execute();
+$energy_res = $energy_stmt->get_result();
+$energy_stmt->close();
 if ($energy_res) while ($r = $energy_res->fetch_assoc()) $energy_rows[] = $r;
 
 $node_rows = [];
-$node_res = $conn->query("SELECT 
+$node_stmt = $conn->prepare("SELECT 
     s.node_name, s.location,
     COUNT(a.alert_id) as alert_count,
     COUNT(CASE WHEN a.severity = 'High' THEN 1 END) as critical_count
 FROM streetlights s
-LEFT JOIN alerts a ON s.light_id = a.light_id AND a.created_at BETWEEN '$start_date' AND '$end_date 23:59:59'
+LEFT JOIN alerts a ON s.light_id = a.light_id AND a.created_at BETWEEN ? AND ?
 GROUP BY s.light_id
 HAVING alert_count > 0
 ORDER BY critical_count DESC, alert_count DESC
 LIMIT 15");
+$node_stmt->bind_param("ss", $start_date, $end_date_full);
+$node_stmt->execute();
+$node_res = $node_stmt->get_result();
+$node_stmt->close();
 if ($node_res) while ($r = $node_res->fetch_assoc()) $node_rows[] = $r;
 
 $uptime_pct = ($system_stats['total_lights'] > 0)

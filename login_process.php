@@ -18,11 +18,15 @@ if (isIpLockedOut($conn, $ip)) {
     exit();
 }
 
+// ── ZERO-TRUST: Use Blind Index for fast, secure email lookup ──
+// We never decrypt all emails to search — we hash the input and match the index.
+$email_blind_idx = \ShineGuard\Services\SecurityService::generateBlindIndex($email);
+
 $stmt = $conn->prepare(
     "SELECT user_id, username, email, password_hash, full_name, role, is_active, failed_attempts, lockout_until, mfa_secret, mfa_enabled
-     FROM users WHERE email = ? LIMIT 1"
+     FROM users WHERE email_blind_index = ? LIMIT 1"
 );
-$stmt->bind_param("s", $email);
+$stmt->bind_param("s", $email_blind_idx);
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -35,6 +39,11 @@ if ($result->num_rows !== 1) {
 
 $user = $result->fetch_assoc();
 $stmt->close();
+
+// ── ZERO-TRUST: Decrypt PII fields from AES-256 storage ──
+$user['username']  = \ShineGuard\Services\SecurityService::decrypt($user['username']);
+$user['full_name'] = \ShineGuard\Services\SecurityService::decrypt($user['full_name']);
+$user['role']      = \ShineGuard\Services\SecurityService::decrypt($user['role']);
 
 if ($user['lockout_until'] !== null && strtotime($user['lockout_until']) > time()) {
     $secs_left = strtotime($user['lockout_until']) - time();

@@ -16,7 +16,9 @@ if (empty($camera_ip)) {
     exit();
 }
 
-$ping_result = @exec("ping -n 1 -w 2000 $camera_ip 2>&1", $output, $return_code);
+// ── SECURITY: escapeshellarg() prevents Command Injection (RCE) ──
+$safe_ip = escapeshellarg($camera_ip);
+$ping_result = @exec("ping -n 1 -w 2000 {$safe_ip} 2>&1", $output, $return_code);
 
 if ($return_code !== 0) {
     echo json_encode([

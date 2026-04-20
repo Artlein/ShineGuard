@@ -9,27 +9,49 @@ if (isset($_GET['export']) && $_GET['export'] === 'pdf' && !canDo('export_report
 
 $isObserver = (getUserRole() === 'System Observer');
 
-$start_date = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d', strtotime('-30 days'));
-$end_date = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
+// ── SECURITY: Validate date inputs strictly — reject any non-date values ──
+// This prevents SQL injection via the start_date/end_date GET parameters.
+$start_date_raw = $_GET['start_date'] ?? date('Y-m-d', strtotime('-30 days'));
+$end_date_raw   = $_GET['end_date']   ?? date('Y-m-d');
 
-// Enhanced System Stats
-$system_stats = $conn->query("SELECT 
+// Only accept values that match exactly YYYY-MM-DD format and are real dates
+function validateDate($str) {
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $str)) return null;
+    $d = DateTime::createFromFormat('Y-m-d', $str);
+    return ($d && $d->format('Y-m-d') === $str) ? $str : null;
+}
+
+$start_date = validateDate($start_date_raw) ?? date('Y-m-d', strtotime('-30 days'));
+$end_date   = validateDate($end_date_raw)   ?? date('Y-m-d');
+$end_date_full = $end_date . ' 23:59:59';
+
+// ── SECURITY: Parameterized system stats (was raw string concatenation) ──
+$stats_stmt = $conn->prepare("SELECT 
     (SELECT COUNT(*) FROM streetlights) as total_lights,
     (SELECT COUNT(*) FROM streetlights WHERE status = 'Active') as active_lights,
-    (SELECT COUNT(*) FROM alerts WHERE created_at BETWEEN '$start_date' AND '$end_date 23:59:59') as total_alerts,
-    (SELECT COUNT(*) FROM maintenance_logs WHERE maintenance_date BETWEEN '$start_date' AND '$end_date 23:59:59') as maintenance_count")->fetch_assoc();
+    (SELECT COUNT(*) FROM alerts WHERE created_at BETWEEN ? AND ?) as total_alerts,
+    (SELECT COUNT(*) FROM maintenance_logs WHERE maintenance_date BETWEEN ? AND ?) as maintenance_count");
+$stats_stmt->bind_param("ssss", $start_date, $end_date_full, $start_date, $end_date_full);
+$stats_stmt->execute();
+$system_stats = $stats_stmt->get_result()->fetch_assoc();
+$stats_stmt->close();
 
-$energy_report = $conn->query("SELECT 
+// ── SECURITY: Parameterized energy report (was raw string concatenation) ──  
+$energy_stmt = $conn->prepare("SELECT 
     DATE(timestamp) as date,
     COUNT(*) as readings,
     AVG(voltage) as avg_voltage,
     AVG(current_consumption) as avg_current,
     AVG(temperature) as avg_temperature
 FROM sensor_data 
-WHERE timestamp BETWEEN '$start_date' AND '$end_date 23:59:59'
+WHERE timestamp BETWEEN ? AND ?
 GROUP BY DATE(timestamp)
 ORDER BY date DESC
 LIMIT 15");
+$energy_stmt->bind_param("ss", $start_date, $end_date_full);
+$energy_stmt->execute();
+$energy_report = $energy_stmt->get_result();
+$energy_stmt->close();
 
 // ── SECURITY HARDENING: Parameterized Report Queries ──
 $prob_stmt = $conn->prepare("SELECT 
