@@ -45,8 +45,10 @@ ini_set('log_errors', 1);
 error_log(__DIR__ . '/logs/php_errors.log');
 
 // ── CORPORATE STANDARDS: Configuration Layer ──
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
-$dotenv->safeLoad();
+if (class_exists('Dotenv\Dotenv')) {
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+    $dotenv->safeLoad();
+}
 
 // Auto-detect environment
 $is_aws = file_exists('/var/www/html/ShineGuard');
