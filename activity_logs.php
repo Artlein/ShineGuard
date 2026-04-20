@@ -863,8 +863,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
 
     function closeSecurityGate() {
         document.getElementById('authGateModal').style.display = 'none';
-        activeExportUrl = null;
-        activeExportType = null;
     }
 
     async function confirmSecurityGate() {
