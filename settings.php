@@ -1211,8 +1211,6 @@ tbody td {
   </div>
   <?php endif; ?>
 
-  <?php endif; ?>
-
   <?php if ($isAdmin): ?>
   <div id="data" class="tab-content <?php echo $active_tab === 'data' ? 'active' : ''; ?>">
     <form method="POST">
