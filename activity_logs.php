@@ -795,7 +795,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
     }
     // CSV Export: show toast then proceed
     function handleCsvExport(e) {
+        if(e) e.preventDefault();
         window.sgToast('📥', 'Exporting CSV', 'Preparing audit log download...', '#3b82f6', '#eff6ff');
+        const href = e.currentTarget ? e.currentTarget.href : document.getElementById('exportCsvBtn').href;
+        setTimeout(() => {
+            window.location.href = href;
+        }, 300);
     }
 
     // PDF Export: show password toast
