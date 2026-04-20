@@ -75,9 +75,12 @@ $period_label = date('M d, Y', strtotime($start_date)) . ' – ' . date('M d, Y'
 $logoPath     = realpath(__DIR__ . '/img/ShineGuard3.png');
 
 // ── PDF Password ────────────────────────────────────────────────────────────
-// Uses the user's own login password (captured during SBA authentication)
-$pdf_user_pass  = $_SESSION['export_password'] ?? 'SG-' . date('Ymd');
-$pdf_owner_pass = 'SGOwner-' . sha1('shineguard_audit_' . date('Ymd'));
+// Uses the user's own login password (captured during the security handshake)
+if (!isset($_SESSION['export_password'])) {
+    die("Export not authorized. Please return to the activity logs and authenticate.");
+}
+$pdf_user_pass  = $_SESSION['export_password'];
+$pdf_owner_pass = 'SGOwner-' . sha1('shineguard_audit_' . date('Ymd_His'));
 
 // ── Initialize TCPDF ────────────────────────────────────────────────────────
 $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false); // Landscape for wide log table

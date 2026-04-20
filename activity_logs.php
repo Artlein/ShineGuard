@@ -165,14 +165,18 @@ if ($actions_res) while($r = $actions_res->fetch_assoc()) $actions[] = $r['actio
 // Get users for filter
 $users_res = $conn->query("SELECT user_id, full_name, username FROM users WHERE is_active = 1 ORDER BY full_name ASC");
 
-// Export CSV logic
+// Export CSV logic with optional ZIP password protection
 if (isset($_GET['export']) && $_GET['export'] === 'csv' && $logs) {
-    header('Content-Type: text/csv');
-    header('Content-Disposition: attachment; filename="ShineGuard_Audit_Logs_' . date('Ymd') . '.csv"');
-    $output = fopen('php://output', 'w');
-    fputcsv($output, ['ID', 'Timestamp', 'User', 'Role', 'Action', 'Details', 'IP Address']);
+    $csv_filename = "ShineGuard_Audit_Logs_" . date('Ymd_His') . ".csv";
+    $zip_filename = "ShineGuard_Audit_Logs_" . date('Ymd_His') . ".zip";
+    $csv_buffer = fopen('php://temp', 'r+');
+    
+    // Write headers
+    fputcsv($csv_buffer, ['ID', 'Timestamp', 'User', 'Role', 'Action', 'Details', 'IP Address']);
+    
+    // Write log data
     while ($row = $logs->fetch_assoc()) {
-        fputcsv($output, [
+        fputcsv($csv_buffer, [
             $row['log_id'],
             $row['created_at'],
             \ShineGuard\Services\SecurityService::decrypt($row['full_name'] ?: ($row['username'] ?: 'System Interface')),
@@ -182,7 +186,38 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv' && $logs) {
             $row['ip_address']
         ]);
     }
-    fclose($output);
+    
+    rewind($csv_buffer);
+    $csv_string = stream_get_contents($csv_buffer);
+    fclose($csv_buffer);
+
+    $export_password = $_SESSION['export_password'] ?? null;
+
+    if ($export_password) {
+        // Create password-protected ZIP
+        $zip = new ZipArchive();
+        $temp_zip = tempnam(sys_get_temp_dir(), 'sgzip');
+        
+        if ($zip->open($temp_zip, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
+            $zip->addFromString($csv_filename, $csv_string);
+            
+            // Set AES-256 encryption (supported in PHP 7.2+)
+            $zip->setEncryptionName($csv_filename, ZipArchive::EM_AES_256, $export_password);
+            $zip->close();
+            
+            header('Content-Type: application/zip');
+            header('Content-Disposition: attachment; filename="' . $zip_filename . '"');
+            header('Content-Length: ' . filesize($temp_zip));
+            readfile($temp_zip);
+            unlink($temp_zip);
+            exit();
+        }
+    }
+
+    // Fallback: Plain CSV if for some reason password is not set or zip fails
+    header('Content-Type: text/csv');
+    header('Content-Disposition: attachment; filename="' . $csv_filename . '"');
+    echo $csv_string;
     exit();
 }
 
@@ -539,7 +574,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
                     <a href="activity_logs.php?export=csv&start_date=<?php echo $start_date; ?>&end_date=<?php echo $end_date; ?>&action=<?php echo urlencode($action_filter); ?>&user_id=<?php echo $user_filter; ?>" class="btn-export" id="exportCsvBtn" onclick="handleCsvExport(event)">
                         <span>📥 Export to CSV</span>
                     </a>
-                    <a href="activity_logs_pdf.php?start_date=<?php echo $start_date; ?>&end_date=<?php echo $end_date; ?>&action=<?php echo urlencode($action_filter); ?>&user_id=<?php echo $user_filter; ?>" class="btn-export" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border-color: transparent;" onclick="handlePdfExport()">
+                    <a href="activity_logs_pdf.php?start_date=<?php echo $start_date; ?>&end_date=<?php echo $end_date; ?>&action=<?php echo urlencode($action_filter); ?>&user_id=<?php echo $user_filter; ?>" class="btn-export" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border-color: transparent;" onclick="handlePdfExport(event)">
                         <span>📄 Download PDF</span>
                     </a>
                 </div>
@@ -748,6 +783,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
         </main>
     </div>
 
+<!-- Modern Identity Verification Modal for Exports -->
+<div id="authGateModal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.6); backdrop-filter:blur(12px) saturate(160%); z-index:10000; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:24px; max-width: 440px; width: 90%; padding: 2.5rem; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4); font-family: 'Inter', sans-serif;">
+        <div style="font-size: 40px; margin-bottom: 1rem;">🛡️</div>
+        <h2 id="gateTitle" style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem; color: #0f172a; letter-spacing: -0.02em;">EXPORT AUTHORIZATION</h2>
+        <p id="gateDesc" style="font-size: 14px; color: #64748b; margin-bottom: 1.5rem;">Please verify your administrator password to unlock this export.</p>
+        
+        <div id="gateError" style="display:none; background:rgba(239, 68, 68, 0.1); color:#ef4444; padding:0.75rem; border-radius:12px; font-size:12px; font-weight:700; margin-bottom:1rem; border:1px solid rgba(239,68,68,0.2);">
+            Invalid password. Access denied.
+        </div>
+
+        <div style="text-align: left; margin-bottom: 1.5rem; position: relative;">
+            <label style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #3b82f6; display: block; margin-bottom: 8px;">CREDENTIAL VERIFICATION</label>
+            <input type="password" id="gatePassword" placeholder="Admin Password" style="width:100%; box-sizing: border-box; background:#f8fafc; border:2px solid #e2e8f0; color:#0f172a; height:48px; padding:0 1.25rem; border-radius:14px; font-weight:600; outline:none; transition: all 0.2s; padding-right: 50px;">
+            <button type="button" onclick="toggleGatePassword()" style="position: absolute; right: 10px; top: 32px; background: none; border: none; color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; transition: color 0.2s;" onmouseenter="this.style.color='#0f172a'" onmouseleave="if(document.getElementById('gatePassword').type==='password') this.style.color='#94a3b8'">
+                <svg id="gateEyeIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </button>
+        </div>
+
+        <div style="display: flex; gap: 1rem;">
+            <button onclick="closeSecurityGate()" style="flex:1; padding: 12px; border-radius:14px; border:2px solid #e2e8f0; background:white; font-weight:700; cursor:pointer; color:#64748b; transition: all 0.2s;">CANCEL</button>
+            <button onclick="confirmSecurityGate()" id="gateConfirmBtn" style="flex:1; padding: 12px; border-radius:14px; border:none; background:#3b82f6; color:white; font-weight:700; cursor:pointer; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); transition: all 0.2s;">
+                VERIFY & PROCEED
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Integrity Confirm Modal -->
 <div id="integrityConfirmModal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.55); backdrop-filter:blur(10px); z-index:99999; align-items:center; justify-content:center;">
     <div style="background:white; border-radius:20px; padding:2rem 2.5rem; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.2); font-family:'Inter',sans-serif; text-align:center; animation:slideInRight 0.35s cubic-bezier(0.34,1.56,0.64,1);">
@@ -783,6 +846,94 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
 </div>
 
 <script>
+    function toggleGatePassword() {
+        const input = document.getElementById('gatePassword');
+        const icon = document.getElementById('gateEyeIcon');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+        } else {
+            input.type = 'password';
+            icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+        }
+    }
+
+    let activeExportUrl = null;
+    let activeExportType = null;
+
+    function closeSecurityGate() {
+        document.getElementById('authGateModal').style.display = 'none';
+        activeExportUrl = null;
+        activeExportType = null;
+    }
+
+    async function confirmSecurityGate() {
+        const passwordInput = document.getElementById('gatePassword');
+        const confirmBtn = document.getElementById('gateConfirmBtn');
+        const error = document.getElementById('gateError');
+        const password = passwordInput.value;
+
+        if (!password) {
+            passwordInput.focus();
+            return;
+        }
+
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'VERIFYING...';
+        error.style.display = 'none';
+
+        try {
+            const formData = new URLSearchParams();
+            formData.append('admin_password', password);
+            formData.append('action', 'verify');
+            formData.append('csrf_token', '<?php echo $_SESSION['csrf_token'] ?? ''; ?>');
+
+            const response = await fetch('api/auth_session.php', {
+                method: 'POST',
+                body: formData,
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                closeSecurityGate();
+                
+                if (activeExportType === 'csv') {
+                    window.sgToast('📥', 'Export Authorized', 'Preparing encrypted audit logs...', '#3b82f6', '#eff6ff');
+                } else if (activeExportType === 'pdf') {
+                    window.sgToast('🔐', 'Export Authorized', 'Generating protected PDF signature...', '#ef4444', '#fef2f2');
+                }
+
+                setTimeout(() => {
+                    window.location.href = activeExportUrl;
+                    if (activeExportType === 'pdf') {
+                        setTimeout(() => {
+                            window.sgToast('🔐', 'PDF Protected', 'Use your ShineGuard login password to open the file.', '#3b82f6', '#eff6ff');
+                        }, 1000);
+                    } else if (activeExportType === 'csv') {
+                        setTimeout(() => {
+                            window.sgToast('🔐', 'ZIP Protected', 'Use your ShineGuard login password to open the encrypted archive.', '#3b82f6', '#eff6ff');
+                        }, 1000);
+                    }
+                }, 800);
+
+            } else {
+                error.textContent = result.error || 'Invalid password. Access denied.';
+                error.style.display = 'block';
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'VERIFY & PROCEED';
+                passwordInput.value = '';
+                passwordInput.focus();
+            }
+        } catch (err) {
+            error.textContent = 'Security communication failure.';
+            error.style.display = 'block';
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'VERIFY & PROCEED';
+        }
+    }
+
     // MFA Block Device Handling
     function initBlockDevice(token) {
         document.getElementById('mfaBlockDeviceToken').value = token;
@@ -793,21 +944,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
         document.getElementById('deviceBlockMfaModal').style.display = 'none';
         document.getElementById('mfaBlockDeviceToken').value = '';
     }
-    // CSV Export: show toast then proceed
+    // CSV Export: triggers security gate
     function handleCsvExport(e) {
         if(e) e.preventDefault();
-        window.sgToast('📥', 'Exporting CSV', 'Preparing audit log download...', '#3b82f6', '#eff6ff');
-        const href = e.currentTarget ? e.currentTarget.href : document.getElementById('exportCsvBtn').href;
-        setTimeout(() => {
-            window.location.href = href;
-        }, 300);
+        activeExportUrl = e.currentTarget ? e.currentTarget.href : document.getElementById('exportCsvBtn').href;
+        activeExportType = 'csv';
+        
+        const modal = document.getElementById('authGateModal');
+        document.getElementById('gateTitle').textContent = 'CSV EXPORT AUTHORIZATION';
+        document.getElementById('gateDesc').textContent = 'Downloading encrypted logs requires a security handshake.';
+        document.getElementById('gateError').style.display = 'none';
+        document.getElementById('gatePassword').value = '';
+        modal.style.display = 'flex';
+        document.getElementById('gatePassword').focus();
     }
 
-    // PDF Export: show password toast
-    function handlePdfExport() {
-        setTimeout(() => {
-            window.sgToast('🔐', 'PDF Downloaded — Protected', 'Use your ShineGuard login password to open the file.', '#3b82f6', '#eff6ff');
-        }, 500);
+    // PDF Export: triggers security gate
+    function handlePdfExport(e) {
+        if(e) e.preventDefault();
+        activeExportUrl = e.currentTarget.href;
+        activeExportType = 'pdf';
+
+        const modal = document.getElementById('authGateModal');
+        document.getElementById('gateTitle').textContent = 'PDF EXPORT AUTHORIZATION';
+        document.getElementById('gateDesc').textContent = 'Generating a protected PDF signature requires identity verification.';
+        document.getElementById('gateError').style.display = 'none';
+        document.getElementById('gatePassword').value = '';
+        modal.style.display = 'flex';
+        document.getElementById('gatePassword').focus();
     }
 
     // Integrity Check: show inline confirm then submit form
@@ -824,6 +988,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
     function cancelIntegrity() {
         document.getElementById('integrityConfirmModal').style.display = 'none';
     }
+
+    // Enter key support for gate
+    document.addEventListener('DOMContentLoaded', () => {
+        const gp = document.getElementById('gatePassword');
+        if (gp) {
+            gp.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') confirmSecurityGate();
+            });
+        }
+    });
 
     // URL Parameter Toasts
     <?php if (isset($_GET['success']) && $_GET['success'] === 'device_blocked'): ?>
