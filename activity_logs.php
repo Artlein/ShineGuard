@@ -631,7 +631,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
                                         </td>
                                         <td class="details-col">
                                             <?php
-                                                $details = $log['details'];
+                                                $details = \ShineGuard\Services\SecurityService::decrypt($log['details']);
                                                 $device_token = null;
                                                 
                                                 // Extract [DEVICE:token] safely
