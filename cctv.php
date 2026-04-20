@@ -873,8 +873,10 @@ $cameras_result->data_seek(0);
         <?php include 'includes/header.php'; ?>
 
         <main class="main-content">
-            <div class="page-header" style="text-align: center; padding-bottom: 5rem;">
+            <div class="page-header" style="text-align: center; padding-bottom: 3rem;">
                 <br>
+                <br>
+
                 <h1>📹 CCTV Camera Viewing</h1>
                 <p style="margin-top: 5px;">Live feed and surveillance management for cameras across Barangay Hulo</p>
             </div>
