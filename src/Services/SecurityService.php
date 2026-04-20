@@ -78,5 +78,47 @@ class SecurityService {
         $payload = $prev_hash . $user_id . $action . $details . $ip;
         return hash_hmac('sha256', $payload, self::$secret_key);
     }
-}
+    /**
+     * Device Fingerprinting - Forensic Tracking layer
+     */
+    public static function verifyDeviceFingerprint($conn, $user_id, $ip_address) {
+        $device_token = $_COOKIE['sg_device_fp'] ?? null;
+        $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown Agent';
 
+        if ($device_token) {
+            // Check if device exists and belongs to this user
+            $stmt = $conn->prepare("SELECT device_token FROM user_devices WHERE device_token = ? AND user_id = ?");
+            $stmt->bind_param("si", $device_token, $user_id);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res->num_rows > 0) {
+                // Known device: Silently update last_seen_at
+                $upd = $conn->prepare("UPDATE user_devices SET last_seen_at = NOW(), last_ip = ? WHERE device_token = ?");
+                $upd->bind_param("ss", $ip_address, $device_token);
+                $upd->execute();
+                return; // Device verified
+            }
+        }
+
+        // --- Unrecognized Device Flow ---
+        // 1. Alert internally
+        if (function_exists('logActivity')) {
+            logActivity($conn, $user_id, 'Security Alert', "Login from unrecognized device (New Browser/Device) out of IP: $ip_address");
+        }
+
+        // 2. Generate and issue a new secure device token (365 days)
+        $new_token = bin2hex(random_bytes(32));
+        
+        $ins = $conn->prepare("INSERT INTO user_devices (device_token, user_id, browser_agent, last_ip, last_seen_at, created_at) VALUES (?, ?, ?, ?, NOW(), NOW())");
+        $ins->bind_param("siss", $new_token, $user_id, $user_agent, $ip_address);
+        $ins->execute();
+
+        setcookie('sg_device_fp', $new_token, [
+            'expires'  => time() + (86400 * 365), // 1 year
+            'path'     => '/',
+            'secure'   => true, // Send over HTTPS only
+            'httponly' => true, // Hide from JavaScript
+            'samesite' => 'Strict'
+        ]);
+    }
+}

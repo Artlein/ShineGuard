@@ -132,6 +132,9 @@ $upd->bind_param("i", $user['user_id']);
 $upd->execute();
 $upd->close();
 
+// --- Device Fingerprint Trace ---
+\ShineGuard\Services\SecurityService::verifyDeviceFingerprint($conn, $user['user_id'], $ip);
+
 logActivity($conn, $user['user_id'], 'Login', 'User logged in successfully');
 
 if ($remember) {

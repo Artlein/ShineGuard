@@ -77,6 +77,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $upd->execute();
         $upd->close();
 
+        // --- Device Fingerprint Trace ---
+        \ShineGuard\Services\SecurityService::verifyDeviceFingerprint($conn, $user_id, $ip);
+
         logActivity($conn, $user_id, 'MFA Login', 'User passed MFA and logged in successfully');
 
         if ($remember) {

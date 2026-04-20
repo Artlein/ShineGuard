@@ -39,6 +39,26 @@ foreach ($user_cols as $c) {
     addColumnIfNotExists($conn, 'users', $c[0], $c[1]);
 }
 
+// Ensure user_devices table exists for Device Fingerprinting
+echo "<h3>Checking Device Fingerprinting Schema...</h3>";
+$device_sql = "
+CREATE TABLE IF NOT EXISTS `user_devices` (
+  `device_token` VARCHAR(64) NOT NULL,
+  `user_id` INT(11) NOT NULL,
+  `browser_agent` VARCHAR(255) NULL,
+  `last_ip` VARCHAR(45) NULL,
+  `last_seen_at` DATETIME NOT NULL,
+  `created_at` DATETIME NOT NULL,
+  PRIMARY KEY (`device_token`),
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+";
+if ($conn->query($device_sql)) {
+    echo "<p style='color:green'>Table <b>user_devices</b> is ready.</p>";
+} else {
+    echo "<p style='color:red'>Error creating user_devices: " . $conn->error . "</p>";
+}
+
 // Generate Blind Indexes for existing users and encrypt fields to zero-trust
 echo "<h3>Updating User Encryption & Indexes...</h3>";
 $users = $conn->query("SELECT user_id, email, username, full_name, role FROM users");
