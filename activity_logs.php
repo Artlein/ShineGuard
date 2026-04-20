@@ -107,13 +107,35 @@ if ($action_filter) {
     if ($af_row) $valid_action = $af_row['action'];
 }
 
+// --- PAGINATION LOGIC ---
+$page = max(1, intval($_GET['page'] ?? 1));
+$limit = (isset($_GET['export']) && $_GET['export'] === 'csv') ? 1000000 : 25;
+$offset = ($page - 1) * $limit;
+
+// Count Query for Pagination
+$count_sql = "SELECT COUNT(*) as total FROM activity_logs al WHERE al.created_at BETWEEN ? AND ?";
+$count_params = [$start_full, $end_full];
+$count_types  = "ss";
+if ($valid_action) { $count_sql .= " AND al.action = ?"; $count_params[] = $valid_action; $count_types .= "s"; }
+if ($user_filter)  { $count_sql .= " AND al.user_id = ?"; $count_params[] = $user_filter;  $count_types .= "i"; }
+$count_stmt = $conn->prepare($count_sql);
+$count_stmt->bind_param($count_types, ...$count_params);
+$count_stmt->execute();
+$total_records = $count_stmt->get_result()->fetch_assoc()['total'] ?? 0;
+$count_stmt->close();
+$total_pages = max(1, ceil($total_records / $limit));
+
 // Build parameterized log query
 $base_sql = "SELECT al.*, u.username, u.full_name, u.role FROM activity_logs al LEFT JOIN users u ON al.user_id = u.user_id WHERE al.created_at BETWEEN ? AND ?";
 $params = [$start_full, $end_full];
 $types  = "ss";
 if ($valid_action) { $base_sql .= " AND al.action = ?"; $params[] = $valid_action; $types .= "s"; }
 if ($user_filter)  { $base_sql .= " AND al.user_id = ?"; $params[] = $user_filter;  $types .= "i"; }
-$base_sql .= " ORDER BY al.created_at DESC";
+$base_sql .= " ORDER BY al.created_at DESC LIMIT ?, ?";
+
+$types .= "ii";
+$params[] = $offset;
+$params[] = $limit;
 
 $log_stmt = $conn->prepare($base_sql);
 $log_stmt->bind_param($types, ...$params);
@@ -676,6 +698,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Pagination UI -->
+                <?php if (isset($total_pages) && $total_pages > 1 && (!isset($_GET['export']) || $_GET['export'] !== 'csv')): ?>
+                <div style="margin-top: 24px; display: flex; justify-content: space-between; align-items: center; background: white; padding: 16px 24px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                    <div style="font-size: 14px; color: #64748b; font-weight: 500;">
+                        Showing page <strong style="color: #0f172a;"><?php echo $page; ?></strong> of <strong style="color: #0f172a;"><?php echo $total_pages; ?></strong>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <?php 
+                            $base_url = "activity_logs.php?start_date=$start_date&end_date=$end_date&action=" . urlencode($action_filter) . "&user_id=$user_filter";
+                            
+                            if ($page > 1) {
+                                echo '<a href="' . $base_url . '&page=' . ($page - 1) . '" style="padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; color: #0f172a; text-decoration: none; font-size: 14px; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'white\'">Previous</a>';
+                            } else {
+                                echo '<span style="padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; color: #cbd5e1; font-size: 14px; font-weight: 600; cursor: not-allowed;">Previous</span>';
+                            }
+
+                            if ($page < $total_pages) {
+                                echo '<a href="' . $base_url . '&page=' . ($page + 1) . '" style="padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; color: #0f172a; text-decoration: none; font-size: 14px; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'white\'">Next</a>';
+                            } else {
+                                echo '<span style="padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; color: #cbd5e1; font-size: 14px; font-weight: 600; cursor: not-allowed;">Next</span>';
+                            }
+                        ?>
+                    </div>
+                </div>
+                <?php endif; ?>
             </div>
         </main>
     </div>
