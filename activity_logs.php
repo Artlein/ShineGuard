@@ -630,6 +630,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
                                             <?php endif; ?>
                                         </td>
                                         <td class="details-col">
+                                            <?php
                                                 $details = $log['details'];
                                                 $device_token = null;
                                                 
