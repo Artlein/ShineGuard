@@ -571,10 +571,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
                             🛡️ Verify Log Integrity
                         </button>
                     </form>
-                    <a href="activity_logs.php?export=csv&start_date=<?php echo $start_date; ?>&end_date=<?php echo $end_date; ?>&action=<?php echo urlencode($action_filter); ?>&user_id=<?php echo $user_filter; ?>" class="btn-export" id="exportCsvBtn" onclick="handleCsvExport(event)">
+                    <a href="activity_logs.php?export=csv&start_date=<?php echo $start_date; ?>&end_date=<?php echo $end_date; ?>&action=<?php echo urlencode($action_filter); ?>&user_id=<?php echo $user_filter; ?>" class="btn-export" id="exportCsvBtn" onclick="handleCsvExport(this, event)">
                         <span>📥 Export to CSV</span>
                     </a>
-                    <a href="activity_logs_pdf.php?start_date=<?php echo $start_date; ?>&end_date=<?php echo $end_date; ?>&action=<?php echo urlencode($action_filter); ?>&user_id=<?php echo $user_filter; ?>" class="btn-export" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border-color: transparent;" onclick="handlePdfExport(event)">
+                    <a href="activity_logs_pdf.php?start_date=<?php echo $start_date; ?>&end_date=<?php echo $end_date; ?>&action=<?php echo urlencode($action_filter); ?>&user_id=<?php echo $user_filter; ?>" class="btn-export" id="exportPdfBtn" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border-color: transparent;" onclick="handlePdfExport(this, event)">
                         <span>📄 Download PDF</span>
                     </a>
                 </div>
@@ -945,9 +945,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
         document.getElementById('mfaBlockDeviceToken').value = '';
     }
     // CSV Export: triggers security gate
-    function handleCsvExport(e) {
+    function handleCsvExport(el, e) {
         if(e) e.preventDefault();
-        activeExportUrl = e.currentTarget ? e.currentTarget.href : document.getElementById('exportCsvBtn').href;
+        activeExportUrl = el ? el.href : document.getElementById('exportCsvBtn').href;
         activeExportType = 'csv';
         
         const modal = document.getElementById('authGateModal');
@@ -960,9 +960,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
     }
 
     // PDF Export: triggers security gate
-    function handlePdfExport(e) {
+    function handlePdfExport(el, e) {
         if(e) e.preventDefault();
-        activeExportUrl = e.currentTarget.href;
+        activeExportUrl = el ? el.href : document.getElementById('exportPdfBtn').href;
         activeExportType = 'pdf';
 
         const modal = document.getElementById('authGateModal');
