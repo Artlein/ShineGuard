@@ -24,6 +24,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit();
 }
 
+// ── SECURITY FEATURE: DEVICE REVOCATION (KILL SWITCH) ──
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['block_device_token'])) {
+    if (!isset($_SESSION['activity_logs_authorized']) || !$_SESSION['activity_logs_authorized']) {
+        exit("Unauthorized");
+    }
+    checkCsrf();
+    $token_to_block = $_POST['block_device_token'];
+    
+    // Update DB to block the device
+    $block_stmt = $conn->prepare("UPDATE user_devices SET is_blocked = 1 WHERE device_token = ?");
+    $block_stmt->bind_param("s", $token_to_block);
+    if ($block_stmt->execute()) {
+        logActivity($conn, $_SESSION['user_id'], 'Security Alert', "Administrator permanently revoked and blocked an unrecognized device footprint: " . substr($token_to_block, 0, 8) . "...");
+    }
+    $block_stmt->close();
+    
+    // Redirect back to same page to prevent form resubmission
+    header("Location: activity_logs.php?start_date=" . urlencode($_GET['start_date'] ?? '') . "&end_date=" . urlencode($_GET['end_date'] ?? ''));
+    exit();
+}
+
 // Access Gate
 if (!isset($_SESSION['activity_logs_authorized']) || !$_SESSION['activity_logs_authorized']) {
     include 'includes/secure_auth_ui.php';
@@ -587,13 +608,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
                                             <?php endif; ?>
                                         </td>
                                         <td class="details-col">
-                                            <?php 
                                                 $details = $log['details'];
+                                                $device_token = null;
+                                                
+                                                // Extract [DEVICE:token] safely
+                                                if (preg_match('/\[DEVICE:([a-f0-9]+)\]/', $details, $matches)) {
+                                                    $device_token = $matches[1];
+                                                    // Strip it from the visible log text
+                                                    $details = str_replace($matches[0], '', $details);
+                                                }
+                                                
                                                 if (shouldMaskPII()) {
                                                     // Simple heuristic to mask emails or phones embedded in logs
                                                     $details = preg_replace_callback('/[a-zA-Z0-9._%+-]+@hulo\.gov\.ph/', function($m) { return maskEmail($m[0]); }, $details);
                                                 }
-                                                echo htmlspecialchars($details); 
+                                                
+                                                echo htmlspecialchars(trim($details)); 
+                                                
+                                                // If a device token was flagged, render the Revoke button right next to the log text
+                                                if ($device_token && $log['action'] === 'Security Alert') {
+                                                    echo '<form method="POST" style="display:inline-block; margin-left: 10px;" onsubmit="return confirm(\'Are you absolutely sure you want to permanently revoke this device? They will be forcefully logged out.\');">';
+                                                    echo '<input type="hidden" name="csrf_token" value="' . $_SESSION['csrf_token'] . '">';
+                                                    echo '<input type="hidden" name="block_device_token" value="' . htmlspecialchars($device_token) . '">';
+                                                    echo '<button type="submit" style="background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);">🛑 Block Device</button>';
+                                                    echo '</form>';
+                                                }
                                             ?>
                                         </td>
                                         <td style="font-family: 'JetBrains Mono', monospace; color: #94a3b8; font-size: 12px;">

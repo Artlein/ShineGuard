@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS `user_devices` (
   `user_id` INT(11) NOT NULL,
   `browser_agent` VARCHAR(255) NULL,
   `last_ip` VARCHAR(45) NULL,
+  `is_blocked` TINYINT(1) NOT NULL DEFAULT 0,
   `last_seen_at` DATETIME NOT NULL,
   `created_at` DATETIME NOT NULL,
   PRIMARY KEY (`device_token`),
@@ -58,6 +59,10 @@ if ($conn->query($device_sql)) {
 } else {
     echo "<p style='color:red'>Error creating user_devices: " . $conn->error . "</p>";
 }
+
+// Ensure is_blocked exists in case table was created earlier today
+addColumnIfNotExists($conn, 'user_devices', 'is_blocked', "TINYINT(1) NOT NULL DEFAULT 0 AFTER last_ip");
+
 
 // Generate Blind Indexes for existing users and encrypt fields to zero-trust
 echo "<h3>Updating User Encryption & Indexes...</h3>";
