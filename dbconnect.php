@@ -312,6 +312,22 @@ function requireLogin($require_role = null)
 
     checkSessionTimeout();
 
+    // ── ZERO TRUST: Rapid Device Block Verification ──
+    if (isset($_COOKIE['sg_device_fp'])) {
+        $c_token = $_COOKIE['sg_device_fp'];
+        $block_check = $conn->prepare("SELECT is_blocked FROM user_devices WHERE device_token = ? LIMIT 1");
+        $block_check->bind_param("s", $c_token);
+        $block_check->execute();
+        $block_res = $block_check->get_result()->fetch_assoc();
+        $block_check->close();
+        if ($block_res && $block_res['is_blocked'] == 1) {
+            // Instant termination
+            setcookie('sg_device_fp', '', time() - 3600, '/');
+            header('Location: logout.php?error=device_blocked');
+            exit();
+        }
+    }
+
     // ── ZERO TRUST: Mandatory MFA Blockade ──
     if (isset($_SESSION['mfa_setup_required']) && $_SESSION['mfa_setup_required'] === true) {
         $allowed_pages = ['settings.php', 'logout.php'];

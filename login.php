@@ -71,6 +71,33 @@
         </script>
     <?php endif; ?>
 
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'device_blocked'): ?>
+        <div id="blockedToast" style="
+        position: fixed; top: 24px; right: 24px; z-index: 99999;
+        background: white; border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(239,68,68,0.2), 0 2px 8px rgba(0,0,0,0.08);
+        padding: 18px 24px; display: flex; align-items: center; gap: 16px;
+        max-width: 380px; border-left: 4px solid #ef4444;
+        animation: slideInRight 0.4s cubic-bezier(0.34,1.56,0.64,1);
+        font-family: 'Inter', sans-serif;
+    ">
+            <div style="background: #fef2f2; color: #ef4444; width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">
+                🚨</div>
+            <div style="flex: 1;">
+                <div style="font-weight: 800; color: #0f172a; font-size: 0.9rem; margin-bottom: 2px;">Access Denied</div>
+                <div style="color: #64748b; font-size: 0.8rem;">This device has been permanently revoked and blocked by the system administrator.</div>
+            </div>
+            <button onclick="document.getElementById('blockedToast').style.display='none'"
+                style="background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 18px; line-height: 1; padding: 0; flex-shrink: 0;">✕</button>
+        </div>
+        <script>
+            setTimeout(() => {
+                const t = document.getElementById('blockedToast');
+                if (t) { t.style.transition = 'opacity 0.4s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }
+            }, 8000);
+        </script>
+    <?php endif; ?>
+
     <div class="login-container">
         <div class="login-left">
             <div class="logo-wrapper">

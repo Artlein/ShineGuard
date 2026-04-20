@@ -53,6 +53,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['block_device_token'])
     
     checkCsrf();
     $token_to_block = $_POST['block_device_token'];
+    $mfa_code = trim($_POST['block_mfa_code'] ?? '');
+    
+    // MFA VERIFICATION
+    require_once 'src/Services/TOTPService.php';
+    $mfa_check = $conn->prepare("SELECT mfa_secret FROM users WHERE user_id = ? AND mfa_enabled = 1");
+    $mfa_check->bind_param("i", $_SESSION['user_id']);
+    $mfa_check->execute();
+    $mfa_res = $mfa_check->get_result()->fetch_assoc();
+    $mfa_check->close();
+    
+    if (!$mfa_res || !\ShineGuard\Services\TOTPService::verifyCode($mfa_res['mfa_secret'], $mfa_code)) {
+        header("Location: activity_logs.php?error=invalid_mfa&start_date=" . urlencode($_GET['start_date'] ?? '') . "&end_date=" . urlencode($_GET['end_date'] ?? ''));
+        exit();
+    }
     
     // Update DB to block the device
     $block_stmt = $conn->prepare("UPDATE user_devices SET is_blocked = 1 WHERE device_token = ?");
@@ -62,8 +76,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['block_device_token'])
     }
     $block_stmt->close();
     
-    // Redirect back to same page to prevent form resubmission
-    header("Location: activity_logs.php?start_date=" . urlencode($_GET['start_date'] ?? '') . "&end_date=" . urlencode($_GET['end_date'] ?? ''));
+    // Redirect back to same page with success
+    header("Location: activity_logs.php?success=device_blocked&start_date=" . urlencode($_GET['start_date'] ?? '') . "&end_date=" . urlencode($_GET['end_date'] ?? ''));
     exit();
 }
 
@@ -683,11 +697,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
                                                 // If a device token was flagged, render the Revoke button right next to the log text
                                                 // ENFORCEMENT: Button only appears if the user is on their Base Device
                                                 if ($is_base_device && $device_token && $log['action'] === 'Security Alert') {
-                                                    echo '<form method="POST" style="display:inline-block; margin-left: 10px;" onsubmit="return confirm(\'Are you absolutely sure you want to permanently revoke this device? They will be forcefully logged out.\');">';
-                                                    echo '<input type="hidden" name="csrf_token" value="' . $_SESSION['csrf_token'] . '">';
-                                                    echo '<input type="hidden" name="block_device_token" value="' . htmlspecialchars($device_token) . '">';
-                                                    echo '<button type="submit" style="background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);">🛑 Block Device</button>';
-                                                    echo '</form>';
+                                                    echo '<button type="button" onclick="initBlockDevice(\'' . htmlspecialchars($device_token) . '\')" style="display:inline-block; margin-left: 10px; background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);">🛑 Block Device</button>';
                                                 }
                                             ?>
                                         </td>
@@ -751,7 +761,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
     </div>
 </div>
 
+<!-- Device Revocation MFA Modal -->
+<div id="deviceBlockMfaModal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.8); backdrop-filter:blur(10px); z-index:99999; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:20px; padding:2rem 2.5rem; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.5); font-family:'Inter',sans-serif; text-align:center; animation:slideInRight 0.35s cubic-bezier(0.34,1.56,0.64,1);">
+        <div style="font-size:40px; margin-bottom:1rem; color:#ef4444;">🚨</div>
+        <div style="font-size:1.1rem; font-weight:800; color:#ef4444; margin-bottom:0.5rem;">Revoke Device Access</div>
+        <p style="font-size:13px; color:#64748b; margin:0 0 1.5rem; line-height:1.6;">This action will permanently block the targeted device. To execute the kill switch, please verify your identity using your Authenticator App.</p>
+        
+        <form id="blockDeviceForm" method="POST" action="">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+            <input type="hidden" name="block_device_token" id="mfaBlockDeviceToken" value="">
+            
+            <input type="text" name="block_mfa_code" placeholder="6-digit MFA Code" required pattern="[0-9]{6}" autocomplete="off" style="width: 100%; box-sizing: border-box; text-align: center; font-size: 24px; letter-spacing: 4px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 12px; margin-bottom: 20px; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#ef4444'" onblur="this.style.borderColor='#e2e8f0'">
+
+            <div style="display:flex; gap:0.75rem;">
+                <button type="button" onclick="cancelBlockDevice()" style="flex:1; padding:12px; border-radius:12px; border:2px solid #e2e8f0; background:white; font-weight:700; font-size:14px; cursor:pointer; color:#64748b; transition:all 0.2s;" onmouseenter="this.style.background='#f8fafc'" onmouseleave="this.style.background='white'">Cancel</button>
+                <button type="submit" style="flex:1; padding:12px; border-radius:12px; border:none; background:#ef4444; color:white; font-weight:700; font-size:14px; cursor:pointer; box-shadow:0 4px 12px rgba(239,68,68,0.3); transition:all 0.2s;" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform='none'">🛑 Execute Block</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
+    // MFA Block Device Handling
+    function initBlockDevice(token) {
+        document.getElementById('mfaBlockDeviceToken').value = token;
+        document.getElementById('deviceBlockMfaModal').style.display = 'flex';
+    }
+
+    function cancelBlockDevice() {
+        document.getElementById('deviceBlockMfaModal').style.display = 'none';
+        document.getElementById('mfaBlockDeviceToken').value = '';
+    }
     // CSV Export: show toast then proceed
     function handleCsvExport(e) {
         window.sgToast('📥', 'Exporting CSV', 'Preparing audit log download...', '#3b82f6', '#eff6ff');
@@ -778,6 +819,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
     function cancelIntegrity() {
         document.getElementById('integrityConfirmModal').style.display = 'none';
     }
+
+    // URL Parameter Toasts
+    <?php if (isset($_GET['success']) && $_GET['success'] === 'device_blocked'): ?>
+    window.addEventListener('DOMContentLoaded', () => {
+        window.sgToast('✅', 'Device Revoked', 'Target device has been permanently blocked from accessing ShineGuard.', '#10b981', '#ecfdf5');
+    });
+    <?php elseif (isset($_GET['error']) && $_GET['error'] === 'invalid_mfa'): ?>
+    window.addEventListener('DOMContentLoaded', () => {
+        window.sgToast('❌', 'MFA Failed', 'Invalid authenticator code. Procedure rejected.', '#ef4444', 'rgba(239,68,68,0.1)');
+    });
+    <?php endif; ?>
 
     // Show result toast on page load if integrity check just ran
     <?php if (!empty($integrity_results)): ?>
