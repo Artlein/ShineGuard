@@ -190,8 +190,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
     require_once 'src/Services/SecurityService.php';
     
     // We verify the logs currently visible in the filter
-    $verify_query = "SELECT al.* FROM activity_logs al WHERE $where_clause ORDER BY al.log_id ASC";
-    $v_res = $conn->query($verify_query);
+    $v_sql = "SELECT al.* FROM activity_logs al WHERE al.created_at BETWEEN ? AND ?";
+    $v_params = [$start_full, $end_full];
+    $v_types  = "ss";
+    if ($valid_action) { $v_sql .= " AND al.action = ?"; $v_params[] = $valid_action; $v_types .= "s"; }
+    if ($user_filter)  { $v_sql .= " AND al.user_id = ?"; $v_params[] = $user_filter;  $v_types .= "i"; }
+    $v_sql .= " ORDER BY al.log_id ASC";
+    
+    $v_stmt = $conn->prepare($v_sql);
+    $v_stmt->bind_param($v_types, ...$v_params);
+    $v_stmt->execute();
+    $v_res = $v_stmt->get_result();
+    $v_stmt->close();
     
     // To verify a chain, we need the "Previous Hash" of the first record in our set.
     // If we're starting from the very first record ever, it's all zeros.
