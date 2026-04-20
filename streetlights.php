@@ -17,6 +17,9 @@ $mttr_global  = $data['mttr'];
 $pending_pm   = $data['pending_pm'];
 $user_ctx     = $data['user'];
 $theme_color  = getSystemConfig('theme_color', '#10b981');
+$map_lat      = getSystemConfig('map_center_lat', '14.5765');
+$map_lng      = getSystemConfig('map_center_lng', '121.0355');
+$map_zoom     = getSystemConfig('map_zoom_level', '16');
 
 // Helper proxy for UI continuity
 function getDimmingLabel($level) {
@@ -1224,9 +1227,9 @@ endif; ?>
 
         function initMap() {
 
-            const huloCenter = [14.5765, 121.0355]; // Note: Leaflet uses [lat, lng]
+            const huloCenter = [<?php echo $map_lat; ?>, <?php echo $map_lng; ?>]; // Note: Leaflet uses [lat, lng]
 
-            map = L.map('map').setView(huloCenter, 16);
+            map = L.map('map').setView(huloCenter, <?php echo $map_zoom; ?>);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors',
@@ -1297,7 +1300,7 @@ endif; ?>
 
         function centerMap() {
             if (map) {
-                map.setView([14.5765, 121.0355], 16);
+                map.setView([<?php echo $map_lat; ?>, <?php echo $map_lng; ?>], <?php echo $map_zoom; ?>);
             }
         }
 
