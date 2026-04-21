@@ -274,9 +274,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
             }
         }
 
+        $expected_id = null;
+        $chain_broken = false;
+
         foreach ($v_data as $row) {
-            // ZERO-TRUST: Decrypt details before re-computing signature
-            // (signature was computed on plaintext, so we must verify against plaintext)
+            $diag = ['status' => 'verified'];
+            
+            // 1. GAP DETECTION (Sequence Audit)
+            if ($expected_id !== null && $row['log_id'] !== $expected_id) {
+                $diag['gap'] = "Missing record(s) detected between ID " . ($expected_id - 1) . " and ID " . $row['log_id'];
+            }
+            $expected_id = $row['log_id'] + 1;
+
+            // 2. SIGNATURE VERIFICATION (Cryptographic Audit)
             $plaintext_details = \ShineGuard\Services\SecurityService::decrypt($row['details']);
             $expected = \ShineGuard\Services\SecurityService::generateLogSignature(
                 $current_prev_hash, 
@@ -286,7 +296,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
                 $row['ip_address']
             );
             
-            $integrity_results[$row['log_id']] = ($expected === $row['log_hash']);
+            if ($expected !== $row['log_hash']) {
+                $diag['status'] = 'tampered';
+                if (empty($row['log_hash'])) {
+                    $diag['reason'] = 'LEGACY_UNSIGNED';
+                    $diag['desc'] = "Audit signature missing. Record created before security framework implementation.";
+                } else if ($chain_broken) {
+                    $diag['reason'] = 'CHAIN_CASCADE';
+                    $diag['desc'] = "Security chain broken by a preceding log modification. Integrity cannot be verified.";
+                } else {
+                    $diag['reason'] = 'SIGNATURE_MISMATCH';
+                    $diag['desc'] = "Cryptographic signature mismatch. The content of this record has been modified in the database.";
+                    $chain_broken = true; 
+                }
+                $diag['expected'] = $expected;
+                $diag['found'] = $row['log_hash'];
+            }
+            
+            $integrity_results[$row['log_id']] = $diag;
             $current_prev_hash = $row['log_hash']; // Move to next link in chain
         }
     }
@@ -697,14 +724,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
                                         </td>
                                         <td>
                                             <?php if (isset($integrity_results[$log['log_id']])): ?>
-                                                <?php if ($integrity_results[$log['log_id']]): ?>
-                                                    <span class="badge-control" style="padding: 4px 10px; border-radius: 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;">
-                                                        🛡️ Verified
-                                                    </span>
+                                                <?php 
+                                                    $diag = $integrity_results[$log['log_id']]; 
+                                                    $has_gap = isset($diag['gap']);
+                                                ?>
+                                                <?php if ($diag['status'] === 'verified'): ?>
+                                                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                                                        <span class="badge-control" style="padding: 4px 10px; border-radius: 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;">
+                                                            🛡️ Verified
+                                                        </span>
+                                                        <?php if ($has_gap): ?>
+                                                            <span style="color: #f59e0b; font-size: 9px; font-weight: 700; display: flex; align-items: center; gap: 3px;">
+                                                                ⚠️ SEQUENCE GAP DETECTED
+                                                            </span>
+                                                        <?php endif; ?>
+                                                    </div>
                                                 <?php else: ?>
-                                                    <span class="badge-security" style="padding: 4px 10px; border-radius: 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; animation: pulse 2s infinite;">
-                                                        🚨 TAMPERED
-                                                    </span>
+                                                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                                                        <span class="badge-security" 
+                                                              style="padding: 4px 10px; border-radius: 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: transform 0.2s;" 
+                                                              onclick="openForensicReport(<?php echo htmlspecialchars(json_encode($diag)); ?>, <?php echo $log['log_id']; ?>)"
+                                                              onmouseover="this.style.transform='scale(1.05)'"
+                                                              onmouseout="this.style.transform='scale(1)'">
+                                                            🚨 TAMPERED
+                                                        </span>
+                                                        <span style="color: #ef4444; font-size: 9px; font-weight: 800; cursor: pointer;" onclick="openForensicReport(<?php echo htmlspecialchars(json_encode($diag)); ?>, <?php echo $log['log_id']; ?>)">
+                                                            REPORT AVAILABLE 🔍
+                                                        </span>
+                                                    </div>
                                                 <?php endif; ?>
                                             <?php else: ?>
                                                 <span style="color: #94a3b8; font-style: italic; font-size: 12px;">Not Validated</span>
@@ -845,6 +892,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
     </div>
 </div>
 
+<!-- Forensic Diagnostic Modal (Deep Audit Report) -->
+<div id="forensicModal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.85); backdrop-filter:blur(15px); z-index:100000; align-items:center; justify-content:center;">
+    <div style="background:#0f172a; border-radius:32px; max-width: 580px; width: 95%; padding: 3rem; box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.7); color: white; font-family: 'Inter', sans-serif; border: 1px solid rgba(255,255,255,0.1); position: relative; overflow: hidden;">
+        <!-- Glowing Accent -->
+        <div style="position: absolute; top: -100px; right: -100px; width: 200px; height: 200px; background: radial-gradient(circle, rgba(239,68,68,0.2) 0%, transparent 70%);"></div>
+        
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <div style="font-size: 56px; margin-bottom: 0.5rem; filter: drop-shadow(0 0 20px rgba(239,68,68,0.4));">🚨</div>
+            <h2 style="font-size: 1.25rem; font-weight: 800; color: #ef4444; letter-spacing: 0.05em; text-transform: uppercase;">Forensic Integrity Report</h2>
+            <div style="height: 2px; width: 60px; background: #ef4444; margin: 1rem auto; border-radius: 2px;"></div>
+        </div>
+
+        <div style="background: rgba(0,0,0,0.3); border-radius: 16px; padding: 1.5rem; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 2rem;">
+            <div style="margin-bottom: 1.5rem;">
+                <label style="font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; margin-bottom: 6px; display: block;">AUDIT STATUS</label>
+                <div id="forensicDiagnosis" style="color: #ef4444; font-size: 15px; font-weight: 700;">DETECTING MISMATCH...</div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; margin-bottom: 6px; display: block;">TECHNICAL DESCRIPTION</label>
+                <p id="forensicDesc" style="color: #94a3b8; font-size: 13px; line-height: 1.6; margin: 0;">Analyzing cryptographic signature difference.</p>
+            </div>
+
+            <div id="forensicSequenceGroup" style="display:none; margin-bottom: 1.5rem;">
+                <label style="font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; margin-bottom: 6px; display: block;">SEQUENCE AUDIT</label>
+                <div id="forensicGap" style="color: #f59e0b; font-size: 13px; font-weight: 700; background: rgba(245,158,11,0.1); padding: 8px 12px; border-radius: 8px;">No gap detected.</div>
+            </div>
+
+            <div id="forensicHashGroup">
+                <label style="font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; margin-bottom: 6px; display: block;">CRYPTOGRAPHIC PROOF</label>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="background: #1e293b; padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);">
+                        <span style="font-size: 9px; color: #4ade80; display: block; margin-bottom: 2px;">EXPECTED (AUTHENTIC)</span>
+                        <code id="forensicExpected" style="font-size: 11px; word-break: break-all; color: #4ade80; font-family: 'JetBrains Mono', monospace;">-- 0x00 --</code>
+                    </div>
+                    <div style="background: #1e293b; padding: 10px; border-radius: 10px; border: 1px solid rgba(239,68,68,0.2);">
+                        <span style="font-size: 9px; color: #ef4444; display: block; margin-bottom: 2px;">FOUND (CURRENT)</span>
+                        <code id="forensicFound" style="font-size: 11px; word-break: break-all; color: #ef4444; font-family: 'JetBrains Mono', monospace;">-- 0x00 --</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button onclick="closeForensicReport()" style="width: 100%; padding: 14px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: white; font-weight: 700; cursor: pointer; transition: all 0.2s;" onmouseenter="this.style.background='rgba(255,255,255,0.1)'" onmouseleave="this.style.background='rgba(255,255,255,0.05)'">CLOSE DIAGNOSTICS</button>
+    </div>
+</div>
+
 <script>
     function toggleGatePassword() {
         const input = document.getElementById('gatePassword');
@@ -860,6 +954,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
 
     let activeExportUrl = null;
     let activeExportType = null;
+
+    function openForensicReport(diag, logId) {
+        const modal = document.getElementById('forensicModal');
+        const diagEl = document.getElementById('forensicDiagnosis');
+        const descEl = document.getElementById('forensicDesc');
+        const gapEl = document.getElementById('forensicGap');
+        const gapGroup = document.getElementById('forensicSequenceGroup');
+        const hashGroup = document.getElementById('forensicHashGroup');
+        const expEl = document.getElementById('forensicExpected');
+        const fndEl = document.getElementById('forensicFound');
+
+        // Reset
+        gapGroup.style.display = 'none';
+        hashGroup.style.display = 'block';
+
+        if (diag.status === 'tampered') {
+            diagEl.textContent = diag.reason.replace('_', ' ');
+            descEl.textContent = diag.desc;
+            expEl.textContent = diag.expected;
+            fndEl.textContent = diag.found;
+        }
+
+        if (diag.gap) {
+            gapGroup.style.display = 'block';
+            gapEl.textContent = diag.gap;
+        }
+
+        modal.style.display = 'flex';
+        modal.classList.add('fade-in');
+    }
+
+    function closeForensicReport() {
+        document.getElementById('forensicModal').style.display = 'none';
+    }
 
     function closeSecurityGate() {
         document.getElementById('authGateModal').style.display = 'none';
