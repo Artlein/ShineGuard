@@ -947,6 +947,51 @@ thead th {
   text-align: left;
 }
 
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 2rem;
+    padding-bottom: 1rem;
+}
+
+.pagination-btn {
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pagination-btn:hover {
+    background: var(--surface-elev);
+    border-color: var(--theme-color);
+    color: var(--theme-color);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.pagination-btn.active {
+    background: var(--theme-color);
+    border-color: var(--theme-color);
+    color: white;
+}
+
+.pagination-btn.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    background: var(--surface-2);
+}
+
 tbody tr {
   border-bottom: 1px solid var(--border);
   transition: all 0.2s ease;
@@ -1440,7 +1485,15 @@ tbody td {
       <p class="users-subtext">Manage system users and access levels</p>
 
       <?php
-      $users_query  = "SELECT * FROM users ORDER BY created_at DESC";
+      $limit = 10;
+      $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+      $offset = ($page - 1) * $limit;
+
+      $total_res = $conn->query("SELECT COUNT(*) as count FROM users");
+      $total_users = $total_res->fetch_assoc()['count'];
+      $total_pages = ceil($total_users / $limit);
+
+      $users_query  = "SELECT * FROM users ORDER BY created_at DESC LIMIT $offset, $limit";
       $users_result = $conn->query($users_query);
       ?>
 
