@@ -26,6 +26,15 @@ $tc_result = $conn->query("SELECT config_value FROM system_config WHERE config_k
 if ($tc_result && $tc_row = $tc_result->fetch_assoc()) {
     $theme_color = $tc_row['config_value'];
 }
+
+// Fetch thresholds for JS
+$thresh_result = $conn->query("SELECT config_key, config_value FROM system_config WHERE config_key LIKE '%threshold%'");
+$thresholds = [];
+while ($t = $thresh_result->fetch_assoc()) {
+    $thresholds[$t['config_key']] = floatval($t['config_value']);
+}
+$thresholds_json = json_encode($thresholds);
+
 $csrf = generateCsrfToken();
 ?>
 <!DOCTYPE html>
@@ -713,6 +722,7 @@ $csrf = generateCsrfToken();
 <script type="module">
     const isAuthorized = <?php echo $isAuthorized; ?>;
     const CSRF = '<?php echo $csrf; ?>';
+    const THRESHOLDS = <?php echo $thresholds_json; ?>;
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
@@ -754,12 +764,17 @@ $csrf = generateCsrfToken();
     onValue(ref(db, NODE + "/Sensor"), (snap) => {
         const d = snap.val() || {};
 
-        // LDR
+        // LDR to LUX conversion (matching backend logic)
         const ldr = d.ldrData ?? null;
-        document.getElementById('ldrData').textContent = ldr ?? '--';
+        let lux = null;
         if (ldr !== null) {
+            lux = Math.max(0, 100 - (ldr / 40));
+        }
+        
+        document.getElementById('ldrData').textContent = lux !== null ? Math.round(lux) : '--';
+        if (lux !== null) {
             setBar('ldrBar', (ldr / 4095) * 100);
-            setTag('ldrTag', evalTag(ldr, null, null, 200, 100));
+            setTag('ldrTag', evalTag(lux, null, null, THRESHOLDS.lux_threshold_min || 50, THRESHOLDS.lux_threshold_critical || 30));
         }
 
         // Temp
@@ -767,7 +782,7 @@ $csrf = generateCsrfToken();
         document.getElementById('temperature').textContent = temp !== null ? temp.toFixed(1) : '--';
         if (temp !== null) {
             setBar('tempBar', (temp / 80) * 100);
-            setTag('tempTag', evalTag(temp, 45, 55, null, null));
+            setTag('tempTag', evalTag(temp, THRESHOLDS.temperature_threshold_max || 45, THRESHOLDS.temperature_threshold_critical || 55, null, null));
         }
 
         // Voltage
@@ -775,7 +790,7 @@ $csrf = generateCsrfToken();
         document.getElementById('voltage').textContent = volt !== null ? volt.toFixed(2) : '--';
         if (volt !== null) {
             setBar('voltBar', (volt / 5) * 100);
-            setTag('voltTag', evalTag(volt, null, null, 2.0, 1.5));
+            setTag('voltTag', evalTag(volt, null, null, THRESHOLDS.voltage_threshold_min || 2.0, THRESHOLDS.voltage_threshold_critical || 1.5));
         }
 
         // Humidity
@@ -783,7 +798,7 @@ $csrf = generateCsrfToken();
         document.getElementById('humidity').textContent = hum !== null ? hum.toFixed(1) : '--';
         if (hum !== null) {
             setBar('humBar', (hum / 100) * 100);
-            setTag('humTag', evalTag(hum, 80, 90, null, null));
+            setTag('humTag', evalTag(hum, THRESHOLDS.humidity_threshold_max || 80, THRESHOLDS.humidity_threshold_critical || 90, null, null));
         }
 
         // Online pill

@@ -149,6 +149,20 @@ if (!isset($theme_color)) {
         70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(59, 130, 246, 0); }
         100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
     }
+    .sensor-status-tag {
+        display: inline-block;
+        margin-top: 10px;
+        font-size: 10px;
+        font-weight: 800;
+        padding: 4px 10px;
+        border-radius: 8px;
+        background: rgba(16,185,129,0.12);
+        color: #10b981;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .sensor-status-tag.warning { background: rgba(245,158,11,0.12); color: #f59e0b; }
+    .sensor-status-tag.critical { background: rgba(239,68,68,0.12); color: #ef4444; }
 </style>
 </head>
 <body>
@@ -411,21 +425,25 @@ if (!isset($theme_color)) {
                 <div class="sensor-icon">🌡️</div>
                 <div class="sensor-label">Temperature</div>
                 <div class="sensor-value" id="temp-value">--</div>
+                <div class="sensor-status-tag" id="temp-tag">READING</div>
             </div>
             <div class="sensor-card">
                 <div class="sensor-icon">💡</div>
                 <div class="sensor-label">Brightness</div>
                 <div class="sensor-value" id="brightness-value">--</div>
+                <div class="sensor-status-tag" id="brightness-tag">READING</div>
             </div>
             <div class="sensor-card">
                 <div class="sensor-icon">⚡</div>
                 <div class="sensor-label">Voltage</div>
                 <div class="sensor-value" id="voltage-value">--</div>
+                <div class="sensor-status-tag" id="voltage-tag">READING</div>
             </div>
             <div class="sensor-card">
                 <div class="sensor-icon">💧</div>
                 <div class="sensor-label">Humidity</div>
                 <div class="sensor-value" id="humidity-value">--</div>
+                <div class="sensor-status-tag" id="humidity-tag">READING</div>
             </div>
         </div>
     </div>
@@ -440,13 +458,38 @@ function refreshFirebaseData() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                const t = data.thresholds;
+                
                 document.getElementById('temp-value').textContent = data.temperature + '°C';
+                updateSensorStatus('temp-tag', data.temperature, null, t.temperature_threshold_max, null, t.temperature_threshold_critical, 'high');
+                
                 document.getElementById('brightness-value').textContent = data.brightness + ' lux';
+                updateSensorStatus('brightness-tag', data.brightness, t.lux_threshold_min, null, t.lux_threshold_critical, null, 'low');
+                
                 document.getElementById('voltage-value').textContent = data.voltage.toFixed(2) + 'V';
+                updateSensorStatus('voltage-tag', data.voltage, t.voltage_threshold_min, null, t.voltage_threshold_critical, null, 'low');
+                
                 document.getElementById('humidity-value').textContent = data.humidity + '%';
+                updateSensorStatus('humidity-tag', data.humidity, null, t.humidity_threshold_max, null, t.humidity_threshold_critical, 'high');
             }
         })
         .catch(error => console.error('Error:', error));
+}
+
+function updateSensorStatus(tagId, val, warnLo, warnHi, critLo, critHi, type) {
+    const el = document.getElementById(tagId);
+    let status = 'NORMAL';
+    
+    if (type === 'high') {
+        if (critHi && val >= critHi) status = 'CRITICAL';
+        else if (warnHi && val >= warnHi) status = 'WARNING';
+    } else {
+        if (critLo && val <= critLo) status = 'CRITICAL';
+        else if (warnLo && val <= warnLo) status = 'WARNING';
+    }
+    
+    el.textContent = status;
+    el.className = 'sensor-status-tag ' + status.toLowerCase();
 }
 
 setInterval(refreshFirebaseData, 30000);

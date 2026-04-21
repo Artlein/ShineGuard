@@ -15,6 +15,14 @@ try {
     
     $result = $conn->query($query);
     
+    // Fetch thresholds
+    $thresh_query = "SELECT config_key, config_value FROM system_config WHERE config_key LIKE '%threshold%'";
+    $thresh_result = $conn->query($thresh_query);
+    $thresholds = [];
+    while ($t = $thresh_result->fetch_assoc()) {
+        $thresholds[$t['config_key']] = floatval($t['config_value']);
+    }
+
     if ($result && $row = $result->fetch_assoc()) {
         echo json_encode([
             'success' => true,
@@ -22,16 +30,14 @@ try {
             'brightness' => round($row['brightness'], 0),
             'voltage' => round($row['voltage'], 3),
             'humidity' => round($row['humidity'], 0),
-            'timestamp' => $row['timestamp']
+            'timestamp' => $row['timestamp'],
+            'thresholds' => $thresholds
         ]);
     } else {
         echo json_encode([
             'success' => false,
-            'temperature' => 0,
-            'brightness' => 0,
-            'voltage' => 0,
-            'humidity' => 0,
-            'message' => 'No data available'
+            'message' => 'No data available',
+            'thresholds' => $thresholds
         ]);
     }
     
