@@ -122,8 +122,13 @@ class SecurityService {
         }
         
         $ins = $conn->prepare("INSERT INTO user_devices (device_token, user_id, browser_agent, last_ip, is_acknowledged, last_seen_at, created_at) VALUES (?, ?, ?, ?, 0, NOW(), NOW())");
-        $ins->bind_param("siss", $new_token, $user_id, $user_agent, $ip_address);
-        $ins->execute();
+        if ($ins) {
+            $ins->bind_param("siss", $new_token, $user_id, $user_agent, $ip_address);
+            $ins->execute();
+            $ins->close();
+        } else {
+            error_log("SecurityService ERROR: Failed to prepare device registration query. Mismatched schema? " . $conn->error);
+        }
 
         setcookie('sg_device_fp', $new_token, [
             'expires'  => time() + (86400 * 365), // 1 year
