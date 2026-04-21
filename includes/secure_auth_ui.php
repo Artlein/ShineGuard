@@ -148,40 +148,45 @@ function togglePassword() {
         icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
     }
 }
-document.getElementById('criticalAuthForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const btn = document.getElementById('verifyBtn');
-    const err = document.getElementById('authError');
-    const password = document.getElementById('adminPassword').value;
+    const actionName = '<?php echo (basename($_SERVER["PHP_SELF"]) === "security_recovery.php") ? "soc_auth" : "critical_auth"; ?>';
+    const pageDescription = '<?php echo (basename($_SERVER["PHP_SELF"]) === "security_recovery.php") ? "This area contains sensitive recovery controls and hardware authorization. Please verify your administrator password to unlock this session." : "This area contains sensitive forensic logs. Please verify your administrator password to unlock this session."; ?>';
+    
+    document.querySelector('.auth-card p').textContent = pageDescription;
 
-    btn.disabled = true;
-    err.style.display = 'none';
+    document.getElementById('criticalAuthForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('verifyBtn');
+        const err = document.getElementById('authError');
+        const password = document.getElementById('adminPassword').value;
 
-    const formData = new FormData();
-    formData.append('action', 'critical_auth');
-    formData.append('admin_password', password);
-    formData.append('csrf_token', '<?php echo $_SESSION['csrf_token'] ?? ''; ?>');
+        btn.disabled = true;
+        err.style.display = 'none';
 
-    fetch('activity_logs.php', {
-        method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            err.textContent = data.error || 'Invalid password. Access denied.';
+        const formData = new FormData();
+        formData.append('action', actionName);
+        formData.append('admin_password', password);
+        formData.append('csrf_token', '<?php echo $_SESSION['csrf_token'] ?? ''; ?>');
+
+        fetch(window.location.href, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                err.textContent = data.error || 'Invalid password. Access denied.';
+                err.style.display = 'block';
+                btn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            err.textContent = 'A system error occurred. Please try again.';
             err.style.display = 'block';
             btn.disabled = false;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        err.textContent = 'A system error occurred. Please try again.';
-        err.style.display = 'block';
-        btn.disabled = false;
+        });
     });
-});
 </script>

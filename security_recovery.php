@@ -2,6 +2,34 @@
 require_once 'dbconnect.php';
 requireLogin(['System Admin']);
 
+// ── SECURITY: SOC Access Authorization Handler ──
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'soc_auth') {
+    checkCsrf();
+    $password = $_POST['admin_password'] ?? '';
+    $user_id = $_SESSION['user_id'];
+
+    $stmt = $conn->prepare("SELECT password_hash FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $res = $stmt->get_result()->fetch_assoc();
+
+    if ($res && password_verify($password, $res['password_hash'])) {
+        $_SESSION['soc_authorized'] = true;
+        logActivity($conn, $user_id, 'SOC Authorized', 'Administrator verified password for Security Operations Center access.');
+        echo json_encode(['success' => true]);
+    } else {
+        logActivity($conn, $user_id, 'SOC Access Denied', 'Failed password verification for SOC access.');
+        echo json_encode(['success' => false, 'error' => 'Invalid administrator password. Access denied.']);
+    }
+    exit();
+}
+
+// Access Gate
+if (!isset($_SESSION['soc_authorized']) || !$_SESSION['soc_authorized']) {
+    include 'includes/secure_auth_ui.php';
+    exit();
+}
+
 // Handle Status Updates
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     checkCsrf();
@@ -17,18 +45,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $stmt->bind_param("s", $email);
         $stmt->execute();
         logActivity($conn, $_SESSION['user_id'], 'Recovery Dismissed', "Administrator dismissed recovery request for $email.");
-    } elseif ($_POST['action'] === 'hardware_acknowledge') {
+    } elseif ($_POST['action'] === 'hardware_acknowledge' || $_POST['action'] === 'hardware_revoke') {
         $token = $_POST['device_token'] ?? '';
-        $stmt = $conn->prepare("UPDATE user_devices SET is_acknowledged = 1 WHERE device_token = ?");
-        $stmt->bind_param("s", $token);
-        $stmt->execute();
-        logActivity($conn, $_SESSION['user_id'], 'Hardware Trusted', "Administrator acknowledged and trusted device: $token");
-    } elseif ($_POST['action'] === 'hardware_revoke') {
-        $token = $_POST['device_token'] ?? '';
-        $stmt = $conn->prepare("UPDATE user_devices SET is_blocked = 1, is_acknowledged = 1 WHERE device_token = ?");
-        $stmt->bind_param("s", $token);
-        $stmt->execute();
-        logActivity($conn, $_SESSION['user_id'], 'Hardware Blocked', "Administrator revoked access and blocked device: $token");
+        $mfa_code = trim($_POST['mfa_code'] ?? '');
+        $admin_id = $_SESSION['user_id'];
+
+        // Mandatory MFA Verification for hardware trust/block
+        require_once 'src/Services/TOTPService.php';
+        $mfa_check = $conn->prepare("SELECT mfa_secret FROM users WHERE user_id = ? AND mfa_enabled = 1");
+        $mfa_check->bind_param("i", $admin_id);
+        $mfa_check->execute();
+        $mfa_res = $mfa_check->get_result()->fetch_assoc();
+        $mfa_check->close();
+
+        if (!$mfa_res || !\ShineGuard\Services\TOTPService::verifyCode($mfa_res['mfa_secret'], $mfa_code)) {
+            logActivity($conn, $admin_id, 'Security Alert', "Failed MFA verification for hardware operation on device: " . substr($token, 0, 8) . "...");
+            header("Location: security_recovery.php?error=invalid_mfa");
+            exit();
+        }
+
+        if ($_POST['action'] === 'hardware_acknowledge') {
+            $stmt = $conn->prepare("UPDATE user_devices SET is_acknowledged = 1 WHERE device_token = ?");
+            $stmt->bind_param("s", $token);
+            $stmt->execute();
+            logActivity($conn, $admin_id, 'Hardware Trusted', "Administrator passed MFA and trusted device: $token");
+        } else {
+            $stmt = $conn->prepare("UPDATE user_devices SET is_blocked = 1, is_acknowledged = 1 WHERE device_token = ?");
+            $stmt->bind_param("s", $token);
+            $stmt->execute();
+            logActivity($conn, $admin_id, 'Hardware Blocked', "Administrator passed MFA and revoked device: $token");
+        }
     }
     
     header('Location: security_recovery.php?success=status_updated');
@@ -101,7 +147,20 @@ $pending_res = $conn->query($pending_query);
         
         <main class="main-content">
             <div class="content-wrapper">
-                <div class="page-header" style="margin-top: 2rem;">
+                
+                <?php if (isset($_GET['error']) && $_GET['error'] === 'invalid_mfa'): ?>
+                <div style="background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 16px 24px; border-radius: 16px; border: 1px solid rgba(239, 68, 68, 0.2); margin-bottom: 24px; display: flex; align-items: center; gap: 12px; font-weight: 600;">
+                    🛑 MFA Verification Failed: Invalid or expired security code.
+                </div>
+                <?php endif; ?>
+
+                <?php if (isset($_GET['success'])): ?>
+                <div style="background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 16px 24px; border-radius: 16px; border: 1px solid rgba(16, 185, 129, 0.2); margin-bottom: 24px; display: flex; align-items: center; gap: 12px; font-weight: 600;">
+                    ✅ Operation Successful: Security protocol authorized and finalized.
+                </div>
+                <?php endif; ?>
+
+                <div class="page-header" style="margin-top: 1rem;">
                     <div class="hdr-left">
                         <h1>Security Operations Center</h1>
                         <p>Manage administrative password recovery and perishable links</p>
@@ -207,16 +266,18 @@ $pending_res = $conn->query($pending_query);
                                             <?php echo date('M d • H:i', strtotime($dev['created_at'])); ?>
                                         </td>
                                         <td style="padding: 16px; text-align: right;">
-                                            <form method="POST" style="display: inline-flex; gap: 8px;">
-                                                <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
-                                                <input type="hidden" name="device_token" value="<?php echo htmlspecialchars($dev['device_token']); ?>">
-                                                <button type="submit" name="action" value="hardware_acknowledge" class="action-btn btn-fulfill" style="padding: 8px 14px; font-size: 12px;">
+                                            <div style="display: inline-flex; gap: 8px;">
+                                                <button type="button" 
+                                                        onclick="openMfaModal('hardware_acknowledge', '<?php echo $dev['device_token']; ?>', 'Trust Device', 'Authorize persistent trust for this hardware footprint?')"
+                                                        class="action-btn btn-fulfill" style="padding: 8px 14px; font-size: 12px;">
                                                     🛡️ Trust
                                                 </button>
-                                                <button type="submit" name="action" value="hardware_revoke" class="action-btn" style="background: #ef4444; color: white; padding: 8px 14px; font-size: 12px;">
+                                                <button type="button" 
+                                                        onclick="openMfaModal('hardware_revoke', '<?php echo $dev['device_token']; ?>', 'Block Device', 'Permanently revoke and blockade this device?')"
+                                                        class="action-btn" style="background: #ef4444; color: white; padding: 8px 14px; font-size: 12px;">
                                                     🛑 Block
                                                 </button>
-                                            </form>
+                                            </div>
                                         </td>
                                     </tr>
                                 <?php endwhile; ?>
@@ -241,5 +302,65 @@ $pending_res = $conn->query($pending_query);
             </div>
         </main>
     </div>
+
+    <!-- MFA AUTHORIZATION MODAL -->
+    <div id="mfaModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.8); backdrop-filter: blur(12px); z-index: 10000; align-items: center; justify-content: center; padding: 20px;">
+        <div class="mfa-modal-card" style="background: white; border-radius: 24px; padding: 40px; width: 100%; max-width: 440px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); text-align: center; transform: scale(0.9); opacity: 0; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
+            <div style="background: #eff6ff; width: 64px; height: 64px; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; font-size: 32px;">📱</div>
+            <h2 id="mfaTitle" style="font-weight: 800; color: #0f172a; margin-bottom: 8px;">MFA Authorization</h2>
+            <p id="mfaDesc" style="color: #64748b; font-size: 14px; margin-bottom: 32px;">Please enter your 6-digit Google Authenticator code to authorize this security protocol.</p>
+            
+            <form id="mfaFinalForm" method="POST">
+                <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                <input type="hidden" name="action" id="mfaAction">
+                <input type="hidden" name="device_token" id="mfaToken">
+                
+                <input type="text" name="mfa_code" id="mfaInput" 
+                       maxlength="6" placeholder="000000" 
+                       style="width: 100%; padding: 16px; border-radius: 16px; border: 2px solid #e2e8f0; font-size: 24px; font-weight: 800; text-align: center; letter-spacing: 0.5em; margin-bottom: 24px; outline: none; transition: border-color 0.2s;"
+                       onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e2e8f0'">
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <button type="button" onclick="closeMfaModal()" style="padding: 14px; border-radius: 12px; border: 1px solid #e2e8f0; background: white; color: #64748b; font-weight: 700; cursor: pointer;">Cancel</button>
+                    <button type="submit" style="padding: 14px; border-radius: 12px; border: none; background: #3b82f6; color: white; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(59,130,246,0.3);">Confirm Action</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openMfaModal(action, token, title, desc) {
+            const modal = document.getElementById('mfaModal');
+            const card = document.querySelector('.mfa-modal-card');
+            
+            document.getElementById('mfaTitle').textContent = title;
+            document.getElementById('mfaDesc').textContent = desc;
+            document.getElementById('mfaAction').value = action;
+            document.getElementById('mfaToken').value = token;
+            
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                card.style.transform = 'scale(1)';
+                card.style.opacity = '1';
+                document.getElementById('mfaInput').focus();
+            }, 10);
+        }
+
+        function closeMfaModal() {
+            const modal = document.getElementById('mfaModal');
+            const card = document.querySelector('.mfa-modal-card');
+            card.style.transform = 'scale(0.9)';
+            card.style.opacity = '0';
+            setTimeout(() => {
+                modal.style.display = 'none';
+                document.getElementById('mfaInput').value = '';
+            }, 300);
+        }
+
+        // Close on ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeMfaModal();
+        });
+    </script>
 </body>
 </html>
