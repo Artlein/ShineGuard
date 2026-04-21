@@ -736,14 +736,21 @@ header {
         </button>
 
         <?php 
-        // ── CORPORATE WORKFLOW: Pending Password Recovery Alerts ──
+        // ── CORPORATE WORKFLOW: Pending Security Alerts (Recovery + New Hardware) ──
         $pending_resets_query = $conn->query("SELECT COUNT(*) as count FROM password_resets WHERE status='Pending'");
-        $resets_count = $pending_resets_query ? $pending_resets_query->fetch_assoc()['count'] : 0;
+        $resets_count = $pending_resets_query ? (int)$pending_resets_query->fetch_assoc()['count'] : 0;
+        
+        $unack_devices_query = $conn->query("SELECT COUNT(*) as count FROM user_devices WHERE is_acknowledged = 0");
+        $devices_count = $unack_devices_query ? (int)$unack_devices_query->fetch_assoc()['count'] : 0;
+        
+        $total_security_alerts = $resets_count + $devices_count;
         ?>
-        <?php if ($resets_count > 0): ?>
-        <a href="security_recovery.php" class="hdr-notif" title="<?php echo $resets_count; ?> Pending Password Reset(s)" style="background: #3b82f6; border-color: #3b82f6; color: white; animation: pulseRecovery 2.5s infinite;">
+        <?php if ($total_security_alerts > 0): ?>
+        <a href="security_recovery.php" class="hdr-notif" 
+           title="<?php echo $total_security_alerts; ?> Critical Security Alert(s) (<?php echo $resets_count; ?> Redemptions, <?php echo $devices_count; ?> New Hardware)" 
+           style="background: #3b82f6; border-color: #3b82f6; color: white; animation: pulseRecovery 2.5s infinite;">
             🛡️
-            <span class="hdr-notif-badge" style="background: white; color: #3b82f6; border-color: #3b82f6;"><?php echo $resets_count; ?></span>
+            <span class="hdr-notif-badge" style="background: white; color: #3b82f6; border-color: #3b82f6;"><?php echo $total_security_alerts; ?></span>
         </a>
         <style>
             @keyframes pulseRecovery {

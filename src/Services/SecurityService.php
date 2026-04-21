@@ -121,7 +121,7 @@ class SecurityService {
             logActivity($conn, $user_id, 'Security Alert', "Login from unrecognized device (New Browser/Device) out of IP: $ip_address [DEVICE:$new_token]");
         }
         
-        $ins = $conn->prepare("INSERT INTO user_devices (device_token, user_id, browser_agent, last_ip, last_seen_at, created_at) VALUES (?, ?, ?, ?, NOW(), NOW())");
+        $ins = $conn->prepare("INSERT INTO user_devices (device_token, user_id, browser_agent, last_ip, is_acknowledged, last_seen_at, created_at) VALUES (?, ?, ?, ?, 0, NOW(), NOW())");
         $ins->bind_param("siss", $new_token, $user_id, $user_agent, $ip_address);
         $ins->execute();
 
