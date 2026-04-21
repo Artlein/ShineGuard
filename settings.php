@@ -682,6 +682,37 @@ body {
   box-shadow: var(--shadow-md);
 }
 
+.group-users {
+    padding: 2rem !important; /* Reduced from 3rem to fit the wide table better */
+}
+
+/* Compact Action Buttons */
+.btn-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1.1rem;
+    padding: 0;
+}
+
+.btn-icon:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+    border-color: var(--theme-color);
+}
+
+.btn-icon.edit:hover { background: rgba(59, 130, 246, 0.05); color: #3b82f6; }
+.btn-icon.reset:hover { background: rgba(16, 185, 129, 0.05); color: #10b981; }
+.btn-icon.delete:hover { background: #fee2e2; color: #ef4444; border-color: #fca5a5; }
+
 .btn-verify {
     width: 100%;
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
@@ -1005,6 +1036,29 @@ tbody td {
   color: var(--text-primary);
   font-weight: 700;
   vertical-align: middle;
+}
+
+  padding: 0.4rem 0.8rem;
+}
+
+/* User Table Specific Fit Optimization */
+.group-users table {
+    table-layout: auto;
+}
+
+.group-users thead th {
+    padding: 1rem 0.75rem;
+    font-size: 0.7rem;
+}
+
+.group-users tbody td {
+    padding: 1rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.group-users .badge {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.65rem;
 }
 
 .badge {
@@ -1522,15 +1576,17 @@ tbody td {
               <td><?php echo $user['mfa_enabled'] ? '<span title="MFA Protection Active">🛡️</span>' : '<span style="opacity:0.3">🔓</span>'; ?></td>
               <td><?php echo $user['last_login'] ? date('M d, Y H:i', strtotime($user['last_login'])) : 'Never'; ?></td>
               <td>
-                <div style="display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; width: max-content;">
-                  <button class="btn-secondary" style="font-size: 0.76rem; padding: 0.4rem 0.8rem; height: 32px; margin: 0;" 
-                    onclick="openEditModal(<?php echo htmlspecialchars(json_encode($user)); ?>)">✏️ Edit</button>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <button class="btn-icon edit" title="Edit User" 
+                    onclick="openEditModal(<?php echo htmlspecialchars(json_encode($user)); ?>)">✏️</button>
+                  
                   <?php if ($user['mfa_enabled']): ?>
-                  <button class="btn-secondary" style="font-size: 0.76rem; padding: 0.4rem 0.8rem; height: 32px; margin: 0; background: rgba(59, 130, 246, 0.05); color: #3b82f6; border-color: rgba(59, 130, 246, 0.2);" 
-                    onclick="promptMfaReset('<?php echo htmlspecialchars(addslashes($user['username'])); ?>', <?php echo $user['user_id']; ?>)">🛡️ Reset MFA</button>
+                  <button class="btn-icon reset" title="Reset MFA Protection"
+                    onclick="promptMfaReset('<?php echo htmlspecialchars(addslashes($user['username'])); ?>', <?php echo $user['user_id']; ?>)">🛡️</button>
                   <?php endif; ?>
-                  <button class="btn-secondary" style="font-size: 0.76rem; padding: 0.4rem 0.8rem; height: 32px; margin: 0; background: #fee2e2; color: #991b1b; border-color: #fca5a5;" 
-                    onclick="openDeleteModal(<?php echo $user['user_id']; ?>, '<?php echo htmlspecialchars(addslashes($user['full_name'])); ?>')">🗑️ Delete</button>
+                  
+                  <button class="btn-icon delete" title="Delete User"
+                    onclick="openDeleteModal(<?php echo $user['user_id']; ?>, '<?php echo htmlspecialchars(addslashes($user['full_name'])); ?>')">🗑️</button>
                 </div>
               </td>
             </tr>
