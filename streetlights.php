@@ -1603,7 +1603,7 @@ endif; ?>
                 // 3. Run the ACTUAL diagnostic API
                 const formData = new URLSearchParams();
                 formData.append('light_id', modal._lightId);
-                formData.append('admin_password', pwdInput.value);
+                formData.append('admin_password', passwordToVerify);
                 formData.append('csrf_token', csrfToken);
 
                 const response = await fetch('api/run_diagnostic.php', {

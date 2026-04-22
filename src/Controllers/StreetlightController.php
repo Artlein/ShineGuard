@@ -138,6 +138,12 @@ class StreetlightController {
         $admin_password = $_POST['admin_password'] ?? '';
         $user_id = $_SESSION['user_id'];
 
+        // If already authorized, we can accept the sentinel or just return success
+        if (isRecentlyAuthorized()) {
+            echo json_encode(['success' => true]);
+            exit();
+        }
+
         $stmt = $this->conn->prepare("SELECT password_hash FROM users WHERE user_id = ?");
         $stmt->bind_param("i", $user_id);
         $stmt->execute();
