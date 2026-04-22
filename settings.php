@@ -69,32 +69,6 @@ if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
     exit();
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_data'])) {
-if (!$isAdmin) { header('Location: settings.php?error=unauthorized'); exit(); }
-if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
-    header('Location: settings.php?tab=data&error=invalid_csrf');
-    exit();
-}
-    $data = [
-        'data_retention_days'     => $_POST['data_retention_days'],
-        'footage_retention_days'  => $_POST['footage_retention_days'],
-        'cloud_backup_enabled'    => isset($_POST['cloud_backup_enabled']) ? '1' : '0',
-        'backup_frequency'        => $_POST['backup_frequency'],
-        'export_format_default'   => $_POST['export_format_default']
-    ];
-    // ── SECURITY HARDENING: Parameterized Data Mgmt ──
-    $stmt = $conn->prepare("INSERT INTO system_config (config_key, config_value, description, updated_by) 
-                           VALUES (?, ?, 'Data setting', ?)
-                           ON DUPLICATE KEY UPDATE config_value = ?, updated_by = ?");
-    foreach ($data as $key => $value) {
-        $stmt->bind_param("ssisi", $key, $value, $_SESSION['user_id'], $value, $_SESSION['user_id']);
-        $stmt->execute();
-    }
-    $stmt->close();
-    logActivity($conn, $_SESSION['user_id'], 'Data Settings Updated', 'Updated data retention and backup settings');
-    header('Location: settings.php?tab=data&success=settings_saved');
-    exit();
-}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_mfa'])) {
     if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
@@ -1312,60 +1286,47 @@ tbody td {
 
   <?php if ($isAdmin): ?>
   <div id="data" class="tab-content <?php echo $active_tab === 'data' ? 'active' : ''; ?>">
-    <form method="POST">
-      <input type="hidden" name="update_data" value="1">
-      <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
 
-      <div class="setting-group group-data">
-        <h2>🗄️ Data Retention</h2>
-        <div class="setting-row">
-          <div class="setting-item">
-            <label>Sensor Data Retention (days)</label>
-            <input type="number" min="7" max="3650" name="data_retention_days" value="<?php echo $settings['data_retention_days'] ?? 90; ?>" required>
-            <small>How long to keep sensor readings</small>
-          </div>
-          <div class="setting-item">
-            <label>CCTV Footage Retention (days)</label>
-            <input type="number" min="7" max="180" name="footage_retention_days" value="<?php echo $settings['footage_retention_days'] ?? 30; ?>" required>
-            <small>How long to keep video recordings</small>
-          </div>
+    <div class="setting-group group-data" style="margin-top: 2rem; border-top: 2px solid var(--border); padding-top: 3rem;">
+        <h2>📂 Forensic Archive & Recovery (FAR)</h2>
+        <p class="users-subtext" style="margin-bottom: 25px;">Create high-integrity system snapshots with SHA-256 validation. Every restore operation is forensically verified for tampering.</p>
+        
+        <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); padding: 25px; border-radius: 20px; margin-bottom: 30px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="font-size: 2.5rem;">🛡️</div>
+                    <div>
+                        <h3 style="font-size: 1.1rem; color: #10b981; margin-bottom: 4px;">Forensic Registry Active</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary);">Validating system integrity across all snapshots</p>
+                    </div>
+                </div>
+                <button type="button" class="btn primary" onclick="initiateForensicBackup()" style="display: flex; align-items: center; gap: 10px; background: var(--green);">
+                    <span>➕ Initiate Forensic Snapshot</span>
+                </button>
+            </div>
         </div>
-      </div>
 
-      <div class="setting-group group-data">
-        <h2>☁️ Cloud Backup</h2>
-        <div class="checkbox-group">
-          <input type="checkbox" name="cloud_backup_enabled" id="cloud_backup_enabled" <?php echo ($settings['cloud_backup_enabled'] ?? '1') == '1' ? 'checked' : ''; ?>>
-          <label for="cloud_backup_enabled">Enable Firebase cloud backup</label>
+        <div class="table-wrapper" style="min-height: 150px;">
+           <table id="snapshot_table">
+               <thead>
+                   <tr>
+                       <th>Snapshot ID</th>
+                       <th>Created At</th>
+                       <th>Size</th>
+                       <th>Integrity</th>
+                       <th>Actions</th>
+                   </tr>
+               </thead>
+               <tbody id="snapshot_list_body">
+                   <tr>
+                       <td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                           <div class="spinner"></div> Loading forensic archive...
+                       </td>
+                   </tr>
+               </tbody>
+           </table>
         </div>
-        <div class="setting-item" style="margin-top: 0.9rem;">
-          <label>Backup Frequency</label>
-          <select name="backup_frequency" required>
-            <option value="hourly" <?php echo ($settings['backup_frequency'] ?? 'daily') === 'hourly' ? 'selected' : ''; ?>>Every Hour</option>
-            <option value="daily"  <?php echo ($settings['backup_frequency'] ?? 'daily') === 'daily'  ? 'selected' : ''; ?>>Daily</option>
-            <option value="weekly" <?php echo ($settings['backup_frequency'] ?? 'daily') === 'weekly' ? 'selected' : ''; ?>>Weekly</option>
-          </select>
-          <small>How often to backup data to cloud</small>
-        </div>
-      </div>
-
-      <div class="setting-group group-data">
-        <h2>📤 Export Settings</h2>
-        <div class="setting-item">
-          <label>Default Export Format</label>
-          <select name="export_format_default" required>
-            <option value="csv"  <?php echo ($settings['export_format_default'] ?? 'csv') === 'csv'  ? 'selected' : ''; ?>>CSV (Excel Compatible)</option>
-            <option value="json" <?php echo ($settings['export_format_default'] ?? 'csv') === 'json' ? 'selected' : ''; ?>>JSON</option>
-            <option value="pdf"  <?php echo ($settings['export_format_default'] ?? 'csv') === 'pdf'  ? 'selected' : ''; ?>>PDF Report</option>
-          </select>
-          <small>Default format for data exports</small>
-        </div>
-      </div>
-
-      <div class="form-footer">
-        <button type="submit" class="btn-primary">💾 Save Data Settings</button>
-      </div>
-    </form>
+    </div>
   </div>
   <?php endif; ?>
 
@@ -1974,7 +1935,133 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('delete_user_id').value = targetId;
         document.getElementById('delete_user_name_display').textContent = urlParams.get('name') || "Selected User";
     }
+
+    // Initialize FAR if on data tab
+    if (tab === 'data') {
+        loadSnapshots();
+    }
 });
+
+// ── FORENSIC ARCHIVE & RECOVERY (FAR) LOGIC ──
+
+async function loadSnapshots() {
+    const tbody = document.getElementById('snapshot_list_body');
+    if (!tbody) return;
+
+    try {
+        const response = await fetch('maintenance_actions.php?action=list_snapshots');
+        const data = await response.json();
+
+        if (data.success) {
+            if (data.snapshots.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">No forensic snapshots found.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.snapshots.map(s => `
+                <tr>
+                    <td><code style="font-size:0.85rem; color:var(--blue);">SNAP_${s.filename.split('_').slice(-1)[0].replace('.sql', '').substring(0,6)}</code></td>
+                    <td style="font-size:0.85rem;">${new Date(s.created_at).toLocaleString()}</td>
+                    <td style="font-size:0.85rem;">${(s.filesize / 1024 / 1024).toFixed(2)} MB</td>
+                    <td>
+                        ${s.integrity_valid 
+                            ? '<span class="badge ok" style="background:#10b98122; color:#10b981; border:1px solid #10b98144;">✅ Valid</span>' 
+                            : '<span class="badge fail" title="SHA-256 Mismatch Detected">⚠️ Tampered</span>'}
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn-icon reset" title="Verify & Restore" onclick="handleRestore(${s.id})">🔄</button>
+                            <button class="btn-icon delete" title="Delete Permanent" onclick="handleDeleteSnapshot(${s.id})">🗑️</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+    } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--red);">Error loading forensic archive.</td></tr>';
+    }
+}
+
+async function initiateForensicBackup() {
+    const isAuthorized = await checkSBA();
+    if (!isAuthorized) {
+        showAppAlert('Secure Session Required', 'Creating system snapshots requires active SBA authorization. Please verify your credentials via any secure action first.', 'warning');
+        return;
+    }
+
+    showAppConfirm('Confirm Forensic Snapshot', 'Initiating a high-integrity dump of the entire Hulo database. This may take a few seconds.', async () => {
+        const formData = new FormData();
+        formData.append('action', 'generate_snapshot');
+        formData.append('csrf_token', '<?php echo generateCsrfToken(); ?>');
+        formData.append('notes', 'Manual Admin Snapshot');
+
+        try {
+            const response = await fetch('maintenance_actions.php', { method: 'POST', body: formData });
+            const data = await response.json();
+            if (data.success) {
+                showAppAlert('Snapshot Created', 'Forensic backup successfully generated and logged in the registry.', 'success');
+                loadSnapshots();
+            } else {
+                showAppAlert('Snapshot Failed', data.message || 'Check server logs.', 'error');
+            }
+        } catch (e) {
+            showAppAlert('Network Error', 'Failed to reach maintenance controller.', 'error');
+        }
+    });
+}
+
+async function handleRestore(id) {
+    const isAuthorized = await checkSBA();
+    if (!isAuthorized) {
+        showAppAlert('Restoration Blocked', 'Critical system rollbacks require active SBA authorization. Please verify your credentials first.', 'error');
+        return;
+    }
+
+    showAppConfirm('⚠️ CRITICAL RECOVERY', 'Are you ABSOLUTELY sure? This will overwrite the current database state with the selected snapshot. System integrity will be verified before execution.', async () => {
+        const formData = new FormData();
+        formData.append('action', 'restore_snapshot');
+        formData.append('id', id);
+        formData.append('csrf_token', '<?php echo generateCsrfToken(); ?>');
+
+        try {
+            const response = await fetch('maintenance_actions.php', { method: 'POST', body: formData });
+            const data = await response.json();
+            if (data.success) {
+                showAppAlert('Restoration Successful', 'The system has been forensically rolled back to the selected state. The page will reload.', 'success');
+                setTimeout(() => location.reload(), 3000);
+            } else {
+                showAppAlert('Restoration Aborted', data.message || 'Forensic mismatch detected.', 'error');
+            }
+        } catch (e) {
+            showAppAlert('Network Error', 'Failed to complete restoration.', 'error');
+        }
+    });
+}
+
+async function handleDeleteSnapshot(id) {
+    showAppConfirm('Delete Snapshot?', 'Permanently remove this forensic file from disk?', async () => {
+        const formData = new FormData();
+        formData.append('action', 'delete_snapshot');
+        formData.append('id', id);
+        formData.append('csrf_token', '<?php echo generateCsrfToken(); ?>');
+
+        const response = await fetch('maintenance_actions.php', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (data.success) {
+            loadSnapshots();
+        } else {
+            showAppAlert('Delete Failed', data.message, 'error');
+        }
+    });
+}
+
+async function checkSBA() {
+    try {
+        const r = await fetch('maintenance_actions.php?action=check_sba');
+        const d = await r.json();
+        return d.authorized;
+    } catch(e) { return false; }
+}
 </script>
 <?php include 'assets/app_alert.php'; ?>
 </body>
