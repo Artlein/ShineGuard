@@ -1295,7 +1295,7 @@ tbody td {
             <div style="display: flex; align-items: center; justify-content: space-between;">
                 <div style="display: flex; align-items: center; gap: 15px;">
                     <div class="header-status" style="display: flex; align-items: center; gap: 15px; margin-top: 10px;">
-                        <img src="https://cdn-icons-png.flaticon.com/512/3233/3233513.png" style="width: 45px; filter: hue-rotate(100deg);">
+                        <img src="https://img.icons8.com/isometric/512/shield.png" style="width: 45px; filter: hue-rotate(100deg); image-rendering: -webkit-optimize-contrast;">
                         <div>
                             <h3 style="margin: 0; color: #10b981; font-size: 1rem;">MFA Authorization Active</h3>
                             <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">High-integrity snapshots require physical token verification.</p>

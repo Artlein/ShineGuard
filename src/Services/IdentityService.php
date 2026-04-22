@@ -73,8 +73,14 @@ class IdentityService {
         $stmt->bind_param("i", $userId);
         $stmt->execute();
         $res = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
 
-        if (!$res || !$res['mfa_enabled']) {
+        if (!$res) {
+            error_log("FAR AUTH ERROR: User ID $userId not found in database.");
+            return false;
+        }
+        if (!$res['mfa_enabled']) {
+            error_log("FAR AUTH ERROR: MFA not enabled for User ID $userId.");
             return false;
         }
 
@@ -84,6 +90,14 @@ class IdentityService {
         }
 
         require_once __DIR__ . '/TOTPService.php';
-        return TOTPService::verifyCode($secret, $code);
+        $isValid = TOTPService::verifyCode($secret, $code);
+        
+        if (!$isValid) {
+            error_log("FAR AUTH REJECTED: Invalid code entered for User ID $userId (Drift window: 3).");
+        } else {
+            error_log("FAR AUTH SUCCESS: User ID $userId authorized forensic operation.");
+        }
+        
+        return $isValid;
     }
 }
