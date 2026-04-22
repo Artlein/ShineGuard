@@ -27,6 +27,16 @@ if ($tc_result && $tc_row = $tc_result->fetch_assoc()) {
     $theme_color = $tc_row['config_value'];
 }
 
+// Fetch active node
+$currentNode = $_GET['node'] ?? 'SG-NODE2';
+if (!array_key_exists($currentNode, \FirebaseConfig::getAllIoTDevices())) {
+    $currentNode = 'SG-NODE2';
+}
+
+$activeNodeConfig = \FirebaseConfig::getIoTDevice($currentNode);
+$firebaseCreds = \FirebaseConfig::getNodeConfig($currentNode);
+$firebaseCredsJson = json_encode($firebaseCreds);
+
 // Fetch thresholds for JS
 $thresh_result = $conn->query("SELECT config_key, config_value FROM system_config WHERE config_key LIKE '%threshold%'");
 $thresholds = [];
@@ -141,6 +151,44 @@ $csrf = generateCsrfToken();
             animation: pulse 1.6s infinite;
         }
         @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.7)} }
+        
+        /* ── NODE SWITCHER (Pill Style) ── */
+        .node-switcher {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 4px 12px var(--shadow);
+            margin-right: 12px;
+        }
+        .btn-node-opt {
+            padding: 7px 18px;
+            border-radius: 999px;
+            font-size: 12.5px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--dim);
+            border: none;
+            background: transparent;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-node-opt:hover { color: var(--text); background: rgba(15, 23, 42, 0.04); }
+        .btn-node-opt.active {
+            background: #10b981;
+            color: #ffffff;
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+        }
+        .node-mini-pulse {
+            width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+            opacity: 0.6;
+        }
 
         /* ── GRID ── */
         .dash-grid {
@@ -448,11 +496,21 @@ $csrf = generateCsrfToken();
                     </svg>
                 </div>
                 <div>
-                    <div class="hero-title">SG-NODE2 · IoT Intelligence</div>
+                    <div class="hero-title"><?php echo $currentNode; ?> · IoT Intelligence</div>
                     <div class="hero-sub">Real-time ESP32 Streetlight Controller</div>
                 </div>
             </div>
             <div class="hero-right">
+                <div class="node-switcher">
+                    <a href="?node=SG-NODE2" class="btn-node-opt <?php echo $currentNode === 'SG-NODE2' ? 'active' : ''; ?>">
+                        <span class="node-mini-pulse"></span>
+                        SG-NODE 2
+                    </a>
+                    <a href="?node=SG-NODE3" class="btn-node-opt <?php echo $currentNode === 'SG-NODE3' ? 'active' : ''; ?>">
+                        <span class="node-mini-pulse"></span>
+                        SG-NODE 3
+                    </a>
+                </div>
                 <div class="status-pill" id="statusPill">
                     <div class="pulse-dot"></div>
                     <span id="statusText">CONNECTING</span>
@@ -723,23 +781,14 @@ $csrf = generateCsrfToken();
     const isAuthorized = <?php echo $isAuthorized; ?>;
     const CSRF = '<?php echo $csrf; ?>';
     const THRESHOLDS = <?php echo $thresholds_json; ?>;
+    const NODE = "<?php echo $currentNode; ?>";
+    const firebaseConfig = <?php echo $firebaseCredsJson; ?>;
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyBM69Xh5_d2lhiwGEi1gz9OfNHBEyEYrSQ",
-        authDomain: "sg-hulo.firebaseapp.com",
-        databaseURL: "https://sg-hulo-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "sg-hulo",
-        storageBucket: "sg-hulo.firebasestorage.app",
-        messagingSenderId: "1098036753407",
-        appId: "1:1098036753407:web:a0b564a0c18d11e9a52dca"
-    };
-
     const app = initializeApp(firebaseConfig);
     const db  = getDatabase(app);
-    const NODE = "SG-NODE2";
 
     // ── Sensor bar helpers ──
     function setBar(id, pct) {

@@ -17,27 +17,38 @@ class FirebaseConfig {
 
     const IOT_DEVICES = [
         'SG-NODE2' => [
-            'name' => 'Shine Guard Node 1',
-            'type' => 'ESP32',
-            'mysql_id' => 'SL-001',
+            'name' => 'Intelligence Node 2',
+            'type' => 'ESP32 Control',
+            'mysql_id' => 'SL-002',
+            'status' => 'active'
+        ],
+        'SG-NODE3' => [
+            'name' => 'Intelligence Node 3',
+            'type' => 'ESP32 Control',
+            'mysql_id' => 'SL-003',
             'status' => 'active'
         ]
-        
     ];
 
     const NODE_MAPPING = [
-        'SG-NODE2' => 'SL-001'
+        'SG-NODE2' => 'SL-002',
+        'SG-NODE3' => 'SL-003'
     ];
 
     const ENDPOINTS = [
-        'sensor' => '/SG-NODE2/Sensor.json',
-        'actuator' => '/SG-NODE2/Actuator.json',
-        'health' => '/SG-NODE2/Health.json',
-        'control' => '/SG-NODE2/Control.json'
+        'sensor' => '/Sensor.json',
+        'actuator' => '/Actuator.json',
+        'health' => '/Health.json',
+        'control' => '/Control.json'
     ];
 
-    public static function getConfig() {
-        return [
+    /**
+     * Retrieves the specific Firebase configuration for a node.
+     * Supports multiple Firebase projects/databases.
+     */
+    public static function getNodeConfig($nodeId = 'SG-NODE2') {
+        // DEFAULT CONFIG (NODE 2)
+        $config = [
             'apiKey'            => self::getConstant('API_KEY'),
             'authDomain'        => self::getConstant('AUTH_DOMAIN'),
             'databaseURL'       => self::getConstant('DATABASE_URL'),
@@ -46,15 +57,30 @@ class FirebaseConfig {
             'messagingSenderId' => self::getConstant('MESSAGING_SENDER_ID'),
             'appId'             => self::getConstant('APP_ID')
         ];
+
+        // NODE 3 SPECIFIC (Different Firebase)
+        // Note: These can be mapped to unique ENV variables like FIREBASE_NODE3_API_KEY
+        if ($nodeId === 'SG-NODE3') {
+            $config['apiKey']      = $_ENV['FIREBASE_NODE3_API_KEY'] ?? $config['apiKey'];
+            $config['databaseURL'] = $_ENV['FIREBASE_NODE3_DATABASE_URL'] ?? 'https://sg-node3-default-rtdb.firebaseio.com';
+            $config['projectId']   = $_ENV['FIREBASE_NODE3_PROJECT_ID'] ?? 'sg-node3-project';
+            // ... add others as needed
+        }
+
+        return $config;
+    }
+
+    public static function getConfig() {
+        return self::getNodeConfig();
     }
 
     public static function getUrl($endpoint, $nodeId = 'SG-NODE2') {
         if (!isset(self::ENDPOINTS[$endpoint])) {
             throw new Exception("Invalid endpoint: $endpoint");
         }
-
-        $path = str_replace('SG-NODE2', $nodeId, self::ENDPOINTS[$endpoint]);
-        return self::getConstant('DATABASE_URL') . $path;
+        $config = self::getNodeConfig($nodeId);
+        $baseUrl = rtrim($config['databaseURL'], '/');
+        return $baseUrl . '/' . $nodeId . self::ENDPOINTS[$endpoint];
     }
 
     public static function getMySQLNode($firebaseNode) {
@@ -79,7 +105,7 @@ class FirebaseConfig {
         
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // For local/staging flexibility
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
         
         $response = curl_exec($ch);
@@ -87,7 +113,7 @@ class FirebaseConfig {
         curl_close($ch);
         
         if ($httpCode !== 200) {
-            throw new Exception("Firebase read failed with HTTP code: $httpCode");
+            return null; // Graceful fail for multi-node
         }
         
         return json_decode($response, true);
@@ -100,54 +126,40 @@ class FirebaseConfig {
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json'
-        ]);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
         
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
         
-        if ($httpCode !== 200) {
-            throw new Exception("Firebase write failed with HTTP code: $httpCode");
-        }
-        
-        return json_decode($response, true);
+        return ($httpCode === 200);
     }
 
     public static function updateField($endpoint, $field, $value, $nodeId = 'SG-NODE2') {
-        $url = self::getConstant('DATABASE_URL') . '/' . $nodeId . '/' . $endpoint . '/' . $field . '.json';
+        $config = self::getNodeConfig($nodeId);
+        $baseUrl = rtrim($config['databaseURL'], '/');
+        $url = $baseUrl . '/' . $nodeId . '/' . $endpoint . '/' . $field . '.json';
         
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($value));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json'
-        ]);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
         
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
         
-        if ($httpCode !== 200) {
-            throw new Exception("Firebase update failed with HTTP code: $httpCode");
-        }
-        
-        return json_decode($response, true);
+        return ($httpCode === 200);
     }
 
     public static function sendIoTCommand($nodeId, $command, $value) {
         $allowedCommands = ['mode', 'brightnessPercent'];
-        
-        if (!in_array($command, $allowedCommands)) {
-            throw new Exception("Invalid command: $command");
-        }
-        
+        if (!in_array($command, $allowedCommands)) return false;
         return self::updateField('Control', $command, $value, $nodeId);
     }
 
@@ -165,11 +177,12 @@ class FirebaseConfig {
 
     public static function isDeviceOnline($nodeId = 'SG-NODE2') {
         try {
-            $data = self::getSensorData($nodeId);
-            return !empty($data);
+            $data = self::readData('sensor', $nodeId);
+            return ($data !== null && !empty($data));
         } catch (Exception $e) {
             return false;
         }
     }
+}
 }
 ?>

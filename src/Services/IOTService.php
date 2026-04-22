@@ -34,30 +34,18 @@ class IOTService {
     }
 
     /**
-     * Sends a bulk command to the IoT nodes via Firebase.
+     * Sends a command to a specific IoT node via its respective Firebase instance.
      */
-    public static function sendBulkCommand($mode, $brightness) {
+    public static function sendBulkCommand($nodeId, $mode, $brightness) {
+        // Log the command attempt
         $firebaseUpdate = [
             'mode' => $mode,
             'targetBrightness' => $brightness,
             'commandTimestamp' => round(microtime(true) * 1000)
         ];
 
-        $url = \FirebaseConfig::getConstant('DATABASE_URL') . '/SG-NODE2/Control.json';
-        
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PATCH");
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($firebaseUpdate));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        return ($httpCode === 200);
+        // This uses the dynamic config resolver to target the correct Firebase URL
+        return \FirebaseConfig::writeData('control', $firebaseUpdate, $nodeId);
     }
 
     /**
