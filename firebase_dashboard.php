@@ -345,6 +345,37 @@ $csrf = generateCsrfToken();
         .slider-marks { display: flex; justify-content: space-between; margin-top: 8px; }
         .slider-marks span { font-size: 10px; color: var(--dim); font-weight: 700; }
 
+        /* Dimming Segmented Control */
+        .dimmer-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-top: 15px;
+        }
+        .btn-dim {
+            background: var(--bg);
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 4px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--dim);
+            font-size: 12px;
+            font-weight: 800;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-dim:hover { border-color: rgba(255,255,255,0.15); background: rgba(59,130,246,0.05); }
+        .btn-dim.active {
+            background: rgba(59,130,246,0.1);
+            border-color: #3b82f6;
+            color: #3b82f6;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+        }
+        .btn-dim .dim-ico { font-size: 16px; margin-bottom: 2px; }
+
         /* ── HEALTH CARDS ── */
         .health-area {
             grid-area: health;
@@ -668,16 +699,26 @@ $csrf = generateCsrfToken();
                             <svg style="width:12px;height:12px;vertical-align:-1px;margin-right:4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2"/></svg>
                             Light Intensity
                         </span>
-                        <span class="slider-val" id="brightnessValue">70%</span>
+                        <span class="slider-val" id="brightnessValue">--%</span>
                     </div>
-                    <input type="range" class="custom-slider" id="brightnessSlider"
-                           min="0" max="100" value="70"
-                           oninput="updateBrightnessDisplay(this.value)"
-                           onchange="setBrightness(this.value)">
-                    <div class="slider-marks">
-                        <span>MIN · 0%</span>
-                        <span>50%</span>
-                        <span>MAX · 100%</span>
+                    
+                    <div class="dimmer-grid">
+                        <button class="btn-dim" id="dim25" onclick="setBrightness(25)">
+                            <span class="dim-ico">🍃</span>
+                            25%
+                        </button>
+                        <button class="btn-dim" id="dim50" onclick="setBrightness(50)">
+                            <span class="dim-ico">🌓</span>
+                            50%
+                        </button>
+                        <button class="btn-dim" id="dim75" onclick="setBrightness(75)">
+                            <span class="dim-ico">🌔</span>
+                            75%
+                        </button>
+                        <button class="btn-dim" id="dim100" onclick="setBrightness(100)">
+                            <span class="dim-ico">🌕</span>
+                            100%
+                        </button>
                     </div>
                 </div>
             </div>
@@ -866,8 +907,12 @@ $csrf = generateCsrfToken();
 
     onValue(ref(db, NODE + "/Actuator/brightnessPercent"), (snap) => {
         const val = snap.val() ?? 70;
-        document.getElementById('brightnessSlider').value = val;
         document.getElementById('brightnessValue').textContent = val + '%';
+        
+        // Update active segment
+        document.querySelectorAll('.btn-dim').forEach(b => b.classList.remove('active'));
+        const activeBtn = document.getElementById('dim' + val);
+        if (activeBtn) activeBtn.classList.add('active');
     });
 
     onValue(ref(db, NODE + "/Health"), (snap) => {

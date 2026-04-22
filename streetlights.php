@@ -742,12 +742,12 @@ endforeach; ?>
                                 style="display: block; font-size: 0.9rem; font-weight: 700; color: var(--text); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px;">🔆
                                 Target Dimming Level</label>
                             <div class="selector-grid">
-                                <div class="selector-card" onclick="setPremiumDim(this, 30)">
-                                    <input type="radio" name="dimming_level" value="30" style="display:none;">
+                                <div class="selector-card" onclick="setPremiumDim(this, 25)">
+                                    <input type="radio" name="dimming_level" value="25" style="display:none;">
                                     <div class="check-mark">✓</div>
-                                    <div class="card-icon">🌒</div>
-                                    <div class="card-label">Low</div>
-                                    <small style="font-size: 11px; color: #94a3b8; margin-top: 4px;">30% Output</small>
+                                    <div class="card-icon">🍃</div>
+                                    <div class="card-label">Energy Saver</div>
+                                    <small style="font-size: 11px; color: #94a3b8; margin-top: 4px;">25% Output</small>
                                 </div>
                                 <div class="selector-card active" onclick="setPremiumDim(this, 50)">
                                     <input type="radio" name="dimming_level" value="50" style="display:none;" checked>

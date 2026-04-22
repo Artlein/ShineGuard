@@ -53,8 +53,8 @@ class IOTService {
      */
     public static function getDimmingLabel($level) {
         $level = intval($level);
-        if ($level <= 30)
-            return ['label' => '🌒 Low', 'color' => '#3b82f6', 'bg' => '#eff6ff'];
+        if ($level <= 25)
+            return ['label' => '🍃 Energy Saver', 'color' => '#3b82f6', 'bg' => '#eff6ff'];
         if ($level <= 50)
             return ['label' => '🌓 Medium', 'color' => '#8b5cf6', 'bg' => '#f5f3ff'];
         if ($level <= 75)
