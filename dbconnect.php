@@ -108,6 +108,15 @@ define('SESSION_IDLE_TIMEOUT', 1800);
 // ── CORPORATE STANDARDS: Identitiy & Security ──
 
 if (session_status() === PHP_SESSION_NONE) {
+    // ── SECURITY HARDENING: Session Stability (Pillar 3) ──
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'domain' => '',
+        'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
     session_start();
 }
 

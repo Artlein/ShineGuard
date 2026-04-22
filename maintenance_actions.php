@@ -14,6 +14,15 @@ header('Content-Type: application/json');
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
+// ── SESSION STABILITY CHECK ──
+if (!isset($_SESSION['user_id'])) {
+    error_log("FAR ACTION REJECTED: Session lost during action $action. IP: " . $_SERVER['REMOTE_ADDR']);
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'session_lost', 'message' => 'Identity mismatch: Session lost. Please re-login.']);
+    exit();
+}
+error_log("FAR ACTION INITIATED: User ID " . $_SESSION['user_id'] . " executing action $action");
+
 // Diagnostic: Verify schema existence
 $tableCheck = $conn->query("SHOW TABLES LIKE 'backup_registry'");
 if ($tableCheck->num_rows === 0) {
