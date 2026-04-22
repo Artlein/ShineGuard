@@ -1950,6 +1950,8 @@ async function loadSnapshots() {
 
     try {
         const response = await fetch('maintenance_actions.php?action=list_snapshots');
+        if (!response.ok) throw new Error('HTTP status ' + response.status);
+        
         const data = await response.json();
 
         if (data.success) {
@@ -1976,9 +1978,18 @@ async function loadSnapshots() {
                     </td>
                 </tr>
             `).join('');
+        } else {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--red);">
+                <div style="font-size:1.5rem; margin-bottom:10px;">🔒</div>
+                ${data.error || 'Access Denied'}<br>
+                <small style="opacity:0.7;">Please refresh the page to re-verify session.</small>
+            </td></tr>`;
         }
     } catch (err) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--red);">Error loading forensic archive.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--red); padding: 40px;">
+            <div style="margin-bottom:10px;">❌ Connection Failed</div>
+            <small>${err.message}</small>
+        </td></tr>`;
     }
 }
 

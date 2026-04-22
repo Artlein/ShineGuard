@@ -14,6 +14,14 @@ header('Content-Type: application/json');
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
+// Diagnostic: Verify schema existence
+$tableCheck = $conn->query("SHOW TABLES LIKE 'backup_registry'");
+if ($tableCheck->num_rows === 0) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Forensic Registry table missing. Please run database migration.']);
+    exit();
+}
+
 try {
     switch ($action) {
         case 'generate_snapshot':

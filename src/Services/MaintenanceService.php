@@ -130,6 +130,12 @@ class MaintenanceService {
         
         $result = $conn->query($sql);
         $snapshots = [];
+        
+        if (!$result) {
+            error_log("FAR ERROR: Database query failed in getForensicSnapshots: " . $conn->error);
+            return [];
+        }
+
         $backupDir = __DIR__ . '/../../backups/';
 
         while ($row = $result->fetch_assoc()) {
@@ -138,7 +144,7 @@ class MaintenanceService {
             
             if ($row['exists']) {
                 $currentHash = hash_file('sha256', $filePath);
-                $row['integrity_valid'] = hash_equals($row['snapshot_hash'], $currentHash);
+                $row['integrity_valid'] = hash_equals($row['snapshot_hash'] ?? '', $currentHash ?: '');
             } else {
                 $row['integrity_valid'] = false;
             }
