@@ -2070,14 +2070,19 @@ function handleForensicMfaError(msg) {
     errEl.style.display = 'block';
 }
 
-document.getElementById('confirmForensicBtn').addEventListener('click', () => {
-    const code = document.getElementById('forensic_mfa_code').value.trim();
+function processForensicMfa() {
+    const btn = document.getElementById('confirmForensicBtn');
+    const code = document.getElementById('forensic_mfa_code').value.trim().replace(/\s/g, '');
+    
     if (code.length === 6 && activeForensicAction) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-small"></span> Authorizing...';
+        btn.style.opacity = '0.7';
         activeForensicAction(code);
     } else {
         handleForensicMfaError('Please enter a valid 6-digit code.');
     }
-});
+}
 
 async function handleDeleteSnapshot(id) {
     showAppConfirm('Delete Snapshot?', 'Permanently remove this forensic file from disk?', async () => {
@@ -2128,7 +2133,7 @@ async function checkSBA() {
       
       <div style="display: flex; gap: 12px; justify-content: stretch; border-top: 1px solid var(--border); padding-top: 20px;">
           <button type="button" class="btn" onclick="closeModal('forensicMfaModal')" style="flex: 1; padding: 12px; border-radius: 10px;">Cancel</button>
-          <button type="button" class="btn primary" id="confirmForensicBtn" style="flex: 2; background: #10b981; color: white; padding: 12px; border-radius: 10px; font-weight: 700;">Authorize Transaction</button>
+          <button type="button" class="btn primary" id="confirmForensicBtn" onclick="processForensicMfa()" style="flex: 2; background: #10b981; color: white; padding: 12px; border-radius: 10px; font-weight: 700; transition: all 0.2s;">Authorize Transaction</button>
       </div>
     </div>
   </div>
