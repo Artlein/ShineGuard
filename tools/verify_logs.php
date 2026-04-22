@@ -122,7 +122,7 @@ while ($row = $result->fetch_assoc()) {
                     <tr class="log-row">
                         <td style="font-family: monospace;">#<?php echo $log['log_id']; ?></td>
                         <td>
-                            <div style="font-weight: 700;"><?php echo $log['action']; ?></div>
+                            <div style="font-weight: 700;"><?php echo htmlspecialchars($log['action']); ?></div>
                             <div style="font-size: 0.8rem; color: #71717a;"><?php echo $log['ip_address']; ?></div>
                         </td>
                         <td class="sig-text">

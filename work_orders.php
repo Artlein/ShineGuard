@@ -584,21 +584,32 @@ let woMap = null;
 
 function viewDetails(logId, action, notes, nodeName, location, lat, lng) {
     const detailsContent = document.getElementById('detailsContent');
+    
+    // Clear and build the dynamic structure safely
     detailsContent.innerHTML = `
         <div style="background: var(--muted); padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 18px; display: flex; gap: 24px; flex-wrap: wrap;">
-            <div><div style="font-size: 11px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px;">Node</div><div style="font-weight: 800; color: var(--text); font-size: 16px;">${nodeName || '—'}</div></div>
-            <div style="flex:1;"><div style="font-size: 11px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px;">Location</div><div style="font-weight: 600; color: var(--text); font-size: 14px; opacity: 0.9;">${location || '—'}</div></div>
+            <div><div style="font-size: 11px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px;">Node</div><div id="modal-node-name" style="font-weight: 800; color: var(--text); font-size: 16px;"></div></div>
+            <div style="flex:1;"><div style="font-size: 11px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px;">Location</div><div id="modal-location" style="font-weight: 600; color: var(--text); font-size: 14px; opacity: 0.9;"></div></div>
         </div>
         <div style="margin-bottom: 18px;">
             <label style="display: block; font-size: 11px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Action Taken</label>
-            <div style="color: var(--text); padding: 14px 16px; background: var(--muted); border: 1px solid var(--border); border-radius: 10px; font-size: 14px; line-height: 1.7; opacity: 0.95;">${action}</div>
+            <div id="modal-action-taken" style="color: var(--text); padding: 14px 16px; background: var(--muted); border: 1px solid var(--border); border-radius: 10px; font-size: 14px; line-height: 1.7; opacity: 0.95;"></div>
         </div>
-        ${notes ? `
-        <div style="margin-bottom: 18px;">
+        <div id="modal-notes-container" style="margin-bottom: 18px; display: none;">
             <label style="display: block; font-size: 11px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Additional Notes</label>
-            <div style="color: var(--text); padding: 14px 16px; background: var(--muted); border: 1px solid var(--border); border-radius: 10px; font-size: 14px; line-height: 1.7; opacity: 0.95;">${notes}</div>
-        </div>` : ''}
+            <div id="modal-notes" style="color: var(--text); padding: 14px 16px; background: var(--muted); border: 1px solid var(--border); border-radius: 10px; font-size: 14px; line-height: 1.7; opacity: 0.95;"></div>
+        </div>
     `;
+
+    // Inject content via textContent - NO XSS POSSIBLE
+    document.getElementById('modal-node-name').textContent = nodeName || '—';
+    document.getElementById('modal-location').textContent = location || '—';
+    document.getElementById('modal-action-taken').textContent = action || '—';
+    
+    if (notes && notes.trim() !== '') {
+        document.getElementById('modal-notes-container').style.display = 'block';
+        document.getElementById('modal-notes').textContent = notes;
+    }
 
     const mapWrapper = document.getElementById('wo-map-wrapper');
 
