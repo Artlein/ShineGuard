@@ -78,7 +78,12 @@ class IdentityService {
             return false;
         }
 
+        $secret = $res['mfa_secret'];
+        if (function_exists('clearSecret')) {
+            $secret = clearSecret($secret);
+        }
+
         require_once __DIR__ . '/TOTPService.php';
-        return TOTPService::verifyCode($res['mfa_secret'], $code);
+        return TOTPService::verifyCode($secret, $code);
     }
 }
