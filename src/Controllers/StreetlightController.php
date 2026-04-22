@@ -103,6 +103,10 @@ class StreetlightController {
 
         // Verification
         if (!isRecentlyAuthorized()) {
+            // Reject sentinel value - actual password required
+            if (empty($admin_password) || $admin_password === '__session_authorized__') {
+                $this->redirect('error=invalid_password');
+            }
             if (!$this->checkAdminPassword($admin_password)) {
                 $this->redirect('error=invalid_password');
             }
@@ -121,7 +125,8 @@ class StreetlightController {
         $nodeData = $nodeQuery->get_result()->fetch_assoc();
 
         if ($nodeData && $nodeData['node_name'] === 'SL-001') {
-            IOTService::sendBulkCommand(($power === 'ON' ? 1 : 2), ($power === 'ON' ? $nodeData['dimming_level'] : 0));
+            // Updated call with target node ID (1) as first argument
+            IOTService::sendBulkCommand(1, ($power === 'ON' ? 1 : 2), ($power === 'ON' ? $nodeData['dimming_level'] : 0));
         }
 
         logActivity($this->conn, $_SESSION['user_id'], 'Light Control', "Toggled light #$light_id to $power");
@@ -175,12 +180,14 @@ class StreetlightController {
             $stmt = $this->conn->prepare("UPDATE streetlights SET power_state = 'ON', dimming_level = ?" . $where_clause);
             $stmt->bind_param("i", $dimming);
             $stmt->execute();
-            IOTService::sendBulkCommand(1, $dimming);
+            // Updated call with 'all' as nodeId
+            IOTService::sendBulkCommand('all', 1, $dimming);
             logActivity($this->conn, $_SESSION['user_id'], 'Bulk Control', "Turned $scope_desc ON at $dimming%");
         } else {
             $stmt = $this->conn->prepare("UPDATE streetlights SET power_state = 'OFF'" . $where_clause);
             $stmt->execute();
-            IOTService::sendBulkCommand(2, 0);
+            // Updated call with 'all' as nodeId
+            IOTService::sendBulkCommand('all', 2, 0);
             logActivity($this->conn, $_SESSION['user_id'], 'Bulk Control', "Turned $scope_desc OFF");
         }
 
