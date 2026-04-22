@@ -95,6 +95,7 @@ class IdentityService {
         if (!$isValid) {
             error_log("FAR AUTH REJECTED: Invalid code entered for User ID $userId (Drift window: 3).");
         } else {
+            self::setAuthorized();
             error_log("FAR AUTH SUCCESS: User ID $userId authorized forensic operation.");
         }
         

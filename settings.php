@@ -2068,6 +2068,12 @@ function handleForensicMfaError(msg) {
     const errEl = document.getElementById('forensicMfaError');
     errEl.textContent = msg;
     errEl.style.display = 'block';
+    
+    // RE-ENABLE UI
+    const btn = document.getElementById('confirmForensicBtn');
+    btn.disabled = false;
+    btn.innerHTML = 'Authorize Transaction';
+    btn.style.opacity = '1';
 }
 
 function processForensicMfa() {
