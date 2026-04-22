@@ -1334,13 +1334,19 @@ tbody td {
 
   <div id="security" class="tab-content <?php echo $active_tab === 'security' ? 'active' : ''; ?>">
     <?php
-    require_once 'src/Services/TOTPService.php';
-    $mfa_stmt = $conn->prepare("SELECT mfa_enabled, mfa_secret, username, full_name, email FROM users WHERE user_id = ?");
-    $mfa_stmt->bind_param("i", $_SESSION['user_id']);
-    $mfa_stmt->execute();
-    $mfa_user = $mfa_stmt->get_result()->fetch_assoc();
-    $mfa_stmt->close();
-    $mfa_enabled = (bool)$mfa_user['mfa_enabled'];
+    try {
+        require_once 'src/Services/TOTPService.php';
+        $mfa_stmt = $conn->prepare("SELECT mfa_enabled, mfa_secret, username, full_name, email FROM users WHERE user_id = ?");
+        $mfa_stmt->bind_param("i", $_SESSION['user_id']);
+        $mfa_stmt->execute();
+        $mfa_user = $mfa_stmt->get_result()->fetch_assoc();
+        $mfa_stmt->close();
+        if (!$mfa_user) { throw new Exception("User data missing"); }
+        $mfa_enabled = (bool)$mfa_user['mfa_enabled'];
+    } catch (Exception $e) {
+        $mfa_enabled = false;
+        $mfa_error = "Security Service Unavailable";
+    }
 
     // ── ZERO TRUST: Mandatory Setup Banner ──
     if (isset($_GET['force']) && $_GET['force'] === 'true'): ?>
@@ -1532,8 +1538,8 @@ tbody td {
             <?php while ($user = $users_result->fetch_assoc()): ?>
             <tr>
               <td><strong><?php echo htmlspecialchars($user['username']); ?></strong></td>
-              <td><?php echo htmlspecialchars(maskPII($user['full_name'])); ?></td>
-              <td><?php echo htmlspecialchars(maskPII($user['email'], 'email')); ?></td>
+              <td><?php echo htmlspecialchars(function_exists('maskPII') ? maskPII($user['full_name']) : $user['full_name']); ?></td>
+              <td><?php echo htmlspecialchars(function_exists('maskPII') ? maskPII($user['email'], 'email') : $user['email']); ?></td>
               <td><span class="badge ok"><?php echo htmlspecialchars($user['role']); ?></span></td>
               <td><span class="badge <?php echo $user['is_active'] ? 'ok' : 'fail'; ?>"><?php echo $user['is_active'] ? 'Active' : 'Inactive'; ?></span></td>
               <td><?php echo $user['mfa_enabled'] ? '<span title="MFA Protection Active">🛡️</span>' : '<span style="opacity:0.3">🔓</span>'; ?></td>
