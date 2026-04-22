@@ -10,8 +10,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_work_order']))
     $alert_id = intval($_POST['alert_id']);
     $light_id = intval($_POST['light_id']);
     $technician_id = intval($_POST['technician_id']);
-    $action_taken = $conn->real_escape_string($_POST['action_taken']);
-    $notes = $conn->real_escape_string($_POST['notes']);
+    $action_taken = sanitize($_POST['action_taken']);
+    $notes = sanitize($_POST['notes']);
     $scheduled_date = $_POST['scheduled_date'];
 
     $stmt = $conn->prepare("INSERT INTO maintenance_logs (light_id, alert_id, user_id, action_taken, notes, maintenance_date, status) 
@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     }
     $log_id = intval($_POST['log_id']);
     $status = $_POST['status'];
-    $parts = isset($_POST['parts_replaced']) ? $conn->real_escape_string($_POST['parts_replaced']) : null;
+    $parts = isset($_POST['parts_replaced']) ? sanitize($_POST['parts_replaced']) : null;
     $completion_time = isset($_POST['completion_time']) ? intval($_POST['completion_time']) : null;
 
     $stmt = $conn->prepare("UPDATE maintenance_logs SET status = ?, parts_replaced = ?, completion_time = ? 
@@ -202,15 +202,15 @@ if (!isset($theme_color)) {
         <tbody>
             <?php while ($alert = $pending_alerts->fetch_assoc()): ?>
             <tr>
-                <td><span class="badge <?php echo $alert['severity'] === 'High' ? 'fail' : 'warning'; ?>"><?php echo $alert['severity']; ?></span></td>
-                <td><strong><?php echo $alert['node_name'] ?? 'System'; ?></strong></td>
-                <td><?php echo $alert['location'] ?? 'N/A'; ?></td>
-                <td style="max-width: 300px;"><?php echo substr($alert['description'], 0, 60); ?>...</td>
-                <td><?php echo $alert['rul_estimate'] ?? 'N/A'; ?></td>
+                <td><span class="badge <?php echo $alert['severity'] === 'High' ? 'fail' : 'warning'; ?>"><?php echo htmlspecialchars($alert['severity']); ?></span></td>
+                <td><strong><?php echo htmlspecialchars($alert['node_name'] ?? 'System'); ?></strong></td>
+                <td><?php echo htmlspecialchars($alert['location'] ?? 'N/A'); ?></td>
+                <td style="max-width: 300px;"><?php echo htmlspecialchars(substr($alert['description'], 0, 60)); ?>...</td>
+                <td><?php echo htmlspecialchars($alert['rul_estimate'] ?? 'N/A'); ?></td>
                 <td><?php echo date('M d, H:i', strtotime($alert['created_at'])); ?></td>
                 <td>
                     <?php if (canDo('create_work_orders')): ?>
-                    <button onclick="showWorkOrderForm(<?php echo $alert['alert_id']; ?>, <?php echo $alert['light_id']; ?>, '<?php echo addslashes($alert['description']); ?>', '<?php echo $alert['node_name']; ?>')" class="btn primary" style="white-space: nowrap;">
+                    <button onclick="showWorkOrderForm(<?php echo $alert['alert_id']; ?>, <?php echo $alert['light_id']; ?>, '<?php echo addslashes(htmlspecialchars($alert['description'])); ?>', '<?php echo addslashes(htmlspecialchars($alert['node_name'])); ?>')" class="btn primary" style="white-space: nowrap;">
                         Create Work Order
                     </button>
                     <?php
@@ -276,19 +276,19 @@ endif; ?>
             <?php while ($order = $active_orders->fetch_assoc()): ?>
             <tr>
                 <td><strong>WO #<?php echo $order['log_id']; ?></strong></td>
-                <td><strong><?php echo $order['node_name']; ?></strong></td>
-                <td><?php echo $order['location']; ?></td>
-                <td style="max-width: 250px;"><?php echo substr($order['action_taken'], 0, 50); ?>...</td>
-                <td><?php echo $order['technician_name']; ?></td>
+                <td><strong><?php echo htmlspecialchars($order['node_name']); ?></strong></td>
+                <td><?php echo htmlspecialchars($order['location']); ?></td>
+                <td style="max-width: 250px;"><?php echo htmlspecialchars(substr($order['action_taken'], 0, 50)); ?>...</td>
+                <td><?php echo htmlspecialchars($order['technician_name']); ?></td>
                 <td><?php echo date('M d, Y H:i', strtotime($order['maintenance_date'])); ?></td>
-                <td><span class="badge <?php echo $order['status'] === 'In Progress' ? 'warning' : 'ok'; ?>"><?php echo $order['status']; ?></span></td>
+                <td><span class="badge <?php echo $order['status'] === 'In Progress' ? 'warning' : 'ok'; ?>"><?php echo htmlspecialchars($order['status']); ?></span></td>
                 <td style="white-space: nowrap;">
                     <?php if (canDo('update_work_orders')): ?>
                     <button onclick="showUpdateForm(<?php echo $order['log_id']; ?>)" class="btn-sm update">Update</button>
                     <?php else: ?>
                     <span style="font-size:0.75rem; color:#64748b;">— View only</span>
                     <?php endif; ?>
-                    <button onclick="viewDetails(<?php echo $order['log_id']; ?>, '<?php echo addslashes($order['action_taken']); ?>', '<?php echo addslashes($order['notes'] ?? ''); ?>', '<?php echo addslashes($order['node_name']); ?>', '<?php echo addslashes($order['location']); ?>', <?php echo floatval($order['latitude']); ?>, <?php echo floatval($order['longitude']); ?>)" class="btn-sm info">Details</button>
+                    <button onclick="viewDetails(<?php echo $order['log_id']; ?>, '<?php echo addslashes(htmlspecialchars($order['action_taken'])); ?>', '<?php echo addslashes(htmlspecialchars($order['notes'] ?? '')); ?>', '<?php echo addslashes(htmlspecialchars($order['node_name'])); ?>', '<?php echo addslashes(htmlspecialchars($order['location'])); ?>', <?php echo floatval($order['latitude']); ?>, <?php echo floatval($order['longitude']); ?>)" class="btn-sm info">Details</button>
                 </td>
             </tr>
             <?php
@@ -327,12 +327,12 @@ endif; ?>
             <?php while ($order = $completed->fetch_assoc()): ?>
             <tr>
                 <td><strong>WO #<?php echo $order['log_id']; ?></strong></td>
-                <td><?php echo $order['node_name']; ?></td>
-                <td style="max-width: 200px;"><?php echo substr($order['action_taken'], 0, 40); ?>...</td>
-                <td><?php echo $order['technician_name']; ?></td>
+                <td><?php echo htmlspecialchars($order['node_name']); ?></td>
+                <td style="max-width: 200px;"><?php echo htmlspecialchars(substr($order['action_taken'], 0, 40)); ?>...</td>
+                <td><?php echo htmlspecialchars($order['technician_name']); ?></td>
                 <td><?php echo date('M d, Y', strtotime($order['maintenance_date'])); ?></td>
-                <td><?php echo $order['completion_time'] ?? 'N/A'; ?></td>
-                <td><?php echo $order['parts_replaced'] ?? 'None'; ?></td>
+                <td><?php echo htmlspecialchars($order['completion_time'] ?? 'N/A'); ?></td>
+                <td><?php echo htmlspecialchars($order['parts_replaced'] ?? 'None'); ?></td>
             </tr>
             <?php
     endwhile; ?>
@@ -366,9 +366,9 @@ endif; ?>
             <?php foreach ($inventory as $item): ?>
             <tr>
                 <td><strong><?php echo htmlspecialchars($item['part_name']); ?></strong></td>
-                <td style="font-family: monospace; font-size: 0.75rem;"><?php echo $item['part_number']; ?></td>
-                <td><span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;"><?php echo $item['category']; ?></span></td>
-                <td style="font-weight: 800;"><?php echo $item['quantity']; ?></td>
+                <td style="font-family: monospace; font-size: 0.75rem;"><?php echo htmlspecialchars($item['part_number']); ?></td>
+                <td><span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;"><?php echo htmlspecialchars($item['category']); ?></span></td>
+                <td style="font-weight: 800;"><?php echo htmlspecialchars($item['quantity']); ?></td>
                 <td>
                     <?php if ($item['low_stock']): ?>
                         <span class="badge fail" style="animation: pulse 2s infinite;">LOW STOCK</span>
@@ -410,7 +410,7 @@ endif; ?>
                     Hours: <span style="color: var(--text); font-weight: 600;"><?php echo number_format($node['runtime_hours'] ?? 0); ?></span>
                 </div>
             </div>
-            <button onclick="showWorkOrderForm(0, <?php echo $node['light_id']; ?>, 'Routine Preventative Maintenance (Service Interval Reached)', '<?php echo htmlspecialchars($node['node_name']); ?>')" 
+            <button onclick="showWorkOrderForm(0, <?php echo $node['light_id']; ?>, 'Routine Preventative Maintenance (Service Interval Reached)', '<?php echo addslashes(htmlspecialchars($node['node_name'])); ?>')" 
                     class="btn-sm" 
                     style="background: #f59e0b; color: #fff; border: none; padding: 10px 18px; border-radius: 10px; font-size: 0.85rem; font-weight: 800; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.3); transition: all 0.2s;"
                     onmouseover="this.style.background='#d97706'; this.style.boxShadow='0 6px 10px -1px rgba(245, 158, 11, 0.4)'"
@@ -450,7 +450,7 @@ endif; ?>
                     $technicians->data_seek(0);
                     while($tech = $technicians->fetch_assoc()): ?>
                         <option value="<?php echo $tech['user_id']; ?>" <?php echo ($tech['user_id'] == $_SESSION['user_id']) ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($tech['full_name']); ?> (<?php echo $tech['role']; ?>)
+                            <?php echo htmlspecialchars($tech['full_name']); ?> (<?php echo htmlspecialchars($tech['role']); ?>)
                         </option>
                     <?php endwhile; ?>
                 </select>
