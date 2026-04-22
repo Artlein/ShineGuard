@@ -955,6 +955,8 @@ endif; ?>
                 <div style="font-size: 1.2rem; line-height: 1;">⏱️</div>
                 <div><strong>Execution Delay:</strong> Please note there will be a 5-10 seconds delay for the command to
                     fully execute on all physical nodes.</div>
+            </div>
+
             <div id="bulkModalPasswordContainer" style="margin-bottom: 24px;">
                 <label for="bulkModalAdminPassword"
                     style="display:block; font-size:0.875rem; font-weight:600; color:#0f172a; margin-bottom:8px;">🔐
@@ -966,6 +968,7 @@ endif; ?>
                 <div id="bulkModalPasswordError" style="color:#ef4444; font-size:0.75rem; margin-top:6px; display:none;">
                     Password is required</div>
             </div>
+
 
             <div style="display:flex; gap:12px; justify-content:flex-end;">
                 <button onclick="closeBulkModal()"
