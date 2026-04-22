@@ -43,7 +43,11 @@ class TOTPService {
      * Verify a 6-digit code against the stored secret.
      * Allows a window of 1 interval before and after (±30 seconds) to account for clock drift.
      */
-    public static function verifyCode($secret, $code, $discrepancy = 1) {
+    public static function verifyCode($secret, $code, $discrepancy = 3) {
+        if (empty($secret)) return false;
+        
+        // Clean the input code (remove spaces)
+        $code = str_replace(' ', '', $code);
         $currentTimeSlice = floor(time() / 30);
         
         for ($i = -$discrepancy; $i <= $discrepancy; $i++) {
