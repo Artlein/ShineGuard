@@ -1979,10 +1979,15 @@ async function loadSnapshots() {
                 </tr>
             `).join('');
         } else {
+            let errorHtml = `${data.error || 'Access Denied'}<br><small style="opacity:0.7;">Please refresh the page to re-verify session.</small>`;
+            
+            if (data.error && data.error.includes('table missing')) {
+                errorHtml = `${data.error}<br><a href="aws_migrate.php" class="btn primary" style="margin-top:15px; display:inline-block; font-size:0.8rem; padding:8px 15px;">🚀 Run Database Migration</a>`;
+            }
+
             tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--red);">
                 <div style="font-size:1.5rem; margin-bottom:10px;">🔒</div>
-                ${data.error || 'Access Denied'}<br>
-                <small style="opacity:0.7;">Please refresh the page to re-verify session.</small>
+                ${errorHtml}
             </td></tr>`;
         }
     } catch (err) {
