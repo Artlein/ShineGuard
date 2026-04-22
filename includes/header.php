@@ -1077,12 +1077,14 @@ header {
 
     <script>
     const csrfToken = '<?php echo generateCsrfToken(); ?>';
-    const isAuthorized = <?php echo isRecentlyAuthorized() ? 'true' : 'false'; ?>;
-    const sbaAuthTime = <?php echo isset($_SESSION['last_auth_time']) ? (int)$_SESSION['last_auth_time'] : '0'; ?>;
+    let isAuthorized = <?php echo isRecentlyAuthorized() ? 'true' : 'false'; ?>;
+    let sbaAuthTime = <?php echo isset($_SESSION['last_auth_time']) ? (int)$_SESSION['last_auth_time'] : '0'; ?>;
     const SBA_WINDOW = 300; // 5 minutes in seconds
 
+    let sbaInterval = null;
+
     // SBA Countdown Timer
-    (function() {
+    function startSbaTimer() {
         if (!isAuthorized || !sbaAuthTime) return;
 
         const timerText  = document.getElementById('sbaTimerText');
@@ -1090,6 +1092,7 @@ header {
         if (!timerText || !timerBadge) return;
 
         const expiresAt = sbaAuthTime + SBA_WINDOW;
+        clearInterval(sbaInterval);
 
         function updateTimer() {
             const now       = Math.floor(Date.now() / 1000);
@@ -1098,7 +1101,6 @@ header {
             if (remaining <= 0) {
                 timerText.textContent = '0:00';
                 clearInterval(sbaInterval);
-                // Auto-reload to reflect locked state
                 location.reload();
                 return;
             }
@@ -1107,7 +1109,6 @@ header {
             const secs = remaining % 60;
             timerText.textContent = mins + ':' + String(secs).padStart(2, '0');
 
-            // Visual urgency when under 60 seconds
             if (remaining <= 60) {
                 timerBadge.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
                 timerBadge.style.boxShadow  = '0 2px 8px rgba(239, 68, 68, 0.4)';
@@ -1118,9 +1119,63 @@ header {
             }
         }
 
-        updateTimer(); // run immediately
-        const sbaInterval = setInterval(updateTimer, 1000);
-    })();
+        updateTimer();
+        sbaInterval = setInterval(updateTimer, 1000);
+    }
+
+    // Initialize timer on load if already authorized
+    document.addEventListener('DOMContentLoaded', startSbaTimer);
+
+    /**
+     * Globally available function to activate SBA UI after manual password verification
+     * without requiring a full page reload.
+     */
+    window.activateSbaUI = function(customAuthTime = null) {
+        isAuthorized = true;
+        sbaAuthTime = customAuthTime || Math.floor(Date.now() / 1000);
+        
+        // 1. Update Header Lock Icon and Timer
+        const lockBtn = document.getElementById('lockSessionBtn');
+        if (lockBtn) {
+            lockBtn.textContent = '🔓';
+            lockBtn.style.background = '#3b82f6';
+            lockBtn.style.color = '#fff';
+            lockBtn.style.border = 'none';
+            lockBtn.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
+            lockBtn.disabled = false;
+            lockBtn.style.cursor = 'pointer';
+            lockBtn.onclick = revokeAuth;
+            lockBtn.title = 'Secure Session Active — Click to Cancel';
+        }
+
+        // 2. Ensure Timer Badge exists and is visible
+        let timerContainer = document.querySelector('#lockSessionBtn')?.parentElement;
+        if (timerContainer && !document.getElementById('sbaTimerBadge')) {
+            const badgeHtml = `
+                <div id="sbaTimerBadge" style="
+                    background: linear-gradient(135deg, #3b82f6, #2563eb);
+                    color: #fff;
+                    font-family: 'Inter', monospace;
+                    font-size: 12px;
+                    font-weight: 700;
+                    padding: 4px 10px;
+                    border-radius: 8px;
+                    letter-spacing: 0.5px;
+                    white-space: nowrap;
+                    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+                    animation: sbaTimerPulse 2s ease-in-out infinite;
+                    cursor: default;
+                    user-select: none;
+                " title="Time remaining in secure session">
+                    <span id="sbaTimerText">5:00</span>
+                </div>
+            `;
+            timerContainer.insertAdjacentHTML('beforeend', badgeHtml);
+        }
+
+        // 3. Start the logic timer
+        startSbaTimer();
+    };
 
     function openAuthModal() {
         document.getElementById('globalAuthModal').style.display = 'flex';

@@ -508,6 +508,7 @@ tbody td {
                             <form method="POST" style="display:inline;">
                                 <input type="hidden" name="action" value="acknowledge">
                                 <input type="hidden" name="alert_id" value="<?php echo $alert['alert_id']; ?>">
+                                <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
                                 <button type="submit" class="btn primary btn-sm" style="background: #10b981; border: none; padding: 5px 10px; font-size: 0.75rem; color: white;">
                                     ✓ Acknowledge
                                 </button>
@@ -587,6 +588,7 @@ $alerts->data_seek(0);
         </h2>
         <form method="POST">
             <input type="hidden" name="action" value="new_work_order">
+            <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
             
             <div style="margin-bottom: 20px;">
                 <label style="display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.875rem; color: #475569;">Link to Alert (Recommended)</label>

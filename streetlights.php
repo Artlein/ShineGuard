@@ -784,7 +784,7 @@ endforeach; ?>
                     </div>
 
                     <input type="hidden" name="bulk_action" id="bulk_action_input">
-                    <input type="hidden" name="bulk_admin_password" id="hidden_bulk_admin_password">
+                    <input type="hidden" name="bulk_admin_password" id="bulkModalAdminPasswordHidden">
                     <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
                 </form>
             </div>
@@ -955,8 +955,17 @@ endif; ?>
                 <div style="font-size: 1.2rem; line-height: 1;">⏱️</div>
                 <div><strong>Execution Delay:</strong> Please note there will be a 5-10 seconds delay for the command to
                     fully execute on all physical nodes.</div>
+            <div id="bulkModalPasswordContainer" style="margin-bottom: 24px;">
+                <label for="bulkModalAdminPassword"
+                    style="display:block; font-size:0.875rem; font-weight:600; color:#0f172a; margin-bottom:8px;">🔐
+                    Administrator Password <span style="color:#ef4444;">*</span></label>
+                <input type="password" id="bulkModalAdminPassword" placeholder="Enter password to confirm"
+                    style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid #cbd5e1; font-family:'Inter',sans-serif; font-size:0.875rem; outline:none; transition:all 0.2s;"
+                    onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'"
+                    onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
+                <div id="bulkModalPasswordError" style="color:#ef4444; font-size:0.75rem; margin-top:6px; display:none;">
+                    Password is required</div>
             </div>
-
 
             <div style="display:flex; gap:12px; justify-content:flex-end;">
                 <button onclick="closeBulkModal()"
@@ -1124,6 +1133,17 @@ endif; ?>
             }
 
             modal._action = action;
+            
+            // Handle Authorization Visibility
+            const pwdContainer = document.getElementById('bulkModalPasswordContainer');
+            if (isAuthorized) {
+                pwdContainer.style.display = 'none';
+                btn.innerHTML = btn.innerHTML.replace('Confirm', 'Execute (Authorized)');
+            } else {
+                pwdContainer.style.display = 'block';
+                btn.innerHTML = btn.innerHTML.includes('OFF') ? '🔅 Turn OFF' : '🔆 Turn ON';
+            }
+
             modal.style.display = 'flex';
         }
 
@@ -1160,14 +1180,66 @@ endif; ?>
             return true;
         }
 
-        function confirmBulkAction() {
+        async function confirmBulkAction() {
+            const modal = document.getElementById('bulkControlModal');
+            const pwdInput = document.getElementById('bulkModalAdminPassword');
+            const pwdError = document.getElementById('bulkModalPasswordError');
+            const btn = document.getElementById('bulkModalConfirmBtn');
+
             if (!isAuthorized) {
-                openAuthModal();
-                return;
+                if (!pwdInput.value) {
+                    pwdError.textContent = 'Administrator password is required.';
+                    pwdError.style.display = 'block';
+                    pwdInput.style.borderColor = '#ef4444';
+                    pwdInput.focus();
+                    return;
+                }
+
+                btn.disabled = true;
+                const originalText = btn.innerHTML;
+                btn.innerHTML = 'Verifying...';
+
+                try {
+                    const verifyData = new URLSearchParams();
+                    verifyData.append('action', 'verify_password');
+                    verifyData.append('admin_password', pwdInput.value);
+                    verifyData.append('csrf_token', csrfToken);
+
+                    const verifyRes = await fetch('streetlights.php', {
+                        method: 'POST',
+                        body: verifyData,
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+
+                    const verifyJson = await verifyRes.json();
+                    if (!verifyJson.success) {
+                        pwdError.textContent = 'Invalid administrator password.';
+                        pwdError.style.display = 'block';
+                        pwdInput.style.borderColor = '#ef4444';
+                        pwdInput.value = '';
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                        return;
+                    }
+
+                    // Success! Activate SBA UI for the whole dashboard
+                    if (window.activateSbaUI) window.activateSbaUI();
+                    
+                } catch (e) {
+                    console.error('Auth check error:', e);
+                    pwdError.textContent = 'Connection error. Please try again.';
+                    pwdError.style.display = 'block';
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    return;
+                }
             }
 
-            const modal = document.getElementById('bulkControlModal');
+            // Proceed with bulk action
+            btn.disabled = true;
+            btn.innerHTML = 'Executing...';
             document.getElementById('bulk_action_input').value = modal._action;
+            document.getElementById('bulkModalAdminPasswordHidden').value = pwdInput.value;
             document.getElementById('bulkControlForm').submit();
         }
 
@@ -1493,7 +1565,10 @@ endif; ?>
                     return;
                 }
 
-                // 2. If pass ok, capture originalHTML and show animation
+                // 2. SUCCESS: Activate SBA UI globally (updates lock icon + timer)
+                if (window.activateSbaUI) window.activateSbaUI();
+
+                // 3. If pass ok, capture originalHTML and show animation
                 const inner = modal.querySelector('.modal-spring');
                 const originalHTML = inner.innerHTML; // Current state with password etc.
 
@@ -1526,11 +1601,12 @@ endif; ?>
                 const formData = new URLSearchParams();
                 formData.append('light_id', modal._lightId);
                 formData.append('admin_password', pwdInput.value);
+                formData.append('csrf_token', csrfToken);
 
                 const response = await fetch('api/run_diagnostic.php', {
                     method: 'POST',
                     body: formData,
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' }
                 });
 
                 const data = await response.json();

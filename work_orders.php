@@ -3,6 +3,7 @@ require_once 'dbconnect.php';
 requireLogin();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_work_order'])) {
+    checkCsrf();
     if (!canDo('create_work_orders')) {
         include __DIR__ . '/includes/access_denied_ui.php';
         exit();
@@ -31,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_work_order']))
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
+    checkCsrf();
     if (!canDo('update_work_orders')) {
         include __DIR__ . '/includes/access_denied_ui.php';
         exit();
@@ -431,6 +433,7 @@ endif; ?>
         <span class="close" onclick="closeModal('workOrderModal')">&times;</span>
         <h2 style="margin-top: 0;">📝 Create Work Order</h2>
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
             <input type="hidden" name="create_work_order" value="1">
             <input type="hidden" name="alert_id" id="alert_id">
             <input type="hidden" name="light_id" id="light_id">
@@ -484,6 +487,7 @@ endif; ?>
         <span class="close" onclick="closeModal('updateModal')">&times;</span>
         <h2 style="margin-top: 0;">🔄 Update Work Order Status</h2>
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
             <input type="hidden" name="update_status" value="1">
             <input type="hidden" name="log_id" id="update_log_id">
             

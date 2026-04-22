@@ -236,6 +236,7 @@ $s_stmt->close();
 // ── SECURITY FEATURE: INTEGRITY VALIDATOR SCRIPT ──
 $integrity_results = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) {
+    checkCsrf();
     require_once 'src/Services/SecurityService.php';
     
     // We verify the logs currently visible in the filter
@@ -594,6 +595,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
                 <div style="display: flex; gap: 12px; align-items: center;">
                     <form method="POST" style="margin: 0;" id="integrityForm">
                         <input type="hidden" name="verify_integrity" value="1">
+                        <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
                         <button type="button" class="btn-filter" style="background: #6366f1; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);" onclick="runIntegrityCheck()">
                             🛡️ Verify Log Integrity
                         </button>
@@ -879,7 +881,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
         <p style="font-size:13px; color:#64748b; margin:0 0 1.5rem; line-height:1.6;">This action will permanently block the targeted device. To execute the kill switch, please verify your identity using your Authenticator App.</p>
         
         <form id="blockDeviceForm" method="POST" action="">
-            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+            <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
             <input type="hidden" name="block_device_token" id="mfaBlockDeviceToken" value="">
             
             <input type="text" name="block_mfa_code" placeholder="6-digit MFA Code" required pattern="[0-9]{6}" autocomplete="off" style="width: 100%; box-sizing: border-box; text-align: center; font-size: 24px; letter-spacing: 4px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 12px; margin-bottom: 20px; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#ef4444'" onblur="this.style.borderColor='#e2e8f0'">
@@ -1012,7 +1014,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_integrity'])) 
             const formData = new URLSearchParams();
             formData.append('admin_password', password);
             formData.append('action', 'verify');
-            formData.append('csrf_token', '<?php echo $_SESSION['csrf_token'] ?? ''; ?>');
+            formData.append('csrf_token', '<?php echo generateCsrfToken(); ?>');
 
             const response = await fetch('api/auth_session.php', {
                 method: 'POST',

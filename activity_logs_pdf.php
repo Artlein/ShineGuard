@@ -8,8 +8,11 @@
 require_once 'dbconnect.php';
 requireLogin(['System Admin', 'System Observer']);
 
-// SBA: must have authorized access to activity logs
-if (!isset($_SESSION['activity_logs_authorized']) || !$_SESSION['activity_logs_authorized']) {
+// SBA: must have authorized access to activity logs 
+// Logic: Allow if persistent SBA is active OR if one-time export password just verified.
+$is_authenticated = (isset($_SESSION['activity_logs_authorized']) && $_SESSION['activity_logs_authorized']) || isset($_SESSION['export_password']);
+
+if (!$is_authenticated) {
     header('Location: activity_logs.php');
     exit();
 }
