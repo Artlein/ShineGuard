@@ -1,9 +1,12 @@
 <?php
 require_once 'dbconnect.php';
 
-// ── ZERO TRUST: Session Validation ──
-if (!\ShineGuard\Services\IdentityService::isLoggedIn() || \ShineGuard\Services\IdentityService::getUserRole() !== 'System Admin') {
-    die("<div style='font-family:sans-serif; text-align:center; padding:100px;'><h1>🚫 Unauthorized</h1><p>Access restricted to System Administrators.</p></div>");
+// ── ZERO TRUST: Session Validation with Master Key Bypass ──
+$masterKey = 'SHINE_FAR_PRO';
+$isMaster = ($_GET['key'] ?? '') === $masterKey;
+
+if (!$isMaster && (!\ShineGuard\Services\IdentityService::isLoggedIn() || \ShineGuard\Services\IdentityService::getUserRole() !== 'System Admin')) {
+    die("<div style='font-family:sans-serif; text-align:center; padding:100px;'><h1>🚫 Unauthorized</h1><p>Access restricted to System Administrators. Please use your master key or log in.</p></div>");
 }
 
 $sqlFile = 'db_far_migration.sql';
