@@ -817,9 +817,7 @@ $csrf = generateCsrfToken();
     </div>
 </div>
 
-<?php $isAuthorized = isRecentlyAuthorized() ? 'true' : 'false'; ?>
 <script type="module">
-    const isAuthorized = <?php echo $isAuthorized; ?>;
     const CSRF = '<?php echo $csrf; ?>';
     const THRESHOLDS = <?php echo $thresholds_json; ?>;
     const NODE = "<?php echo $currentNode; ?>";

@@ -638,9 +638,8 @@ $alerts->data_seek(0);
     </div>
 </div>
 
-<?php $isAuthorized = isRecentlyAuthorized() ? 'true' : 'false'; ?>
+<?php $alerts_js = $alerts_js ?? []; ?>
 <script>
-const isAuthorized = <?php echo $isAuthorized; ?>;
 const alertData = <?php echo json_encode($alerts_js); ?>;
 
 function openWorkOrderModal(alertId = null) {

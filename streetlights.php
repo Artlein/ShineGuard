@@ -1084,7 +1084,6 @@ endif; ?>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const csrfToken = '<?php echo $_SESSION['csrf_token'] ?? generateCsrfToken(); ?>';
         const canControl = <?php echo canDo('control_streetlights') ? 'true' : 'false'; ?>;
         function openBulkModal(action) {
             const modal = document.getElementById('bulkControlModal');
