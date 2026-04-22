@@ -66,4 +66,19 @@ class IdentityService {
     public static function revokeAuthorization() {
         unset($_SESSION['last_auth_time']);
     }
+
+    public static function verifyActionMfa($conn, $code) {
+        $userId = self::getUserId();
+        $stmt = $conn->prepare("SELECT mfa_secret, mfa_enabled FROM users WHERE user_id = ?");
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        $res = $stmt->get_result()->fetch_assoc();
+
+        if (!$res || !$res['mfa_enabled']) {
+            return false;
+        }
+
+        require_once __DIR__ . '/TOTPService.php';
+        return TOTPService::verifyCode($res['mfa_secret'], $code);
+    }
 }

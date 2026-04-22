@@ -26,6 +26,12 @@ try {
     switch ($action) {
         case 'generate_snapshot':
             checkCsrf();
+            $mfa = $_POST['mfa_code'] ?? '';
+            if (!IdentityService::verifyActionMfa($conn, $mfa)) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'mfa_failed', 'message' => 'Valid MFA code required for forensic operations.']);
+                exit();
+            }
             $notes = sanitize($_POST['notes'] ?? 'Manual Forensic Snapshot');
             $result = MaintenanceService::generateForensicSnapshot($conn, IdentityService::getUserId(), $notes);
             echo json_encode($result);
@@ -33,6 +39,12 @@ try {
 
         case 'restore_snapshot':
             checkCsrf();
+            $mfa = $_POST['mfa_code'] ?? '';
+            if (!IdentityService::verifyActionMfa($conn, $mfa)) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'mfa_failed', 'message' => 'Valid MFA code required for restoration.']);
+                exit();
+            }
             $id = (int)($_POST['id'] ?? 0);
             $result = MaintenanceService::restoreForensicSnapshot($conn, $id, IdentityService::getUserId());
             echo json_encode($result);
