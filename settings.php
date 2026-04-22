@@ -1301,8 +1301,6 @@ tbody td {
                             <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">High-integrity snapshots require physical token verification.</p>
                         </div>
                     </div>
-                   <p style="font-size: 0.85rem; color: var(--text-secondary);">Validating system integrity across all snapshots</p>
-                    </div>
                 </div>
                 <button type="button" class="btn primary" onclick="initiateForensicBackup()" style="display: flex; align-items: center; gap: 10px; background: var(--green);">
                     <span>➕ Initiate Forensic Snapshot</span>
