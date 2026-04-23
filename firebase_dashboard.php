@@ -194,14 +194,14 @@ $csrf = generateCsrfToken();
         .dash-grid {
             display: grid;
             grid-template-columns: 1fr 340px;
-            grid-template-rows: auto auto;
             grid-template-areas:
-                "sensors controls"
-                "health   activity";
+                "sensors  controls"
+                "health   activity"
+                "predictive activity";
             gap: 20px;
         }
         @media (max-width: 1100px) {
-            .dash-grid { grid-template-columns: 1fr; grid-template-areas: "sensors" "controls" "health" "activity"; }
+            .dash-grid { grid-template-columns: 1fr; grid-template-areas: "sensors" "controls" "health" "activity" "predictive"; }
         }
 
         /* ── CARD ── */
@@ -753,34 +753,34 @@ $csrf = generateCsrfToken();
             </div>
 
             <!-- ── PREDICTIVE ANALYSIS ── -->
-            <div class="card" style="grid-area: predictive; background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);">
-                <div class="card-glow" style="background: #a855f7; opacity: 0.15;"></div>
+            <div class="card" style="grid-area: predictive;">
+                <div class="card-glow" style="background: #a855f7;"></div>
                 <div class="card-head">
                     <h3 style="color:#a855f7;">
-                        <span class="head-icon" style="background:rgba(168,85,247,0.15);">
+                        <span class="head-icon" style="background:rgba(168,85,247,0.12);">
                             <svg viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                         </span>
                         Predictive Analysis
                     </h3>
                 </div>
                 
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
-                    <div style="background:rgba(255,255,255,0.03); padding:15px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
-                        <div style="font-size:10px; color:#94a3b8; font-weight:800; text-transform:uppercase; margin-bottom:8px;">Lamp Integrity</div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 5px;">
+                    <div style="background:var(--bg); padding:15px; border-radius:12px; border:1px solid var(--border);">
+                        <div style="font-size:10px; color:var(--muted); font-weight:800; text-transform:uppercase; margin-bottom:8px;">Lamp Integrity</div>
                         <div style="font-size:1.4rem; font-weight:900; color:#10b981;" id="lampHealth">STABLE</div>
                     </div>
-                    <div style="background:rgba(255,255,255,0.03); padding:15px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
-                        <div style="font-size:10px; color:#94a3b8; font-weight:800; text-transform:uppercase; margin-bottom:8px;">Power Stability</div>
+                    <div style="background:var(--bg); padding:15px; border-radius:12px; border:1px solid var(--border);">
+                        <div style="font-size:10px; color:var(--muted); font-weight:800; text-transform:uppercase; margin-bottom:8px;">Power Stability</div>
                         <div style="font-size:1.4rem; font-weight:900; color:#3b82f6;" id="powerStability">--</div>
                     </div>
                 </div>
 
-                <div style="margin-top:20px; padding:12px; background:rgba(239,68,68,0.05); border:1px solid rgba(239,68,68,0.1); border-radius:10px;">
+                <div style="margin-top:15px; padding:12px; background:rgba(239,68,68,0.05); border:1px solid rgba(239,68,68,0.1); border-radius:10px;">
                     <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
                         <span style="width:6px; height:6px; border-radius:50%; background:#ef4444; box-shadow:0 0 8px #ef4444;"></span>
                         <span style="font-size:11px; font-weight:800; color:#ef4444; text-transform:uppercase;">Predictive Alert</span>
                     </div>
-                    <div id="maintenanceAlert" style="font-size:12px; color:#e2e8f0; font-family:var(--mono);">Awaiting scan...</div>
+                    <div id="maintenanceAlert" style="font-size:12px; color:var(--dim); font-family:var(--mono);">Awaiting scan...</div>
                 </div>
             </div>
 
