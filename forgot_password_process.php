@@ -50,13 +50,16 @@ if ($stmt->execute()) {
     // Log the request with a BACKUP LINK for the Super Admin
     logActivity($conn, null, 'Password Reset Request', "Recovery link generated for $email: $reset_link");
     
-    $result = \ShineGuard\Services\MailService::sendPasswordReset($email, $full_name, $reset_link);
-    
     // Even if mail fails (e.g. key missing), we show success to the user for security.
-    // The developer can check Audit Logs or Error Logs for failures.
-    if (!$result['success']) {
-        error_log("Mail Error: " . $result['error']);
-        logActivity($conn, null, 'Mail Delivery Error', "Failed to send recovery email to $email. Error: " . $result['error']);
+    try {
+        $result = \ShineGuard\Services\MailService::sendPasswordReset($email, $full_name, $reset_link);
+        if (!$result['success']) {
+            error_log("Mail Error: " . $result['error']);
+            logActivity($conn, null, 'Mail Delivery Error', "Failed to send recovery email to $email. Error: " . $result['error']);
+        }
+    } catch (\Exception $e) {
+        error_log("Mail Exception: " . $e->getMessage());
+        logActivity($conn, null, 'Mail System Fault', "Critical error in mail subsystem for $email: " . $e->getMessage());
     }
 
     header('Location: forgot_password.php?success=1');
