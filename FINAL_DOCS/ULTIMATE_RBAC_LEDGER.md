@@ -40,7 +40,7 @@ This manual provides the definitive demonstration flow for all system roles (Adm
 | **MNT_05** | **Self-Run Test** | Integrity Check. | Logged in | 1. Node Detail -> [Run Health Sweep]. | Hardware check complete; status: OK. |
 | **MNT_06** | **CCTV Video Feed** | Safety Observation. | Feeds active | 1. Open CCTV Feed. 2. Monitor site status. | Live video stream active for field safety. |
 | **MNT_07** | **Alert Handling**| Fault Response. | Alert Open | 1. Alerts Center -> Click [Acknowledge]. | Status: In-Progress; Staff action logged. |
-| **MNT_08** | **Work Order Log** | Task Auditing. | WO Assigned | 1. Open [Maintenance Registry]. 2. View Tasks. | Assigned repair orders are visible/auditable. |
+| **MNT_08** | **Work Order Sync** | Task Updates. | WO Assigned | 1. Open [Maintenance Registry]. 2. Edit WO #102. 3. Update Status to 'In-Progress'. | Work order updated; changes synced to database. |
 | **MNT_09** | **Raw Diagnostics**| Cloud Transparency. | Dashboard | 1. [Firebase Raw Data] -> View Stream. | Verified unprocessed sensor data sync. |
 | **MNT_10** | **Identity Shield**| Access Block A. | Logged in | 1. Attempt access to [User Management]. | System redirect: "Access Denied" active. |
 | **MNT_11** | **Backup Shield** | Access Block B. | Logged in | 1. Attempt access to [Data & Backup]. | Menu not rendered; Action is forbidden. |
