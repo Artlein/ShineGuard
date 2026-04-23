@@ -23,9 +23,11 @@ function fetchFirebaseData($endpoint, $nodeId = 'SG-NODE2') {
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
     curl_close($ch);
     
     if ($httpCode !== 200) {
+        echo "⚠️  [DEBUG] HTTP Code: $httpCode | URL: $url | Error: $error\n";
         return null;
     }
     
