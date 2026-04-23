@@ -505,17 +505,6 @@ $csrf = generateCsrfToken();
     <?php include 'includes/sidebar.php'; ?>
     <?php include 'includes/header.php'; ?>
 
-    <!-- CASCADE OVERRIDE: Must come after includes to take precedence -->
-    <style>
-        header { background: var(--bg-panel) !important; border-bottom: 1px solid var(--border) !important; color: var(--text) !important; }
-        .hdr-title { color: var(--text) !important; }
-        .hdr-sub { color: var(--dim) !important; }
-        .hdr-search input { background: var(--bg) !important; border-color: var(--border) !important; color: var(--text) !important; }
-        .hdr-icon-btn { background: var(--bg-panel) !important; border-color: var(--border) !important; color: var(--dim) !important; }
-
-    <?php include 'includes/sidebar.php'; ?>
-    <?php include 'includes/header.php'; ?>
-
     <main class="main-content">
 
         <!-- PAGE HERO -->
