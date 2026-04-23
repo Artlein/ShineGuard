@@ -87,9 +87,12 @@ function syncSensorData($conn, $nodeId = 'SG-NODE2') {
     $insertStmt->bind_param("iddddd", $light_id, $brightness, $current, $voltage, $temperature, $humidity);
     
     if ($insertStmt->execute()) {
-        echo "✅ [{$nodeId}] Sensor data synced to MySQL\n";
+        $new_id = $conn->insert_id;
+        echo "✅ [{$nodeId}] Sensor data synced to MySQL (ID: $new_id)\n";
         checkThresholds($conn, $light_id, $brightness, $temperature, $current, $voltage, $humidity);
         return true;
+    } else {
+        echo "❌ [{$nodeId}] MySQL INSERT FAILED: " . $insertStmt->error . "\n";
     }
     return false;
 }
