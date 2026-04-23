@@ -429,7 +429,7 @@ if (!isset($theme_color)) {
             </div>
             <div class="sensor-card">
                 <div class="sensor-icon">💡</div>
-                <div class="sensor-label">Brightness</div>
+                <div class="sensor-label">Ambient Light (Raw)</div>
                 <div class="sensor-value" id="brightness-value">--</div>
                 <div class="sensor-status-tag" id="brightness-tag">READING</div>
             </div>
@@ -463,8 +463,9 @@ function refreshFirebaseData() {
                 document.getElementById('temp-value').textContent = data.temperature + '°C';
                 updateSensorStatus('temp-tag', data.temperature, null, t.temperature_threshold_max, null, t.temperature_threshold_critical, 'high');
                 
-                document.getElementById('brightness-value').textContent = data.brightness + ' lux';
-                updateSensorStatus('brightness-tag', data.brightness, t.lux_threshold_min, null, t.lux_threshold_critical, null, 'low');
+                document.getElementById('brightness-value').textContent = data.brightness + ' val';
+                // Dynamic thresholds using 'high' type (High raw = Very Dark)
+                updateSensorStatus('brightness-tag', data.brightness, null, t.lux_threshold_min, null, t.lux_threshold_critical, 'high');
                 
                 document.getElementById('voltage-value').textContent = data.voltage.toFixed(2) + 'V';
                 updateSensorStatus('voltage-tag', data.voltage, t.voltage_threshold_min, null, t.voltage_threshold_critical, null, 'low');

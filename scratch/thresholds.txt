@@ -1,0 +1,12 @@
+lux_threshold_min: 50
+current_threshold_max: 0.5
+temperature_threshold_max: 45
+predictive_days_threshold: 3
+lux_threshold_critical: 30
+temperature_threshold_critical: 55
+current_threshold_critical: 0.7
+voltage_threshold_min: 2.0
+voltage_threshold_critical: 1.5
+humidity_threshold_max: 80
+humidity_threshold_critical: 90
+predictive_threshold_hits: 3

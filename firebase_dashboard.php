@@ -571,11 +571,11 @@ $csrf = generateCsrfToken();
                         </div>
                         <div class="sensor-value">
                             <span id="ldrData">-- </span>
-                            <span class="sensor-unit">lx</span>
+                            <span class="sensor-unit">val</span>
                         </div>
                         <div class="sensor-bar-wrap">
                             <div class="sensor-bar-track"><div class="sensor-bar-fill" id="ldrBar" style="background:#f59e0b;"></div></div>
-                            <div class="sensor-bar-label"><span>Dark</span><span>Bright</span></div>
+                            <div class="sensor-bar-label"><span>0</span><span>4095</span></div>
                         </div>
                         <span class="sensor-status-tag" id="ldrTag">READING</span>
                     </div>
@@ -949,13 +949,16 @@ $csrf = generateCsrfToken();
     function updateUI(d) {
         if (!d) return;
         const ldr = d.ldrData ?? null;
-        let lux = null;
-        if (ldr !== null) lux = Math.max(0, 100 - (ldr / 40));
         
-        document.getElementById('ldrData').textContent = lux !== null ? Math.round(lux) : '--';
-        if (lux !== null) {
+        // Removed artificial lux = Math.max(0, 100 - (ldr / 40)) calculation 
+        // to show direct raw data from Firebase database
+        document.getElementById('ldrData').textContent = ldr !== null ? ldr : '--';
+        if (ldr !== null) {
+            // Visualize on a 0-4095 scale (12-bit ADC)
             setBar('ldrBar', (ldr / 4095) * 100);
-            setTag('ldrTag', evalTag(lux, null, null, THRESHOLDS.lux_threshold_min || 50, THRESHOLDS.lux_threshold_critical || 30));
+            // Dynamic evaluation based on DB Raw ADC thresholds
+            // Higher LDR = Darker
+            setTag('ldrTag', evalTag(ldr, THRESHOLDS.lux_threshold_min, THRESHOLDS.lux_threshold_critical, null, null)); 
         }
 
         const temp = d.temperature ?? null;

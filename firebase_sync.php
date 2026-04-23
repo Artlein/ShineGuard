@@ -73,7 +73,8 @@ function syncSensorData($conn, $nodeId = 'SG-NODE2') {
     $light_id = $row['light_id'];
     
     $ldrData = $sensorData['ldrData'] ?? 0;
-    $brightness = max(0, 100 - ($ldrData / 40)); 
+    // System-wide update: Store Raw ADC Value (0-4095) instead of percentage
+    $brightness = (float)$ldrData; 
     $temperature = $sensorData['temperature'] ?? 0;
     $voltage = $sensorData['voltage'] ?? 0;
     $humidity = $sensorData['humidity'] ?? 0;
@@ -202,13 +203,13 @@ function checkThresholds($conn, $light_id, $brightness, $temperature, $current, 
         $thresholds[$row['config_key']] = floatval($row['config_value']);
     }
     
-    // Check brightness threshold (Lower is worse)
-    $lux_crit = $thresholds['lux_threshold_critical'] ?? 10;
-    $lux_warn = $thresholds['lux_threshold_min'] ?? 20;
-    if ($brightness < $lux_crit) {
-        createAlert($conn, $light_id, 'Fault', 'High', "Low brightness detected: {$brightness} lx (threshold: {$lux_crit} lx). Lamp may be aging.");
-    } elseif ($brightness < $lux_warn) {
-        createAlert($conn, $light_id, 'Predictive', 'Medium', "Low brightness detected: {$brightness} lx (threshold: {$lux_warn} lx)");
+    // Check brightness threshold (Raw High = Darker)
+    $lux_crit = $thresholds['lux_threshold_critical'] ?? 4000;
+    $lux_warn = $thresholds['lux_threshold_min'] ?? 3500;
+    if ($brightness > $lux_crit) {
+        createAlert($conn, $light_id, 'Fault', 'High', "Extreme Darkness/High Raw LDR detected: {$brightness} val (threshold: {$lux_crit}). Check sensors or node status.");
+    } elseif ($brightness > $lux_warn) {
+        createAlert($conn, $light_id, 'Predictive', 'Medium', "High Raw LDR detected (Very Dark): {$brightness} val (threshold: {$lux_warn})");
     }
     
     // Check temperature threshold (Higher is worse)
