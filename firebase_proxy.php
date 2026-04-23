@@ -24,6 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     $ch = curl_init($writeUrl);
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
+    // Hardware expects a full JSON object for the Control node
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);

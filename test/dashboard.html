@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShineGuard — Sensor Telemetry Dashboard</title>
+  <meta name="description" content="Real-time IoT streetlight monitoring with predictive maintenance." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-primary:#060a13; --bg-secondary:#0c1220;
+      --bg-card:rgba(14,21,38,0.75); --bg-card-hover:rgba(20,30,55,0.85);
+      --border-card:rgba(56,189,248,0.08); --border-glow:rgba(56,189,248,0.20);
+      --cyan:#38bdf8; --purple:#a78bfa; --green:#34d399;
+      --amber:#fbbf24; --red:#f87171; --orange:#fb923c;
+      --text-primary:#e2e8f0; --text-secondary:#94a3b8; --text-muted:#475569;
+      --radius-sm:8px; --radius-md:14px;
+      --font-sans:'Inter',system-ui,sans-serif;
+      --font-mono:'JetBrains Mono','Fira Code',monospace;
+      --transition:0.25s cubic-bezier(0.4,0,0.2,1);
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{font-size:15px;scroll-behavior:smooth}
+    body{font-family:var(--font-sans);background:var(--bg-primary);color:var(--text-primary);min-height:100vh;overflow-x:hidden;line-height:1.5}
+    body::before{content:'';position:fixed;top:-40%;left:-20%;width:80vw;height:80vh;background:radial-gradient(ellipse,rgba(56,189,248,0.06) 0%,transparent 70%);pointer-events:none;z-index:0}
+    body::after{content:'';position:fixed;bottom:-30%;right:-15%;width:60vw;height:60vh;background:radial-gradient(ellipse,rgba(167,139,250,0.04) 0%,transparent 70%);pointer-events:none;z-index:0}
+
+    /* HEADER */
+    .header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:14px 28px;background:rgba(6,10,19,0.85);backdrop-filter:blur(20px) saturate(1.4);border-bottom:1px solid var(--border-card)}
+    .header-brand{display:flex;align-items:center;gap:12px}
+    .header-logo{width:36px;height:36px;background:linear-gradient(135deg,var(--cyan),var(--purple));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;box-shadow:0 0 20px rgba(56,189,248,0.2)}
+    .header-title{font-size:1.2rem;font-weight:700;letter-spacing:-0.02em;background:linear-gradient(135deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .header-subtitle{font-size:0.72rem;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:0.1em}
+    .header-status{display:flex;align-items:center;gap:12px}
+    .status-badge{display:flex;align-items:center;gap:6px;font-size:0.75rem;font-weight:500;color:var(--text-secondary);padding:6px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border-card);border-radius:999px}
+    .status-dot{width:8px;height:8px;border-radius:50%;background:var(--text-muted);transition:var(--transition)}
+    .status-dot.connected{background:var(--green);box-shadow:0 0 8px rgba(52,211,153,0.5);animation:pulse-dot 2s ease-in-out infinite}
+    .status-dot.disconnected{background:var(--red);box-shadow:0 0 8px rgba(248,113,113,0.5)}
+    @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:0.5}}
+
+    /* MAIN */
+    .main{position:relative;z-index:1;max-width:1360px;margin:0 auto;padding:28px 24px 60px}
+    .section-label{display:flex;align-items:center;gap:10px;margin-bottom:16px;font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-muted)}
+    .section-label::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border-card),transparent)}
+
+    /* CONSOLE */
+    .console-bar{display:flex;align-items:center;gap:10px;margin-bottom:24px;padding:10px 16px;background:rgba(14,21,38,0.6);border:1px solid var(--border-card);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:0.72rem;color:var(--text-muted);overflow:hidden}
+    .console-bar .console-prefix{color:var(--cyan);font-weight:600;flex-shrink:0}
+    .console-bar .console-msg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    /* WARNING BANNER */
+    .warning-banner{display:none;align-items:center;gap:10px;padding:12px 18px;margin-bottom:20px;border-radius:var(--radius-md);background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.25);font-size:0.82rem;color:var(--red);animation:flash-fault 2s ease-in-out infinite}
+    .warning-banner.active{display:flex}
+    .warning-banner .warn-icon{font-size:1.2rem}
+    .warning-banner .warn-text{flex:1;font-weight:500}
+
+    /* ENV BANNER */
+    .env-banner{display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 20px;margin-bottom:28px;border-radius:var(--radius-md);background:rgba(14,21,38,0.6);border:1px solid var(--border-card);font-size:0.85rem;font-weight:500;transition:var(--transition)}
+    .env-banner.day{border-color:rgba(251,191,36,0.15);background:rgba(251,191,36,0.05)}
+    .env-banner.night{border-color:rgba(99,102,241,0.15);background:rgba(99,102,241,0.05)}
+    .env-banner .env-icon{font-size:1.3rem}
+    .env-banner .env-text{color:var(--text-secondary)}
+    .env-banner .env-value{font-weight:700;font-family:var(--font-mono)}
+
+    /* SENSOR CARDS */
+    .sensor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px;margin-bottom:32px}
+    .sensor-card{position:relative;padding:20px;background:var(--bg-card);border:1px solid var(--border-card);border-radius:var(--radius-md);backdrop-filter:blur(12px);transition:var(--transition);overflow:hidden}
+    .sensor-card:hover{background:var(--bg-card-hover);border-color:var(--border-glow);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,0.3),0 0 0 1px var(--border-glow)}
+    .sensor-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent,var(--cyan));opacity:0.6;transition:opacity var(--transition)}
+    .sensor-card:hover::before{opacity:1}
+    .sensor-card .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .sensor-card .card-label{font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted)}
+    .sensor-card .card-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1rem;background:rgba(255,255,255,0.03);border:1px solid var(--border-card)}
+    .sensor-card .card-value{font-size:2rem;font-weight:800;font-family:var(--font-mono);letter-spacing:-0.03em;line-height:1.1;color:var(--text-primary);transition:color var(--transition)}
+    .sensor-card .card-value.error{color:var(--red);font-size:1rem}
+    .sensor-card .card-unit{font-size:0.8rem;font-weight:500;color:var(--text-muted);margin-left:4px}
+    .sensor-card .card-sub{margin-top:8px;font-size:0.72rem;color:var(--text-muted);font-family:var(--font-mono)}
+
+    /* PANELS */
+    .panels-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+    .panel{padding:24px;background:var(--bg-card);border:1px solid var(--border-card);border-radius:var(--radius-md);backdrop-filter:blur(12px)}
+    .panel-title{font-size:0.9rem;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+    .panel-title .title-dot{width:8px;height:8px;border-radius:50%}
+
+    /* CONTROL */
+    .ctrl-status-row{display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:14px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border-card);border-radius:var(--radius-sm)}
+    .ctrl-led-indicator{width:42px;height:42px;border-radius:50%;background:var(--text-muted);transition:var(--transition);flex-shrink:0}
+    .ctrl-led-indicator.on{background:var(--amber);box-shadow:0 0 24px rgba(251,191,36,0.4),0 0 48px rgba(251,191,36,0.15)}
+    .ctrl-led-indicator.off{background:#1e293b;border:2px solid var(--text-muted)}
+    .ctrl-info{flex:1}
+    .ctrl-info .info-state{font-size:1.1rem;font-weight:700;font-family:var(--font-mono)}
+    .ctrl-info .info-detail{font-size:0.75rem;color:var(--text-muted);margin-top:2px}
+    .ctrl-mode-badge{font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;padding:4px 10px;border-radius:999px;border:1px solid}
+    .ctrl-mode-badge.auto{color:var(--cyan);border-color:rgba(56,189,248,0.3);background:rgba(56,189,248,0.08)}
+    .ctrl-mode-badge.manual{color:var(--purple);border-color:rgba(167,139,250,0.3);background:rgba(167,139,250,0.08)}
+    .ctrl-actions{display:flex;flex-direction:column;gap:12px}
+    .ctrl-row{display:flex;align-items:center;gap:10px}
+    .ctrl-row-label{font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);min-width:70px}
+    .btn{font-family:var(--font-sans);font-size:0.78rem;font-weight:600;padding:8px 16px;border:1px solid var(--border-card);border-radius:var(--radius-sm);background:rgba(255,255,255,0.03);color:var(--text-secondary);cursor:pointer;transition:var(--transition)}
+    .btn:hover{background:rgba(255,255,255,0.08);color:var(--text-primary);border-color:var(--border-glow)}
+    .btn:active{transform:scale(0.97)}
+    .brightness-btns{display:flex;gap:6px;flex:1}
+    .brightness-btns .btn{flex:1;text-align:center;font-family:var(--font-mono);font-size:0.75rem}
+    .toggle-wrapper{display:flex;align-items:center;gap:10px}
+    .toggle{position:relative;width:44px;height:24px;background:#1e293b;border:1px solid var(--border-card);border-radius:999px;cursor:pointer;transition:var(--transition)}
+    .toggle::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;background:var(--text-muted);border-radius:50%;transition:var(--transition)}
+    .toggle.active{background:rgba(56,189,248,0.15);border-color:var(--cyan)}
+    .toggle.active::after{transform:translateX(20px);background:var(--cyan);box-shadow:0 0 8px rgba(56,189,248,0.4)}
+    .toggle-label{font-size:0.78rem;font-weight:500;color:var(--text-secondary)}
+
+    /* HEALTH */
+    .health-list{display:flex;flex-direction:column;gap:10px}
+    .health-item{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(255,255,255,0.02);border:1px solid var(--border-card);border-radius:var(--radius-sm);transition:var(--transition)}
+    .health-item:hover{background:rgba(255,255,255,0.04)}
+    .health-item .health-name{font-size:0.82rem;font-weight:500;display:flex;align-items:center;gap:8px}
+    .health-counter{font-size:0.68rem;color:var(--text-muted);font-family:var(--font-mono);margin-top:2px}
+    .health-badge{font-size:0.7rem;font-weight:700;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;padding:3px 10px;border-radius:999px;border:1px solid}
+    .health-badge.ok{color:var(--green);border-color:rgba(52,211,153,0.25);background:rgba(52,211,153,0.08)}
+    .health-badge.fault{color:var(--orange);border-color:rgba(251,146,60,0.25);background:rgba(251,146,60,0.08)}
+    .health-badge.warning{color:var(--red);border-color:rgba(248,113,113,0.25);background:rgba(248,113,113,0.08);animation:flash-fault 1.5s ease-in-out infinite}
+    .health-badge.off{color:var(--text-muted);border-color:rgba(100,116,139,0.25);background:rgba(100,116,139,0.08)}
+    .health-badge.waiting{color:var(--text-muted);border-color:rgba(100,116,139,0.15);background:rgba(100,116,139,0.04)}
+    @keyframes flash-fault{0%,100%{opacity:1}50%{opacity:0.6}}
+
+    /* PREDICTIVE */
+    .pred-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+    .pred-card{padding:16px;background:rgba(255,255,255,0.02);border:1px solid var(--border-card);border-radius:var(--radius-sm);transition:var(--transition)}
+    .pred-card:hover{background:rgba(255,255,255,0.04)}
+    .pred-label{font-size:0.68rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:6px}
+    .pred-value{font-size:1.1rem;font-weight:700;font-family:var(--font-mono)}
+    .pred-sub{font-size:0.68rem;color:var(--text-muted);margin-top:4px;font-family:var(--font-mono)}
+    .pred-alert{padding:14px 16px;background:rgba(14,21,38,0.6);border:1px solid var(--border-card);border-radius:var(--radius-sm);font-size:0.82rem;font-family:var(--font-mono);color:var(--text-secondary);margin-top:12px}
+    .pred-alert.critical{border-color:rgba(248,113,113,0.3);background:rgba(248,113,113,0.05);color:var(--red)}
+    .pred-alert.notice{border-color:rgba(251,191,36,0.3);background:rgba(251,191,36,0.05);color:var(--amber)}
+    .pred-alert.none{color:var(--text-muted)}
+
+    /* Lamp health colors */
+    .lamp-good{color:var(--green)} .lamp-degrading{color:var(--amber)} .lamp-replace{color:var(--red)} .lamp-idle{color:var(--text-muted)}
+
+    .flash{animation:value-flash 0.6s ease-out}
+    @keyframes value-flash{0%{color:var(--cyan);text-shadow:0 0 12px rgba(56,189,248,0.4)}100%{color:var(--text-primary);text-shadow:none}}
+
+    @media(max-width:900px){.panels-grid{grid-template-columns:1fr}}
+    @media(max-width:600px){.header{padding:12px 16px;flex-wrap:wrap;gap:10px}.main{padding:16px 12px 40px}.sensor-grid{grid-template-columns:1fr 1fr;gap:10px}.sensor-card .card-value{font-size:1.5rem}.ctrl-row{flex-wrap:wrap}.brightness-btns{flex-wrap:wrap}.pred-grid{grid-template-columns:1fr 1fr}}
+    @media(max-width:400px){.sensor-grid{grid-template-columns:1fr}.pred-grid{grid-template-columns:1fr}}
+    ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg-primary)}::-webkit-scrollbar-thumb{background:#1e293b;border-radius:3px}
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-brand">
+      <div class="header-logo">SG</div>
+      <div>
+        <div class="header-title">ShineGuard</div>
+        <div class="header-subtitle">SG-NODE2 · Sensor Telemetry</div>
+      </div>
+    </div>
+    <div class="header-status">
+      <div class="status-badge"><span class="status-dot" id="statusDot"></span><span id="statusText">Connecting…</span></div>
+      <div class="status-badge" id="lastUpdateBadge" style="display:none">🕐 <span id="lastUpdateText">--</span></div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="console-bar"><span class="console-prefix">[SYS]</span><span class="console-msg" id="consoleMsg">Initializing — connecting to SG-NODE2…</span></div>
+
+    <!-- Warning Banner -->
+    <div class="warning-banner" id="warningBanner">
+      <span class="warn-icon">⚠️</span>
+      <span class="warn-text" id="warningText">System warning detected</span>
+    </div>
+
+    <!-- Env Banner -->
+    <div class="env-banner" id="envBanner">
+      <span class="env-icon" id="envIcon">⏳</span>
+      <span class="env-text">Environment:</span>
+      <span class="env-value" id="envState">Waiting</span>
+    </div>
+
+    <!-- SENSOR CARDS -->
+    <div class="section-label"><span>📡</span> Sensor Readings</div>
+    <div class="sensor-grid">
+      <div class="sensor-card" style="--accent:var(--red)"><div class="card-header"><span class="card-label">Temperature</span><div class="card-icon">🌡️</div></div><div><span class="card-value" id="valTemp">---</span><span class="card-unit">°C</span></div></div>
+      <div class="sensor-card" style="--accent:var(--cyan)"><div class="card-header"><span class="card-label">Humidity</span><div class="card-icon">💧</div></div><div><span class="card-value" id="valHumidity">---</span><span class="card-unit">%</span></div></div>
+      <div class="sensor-card" style="--accent:var(--amber)"><div class="card-header"><span class="card-label">LDR Data</span><div class="card-icon">☀️</div></div><div><span class="card-value" id="valLdr">---</span></div><div class="card-sub">0 – 4095</div></div>
+      <div class="sensor-card" style="--accent:var(--green)"><div class="card-header"><span class="card-label">Voltage</span><div class="card-icon">⚡</div></div><div><span class="card-value" id="valVoltage">---</span><span class="card-unit">V</span></div></div>
+      <div class="sensor-card" style="--accent:var(--orange)"><div class="card-header"><span class="card-label">Current</span><div class="card-icon">🔌</div></div><div><span class="card-value" id="valCurrent">---</span><span class="card-unit">A</span></div></div>
+    </div>
+
+    <!-- CONTROL + HEALTH -->
+    <div class="panels-grid">
+      <!-- Control -->
+      <div class="panel">
+        <div class="panel-title"><span class="title-dot" style="background:var(--amber)"></span>Light Control</div>
+        <div class="ctrl-status-row">
+          <div class="ctrl-led-indicator off" id="ctrlLed"></div>
+          <div class="ctrl-info"><div class="info-state" id="ctrlState">---</div><div class="info-detail">Brightness: <span id="ctrlBright">---</span>%</div></div>
+          <span class="ctrl-mode-badge manual" id="ctrlMode">Manual</span>
+        </div>
+        <div class="ctrl-actions">
+          <div class="ctrl-row"><span class="ctrl-row-label">Mode</span><div class="toggle-wrapper"><div class="toggle" id="toggleAuto" onclick="toggleAutoMode()"></div><span class="toggle-label" id="toggleLabel">Manual (1)</span></div></div>
+          <div class="ctrl-row"><span class="ctrl-row-label">Bright</span><div class="brightness-btns"><button class="btn" onclick="sendBrightness(0)">0%</button><button class="btn" onclick="sendBrightness(25)">25%</button><button class="btn" onclick="sendBrightness(50)">50%</button><button class="btn" onclick="sendBrightness(75)">75%</button><button class="btn" onclick="sendBrightness(100)">100%</button></div></div>
+        </div>
+      </div>
+
+      <!-- Health -->
+      <div class="panel">
+        <div class="panel-title"><span class="title-dot" style="background:var(--green)"></span>System Health</div>
+        <div class="health-list">
+          <div class="health-item"><div><span class="health-name">🌡️ Env Temperature</span><div class="health-counter">Consecutive: <span id="hTempCt">0</span>/10</div></div><span class="health-badge waiting" id="hTempBadge">Waiting</span></div>
+          <div class="health-item"><div><span class="health-name">💧 Env Humidity</span><div class="health-counter">Consecutive: <span id="hHumCt">0</span>/10</div></div><span class="health-badge waiting" id="hHumBadge">Waiting</span></div>
+          <div class="health-item"><div><span class="health-name">💡 Lamp Status</span><div class="health-counter">Consecutive: <span id="hLampCt">0</span>/10</div></div><span class="health-badge waiting" id="hLampBadge">Waiting</span></div>
+          <div class="health-item"><div><span class="health-name">📟 DHT Sensor</span><div class="health-counter">Consecutive: <span id="hDhtCt">0</span>/10</div></div><span class="health-badge waiting" id="hDhtBadge">Waiting</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PREDICTIVE MAINTENANCE -->
+    <div class="section-label"><span>🔮</span> Predictive Maintenance</div>
+    <div class="panel" style="margin-bottom:24px">
+      <div class="pred-grid">
+        <div class="pred-card"><div class="pred-label">Lamp Health</div><div class="pred-value lamp-idle" id="predLamp">---</div><div class="pred-sub">Current vs Expected</div></div>
+        <div class="pred-card"><div class="pred-label">Avg Current</div><div class="pred-value" id="predAvgI">---</div><div class="pred-sub">Expected: <span id="predExpI">---</span> A</div></div>
+        <div class="pred-card"><div class="pred-label">Power Stability</div><div class="pred-value" id="predStab">---</div><div class="pred-sub">Avg Voltage: <span id="predVAvg">---</span> V</div></div>
+        <div class="pred-card"><div class="pred-label">Operating Hours</div><div class="pred-value" id="predHours">---</div><div class="pred-sub">Lamp ON time</div></div>
+      </div>
+      <div class="pred-alert none" id="predAlert">No maintenance alerts</div>
+    </div>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey:"AIzaSyAiTzPjpVKq63mG99RCq1uE_nVpNqoydmo",
+      authDomain:"shineguardhulo-1h.firebaseapp.com",
+      databaseURL:"https://shineguardhulo-1h-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId:"shineguardhulo-1h",
+      storageBucket:"shineguardhulo-1h.firebasestorage.app",
+      messagingSenderId:"909607860439",
+      appId:"1:909607860439:web:9f0db5990c80f182465892",
+      measurementId:"G-HDG8GWXB06"
+    });
+
+    const db=firebase.database();
+    const nodeRef=db.ref("SG-NODE2");
+    const controlRef=db.ref("SG-NODE2/Control");
+    const el=id=>document.getElementById(id);
+    let isFirstLoad=true,currentAutoMode=false;
+
+    // ── Real-time listener ──
+    nodeRef.on("value",snap=>{
+      const d=snap.val();
+      if(!d){logC("No data — is ESP32 running?","WARN");setConn(false,"No Data");return}
+      setConn(true);
+      render(d);
+    },err=>{setConn(false,"Error");logC("Firebase: "+err.message,"ERR")});
+
+    db.ref(".info/connected").on("value",s=>{if(s.val())setConn(true);else setConn(false,"Offline")});
+
+    // ── Render ──
+    function render(d){
+      const S=d.Sensor||{},A=d.Actuator||{},H=d.Health||{},P=d.Predictive||{};
+
+      // Environment
+      const night=S.isNight===true;
+      el("envBanner").className="env-banner "+(night?"night":"day");
+      el("envIcon").textContent=night?"🌙":"☀️";
+      el("envState").textContent=night?"NIGHT":"DAY";
+      el("envState").style.color=night?"var(--purple)":"var(--amber)";
+
+      // Sensor cards
+      updVal("valTemp",S.temperature,1,H.envTempStatus==="FAULT");
+      updVal("valHumidity",S.humidity,1,H.envHumidityStatus==="FAULT");
+      updVal("valLdr",S.ldrData,0);
+      updVal("valVoltage",S.voltage,3);
+      updVal("valCurrent",S.current,3);
+
+      // Actuator
+      const on=A.lightOn===true;
+      el("ctrlLed").className="ctrl-led-indicator "+(on?"on":"off");
+      el("ctrlState").textContent=on?"ON":"OFF";
+      el("ctrlBright").textContent=A.brightnessPercent??"---";
+      const auto=A.currentMode===2;currentAutoMode=auto;
+      el("ctrlMode").textContent=auto?"Auto":"Manual";
+      el("ctrlMode").className="ctrl-mode-badge "+(auto?"auto":"manual");
+      el("toggleAuto").classList.toggle("active",auto);
+      el("toggleLabel").textContent=auto?"Auto (2)":"Manual (1)";
+
+      // Health
+      setBadge("hTempBadge",H.envTempStatus);
+      setBadge("hHumBadge",H.envHumidityStatus);
+      setBadge("hLampBadge",H.lampStatus);
+      setBadge("hDhtBadge",H.dhtStatus);
+      el("hTempCt").textContent=H.highTempCounter??0;
+      el("hHumCt").textContent=H.highHumidityCounter??0;
+      el("hLampCt").textContent=H.lampFaultCounter??0;
+      el("hDhtCt").textContent=H.dhtFaultCounter??0;
+
+      // Warning banner
+      const wb=el("warningBanner");
+      if(H.warningFlag){
+        wb.classList.add("active");
+        let msgs=[];
+        if(H.lampStatus==="WARNING")msgs.push("Lamp fault persisting ("+H.lampFaultCounter+"/10)");
+        if(H.envTempStatus==="WARNING")msgs.push("High temperature sustained");
+        if(H.envHumidityStatus==="WARNING")msgs.push("High humidity sustained");
+        if(H.dhtStatus==="WARNING")msgs.push("DHT sensor unreliable");
+        el("warningText").textContent=msgs.join(" · ")||"System warning";
+      } else {
+        wb.classList.remove("active");
+      }
+
+      // Predictive
+      const lh=P.lampHealth||"---";
+      const lhEl=el("predLamp");
+      lhEl.textContent=lh;
+      lhEl.className="pred-value lamp-"+(lh==="GOOD"?"good":lh==="DEGRADING"?"degrading":lh==="REPLACE"?"replace":"idle");
+
+      el("predAvgI").textContent=P.avgCurrent!==undefined?P.avgCurrent.toFixed(3)+" A":"---";
+      el("predExpI").textContent=P.expectedCurrent!==undefined?P.expectedCurrent.toFixed(3):"---";
+
+      const ps=P.powerStability||"---";
+      const psEl=el("predStab");
+      psEl.textContent=ps;
+      psEl.style.color=ps==="STABLE"?"var(--green)":ps==="UNSTABLE"?"var(--red)":"var(--text-muted)";
+      el("predVAvg").textContent=P.voltageAvg!==undefined?P.voltageAvg.toFixed(3):"---";
+
+      el("predHours").textContent=P.operatingHours!==undefined?P.operatingHours.toFixed(1)+" h":"---";
+
+      // Maintenance alert
+      const alert=P.maintenanceAlert||"NONE";
+      const aEl=el("predAlert");
+      aEl.textContent=alert==="NONE"?"No maintenance alerts":alert;
+      aEl.className="pred-alert "+(alert.startsWith("CRITICAL")?"critical":alert==="NONE"?"none":"notice");
+
+      // Meta
+      el("lastUpdateBadge").style.display="flex";
+      el("lastUpdateText").textContent=new Date().toLocaleTimeString();
+      if(isFirstLoad){logC("Connected — real-time streaming ✓","OK");isFirstLoad=false}
+    }
+
+    // ── Helpers ──
+    function updVal(id,val,dec,err){
+      const t=el(id);if(!t)return;
+      if(err){t.textContent="FAULT";t.classList.add("error");return}
+      if(val===undefined||val===null){t.textContent="---";return}
+      t.classList.remove("error");
+      const f=typeof val==="number"?val.toFixed(dec):String(val);
+      if(t.textContent!==f){t.textContent=f;if(!isFirstLoad){t.classList.remove("flash");void t.offsetWidth;t.classList.add("flash")}}
+    }
+    function setBadge(id,s){
+      const b=el(id);if(!b||!s)return;b.textContent=s;
+      b.className="health-badge "+(s==="OK"?"ok":s==="WARNING"?"warning":s==="FAULT"?"fault":s==="OFF"?"off":"waiting");
+    }
+    function setConn(y,l){el("statusDot").className="status-dot "+(y?"connected":"disconnected");el("statusText").textContent=y?"Live":(l||"Disconnected")}
+    function logC(m,l){
+      const p=document.querySelector(".console-prefix"),t=el("consoleMsg");
+      p.textContent="["+(l||"SYS")+"]";
+      p.style.color=l==="ERR"?"var(--red)":l==="WARN"?"var(--amber)":l==="OK"?"var(--green)":"var(--cyan)";
+      t.textContent=m;
+    }
+
+    // ── Commands → /SG-NODE2/Control ──
+    function sendControl(mode,bright){
+      logC("Sending → mode:"+mode+" brightness:"+bright+"…","SYS");
+      controlRef.set({mode,targetBrightness:bright,commandTimestamp:Date.now()})
+        .then(()=>logC("Command sent ✓","OK"))
+        .catch(e=>logC("Failed: "+e.message,"ERR"));
+    }
+    function sendBrightness(l){sendControl(1,l)}
+    function toggleAutoMode(){sendControl(currentAutoMode?1:2,0)}
+
+    logC("Connecting to SG-NODE2…","SYS");
+  </script>
+</body>
+</html>

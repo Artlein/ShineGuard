@@ -927,7 +927,7 @@ $csrf = generateCsrfToken();
                 if (data && !data.error) {
                     // SILENCED: addLog('success', 'SYS', 'Sovereign Sync: ACTIVE');
                     updateUI(data.Sensor);
-                    updateControlUI(data.Control);
+                    updateControlUI(data.Actuator); // Hardware writes to Actuator
                     updateHealthUI(data.Health);
                     updatePredictiveUI(data.Predictive);
                     
@@ -982,11 +982,25 @@ $csrf = generateCsrfToken();
 
     function updateControlUI(d) {
         if (!d) return;
-        const mode = d.mode ?? 0;
-        ['btnAuto','btnForceOn','btnForceOff'].forEach((id, i) => {
-            document.getElementById(id).classList.toggle('active', mode === i);
-        });
+        // In Hardware: 1 = Manual, 2 = Auto
+        const hwMode = d.currentMode ?? 1;
         const bright = d.brightnessPercent ?? 0;
+        
+        // UI Dashboard logic: btnAuto (index 0), btnForceOn (1), btnForceOff (2)
+        // Auto mode (2) -> index 0
+        // Manual mode (1) + Brightness > 0 -> index 1
+        // Manual mode (1) + Brightness == 0 -> index 2
+        let uiIndex = 1;
+        if (hwMode === 2) {
+            uiIndex = 0;
+        } else if (hwMode === 1 && bright === 0) {
+            uiIndex = 2;
+        }
+
+        ['btnAuto','btnForceOn','btnForceOff'].forEach((id, i) => {
+            document.getElementById(id).classList.toggle('active', uiIndex === i);
+        });
+
         document.getElementById('brightnessValue').textContent = bright + '%';
         [25, 50, 75, 100].forEach(v => {
             const el = document.getElementById('dim' + v);
@@ -1034,32 +1048,47 @@ $csrf = generateCsrfToken();
         return 'NORMAL';
     }
 
-    // ── Commands via Proxy ──
+    // ── Commands via Unified Control Proxy ──
     window.setMode = function(mode) {
+        // Correct Mapping: 1 = Manual, 2 = Auto
+        // Note: Dash UI uses 0/1/2, we map to Hardware-standard 1/2
+        const hwMode = (mode === 0) ? 2 : 1; 
         const labels = {0:'AUTO', 1:'FORCE ON', 2:'FORCE OFF'};
-        addLog('info','CMD', `Propagating mode → ${labels[mode]}`);
+        addLog('info','CMD', `Propagating system mode → ${labels[mode]}`);
         
+        const payload = {
+            mode: hwMode,
+            targetBrightness: (mode === 2) ? 0 : 100, // Force OFF sets 0
+            commandTimestamp: Date.now()
+        };
+
         fetch(`firebase_proxy.php?node=${NODE}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ path: 'Control/mode', data: mode })
+            body: JSON.stringify({ path: 'Control', data: payload }) // Send unified object
         })
         .then(r => r.json())
-        .then(() => addLog('success', 'ACK', `Mode confirmed: ${labels[mode]}`))
-        .catch(() => addLog('error', 'ERR', 'Command failed to reach Proxy'));
+        .then(() => addLog('success', 'ACK', `Mode synchronized: ${labels[mode]}`))
+        .catch(() => addLog('error', 'ERR', 'Command path blocked'));
     };
 
     window.setBrightness = function(val) {
         addLog('info','CMD', `Propagating brightness → ${val}%`);
         
+        const payload = {
+            mode: 1, // Brightness changes force Manual mode
+            targetBrightness: val,
+            commandTimestamp: Date.now()
+        };
+
         fetch(`firebase_proxy.php?node=${NODE}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ path: 'Control/brightnessPercent', data: val })
+            body: JSON.stringify({ path: 'Control', data: payload })
         })
         .then(r => r.json())
-        .then(() => addLog('success', 'ACK', `Brightness set: ${val}%`))
-        .catch(() => addLog('error', 'ERR', 'Command failed to reach Proxy'));
+        .then(() => addLog('success', 'ACK', `Brightness synchronized: ${val}%`))
+        .catch(() => addLog('error', 'ERR', 'Command path blocked'));
     };
 
     window.syncNow = function() {
