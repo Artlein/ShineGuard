@@ -26,7 +26,7 @@ if (!isRecentlyAuthorized()) {
         echo json_encode(['success' => false, 'error' => 'Invalid password.']);
         exit();
     }
-    setAuthorized();
+    setRecentlyAuthorized();
 }
 
 // Get Light data

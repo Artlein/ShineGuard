@@ -42,7 +42,9 @@ ini_set('display_startup_errors', 0);
 error_reporting(0);
 // Log errors server-side instead
 ini_set('log_errors', 1);
-error_log(__DIR__ . '/logs/php_errors.log');
+$log_dir = __DIR__ . '/logs';
+if (!is_dir($log_dir)) @mkdir($log_dir, 0755, true);
+ini_set('error_log', $log_dir . '/php_errors.log');
 
 // ── CORPORATE STANDARDS: Configuration Layer ──
 if (class_exists('Dotenv\Dotenv')) {
@@ -228,10 +230,10 @@ if (!function_exists('checkRateLimit')) {
     }
 }
 
-if (!function_exists('setAuthorized')) {
-    function setAuthorized()
+if (!function_exists('setRecentlyAuthorized')) {
+    function setRecentlyAuthorized()
     {
-        \ShineGuard\Services\IdentityService::setAuthorized();
+        \ShineGuard\Services\IdentityService::setRecentlyAuthorized();
     }
 }
 

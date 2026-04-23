@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $stmt->execute();
     $user_data = $stmt->get_result()->fetch_assoc();
     if ($user_data && password_verify($admin_password, $user_data['password_hash'])) {
-        setAuthorized();
+        setRecentlyAuthorized();
         echo json_encode(['success' => true]);
     } else {
         echo json_encode(['success' => false]);

@@ -54,7 +54,7 @@ class IdentityService {
             && hash_equals($_SESSION['csrf_token'], $token);
     }
 
-    public static function setAuthorized() {
+    public static function setRecentlyAuthorized() {
         $_SESSION['last_auth_time'] = time();
     }
 
@@ -95,7 +95,7 @@ class IdentityService {
         if (!$isValid) {
             error_log("FAR AUTH REJECTED: Invalid code entered for User ID $userId (Drift window: 3).");
         } else {
-            self::setAuthorized();
+            self::setRecentlyAuthorized();
             error_log("FAR AUTH SUCCESS: User ID $userId authorized forensic operation.");
         }
         

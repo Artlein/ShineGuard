@@ -110,7 +110,7 @@ class StreetlightController {
             if (!$this->checkAdminPassword($admin_password)) {
                 $this->redirect('error=invalid_password');
             }
-            setAuthorized();
+            setRecentlyAuthorized();
         }
 
         // Update MySQL
@@ -150,7 +150,7 @@ class StreetlightController {
         $user_data = $stmt->get_result()->fetch_assoc();
 
         if ($user_data && password_verify($admin_password, $user_data['password_hash'])) {
-            setAuthorized();
+            setRecentlyAuthorized();
             logActivity($this->conn, $user_id, 'Elevated Access', 'User successfully elevated session access for Streetlight Control');
             echo json_encode(['success' => true]);
         } else {
@@ -175,7 +175,7 @@ class StreetlightController {
             if (!$this->checkAdminPassword($admin_password)) {
                 $this->redirect('error=invalid_password');
             }
-            setAuthorized();
+            setRecentlyAuthorized();
         }
 
         // Build Where Clause
