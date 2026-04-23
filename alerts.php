@@ -1,6 +1,10 @@
 <?php
 require_once 'dbconnect.php';
 requireLogin();
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'acknowledge') {
     checkCsrf();
@@ -62,10 +66,9 @@ $alerts_query = "SELECT a.*, s.node_name, s.location,
                   FROM alerts a
                   LEFT JOIN streetlights s ON a.light_id = s.light_id
                   LEFT JOIN users u ON u.user_id = a.acknowledged_by
-                  ORDER BY
-                    FIELD(a.status,'Open','Acknowledged','Resolved'),
-                    a.created_at DESC";
+                  ORDER BY a.created_at DESC";
 $alerts = $conn->query($alerts_query);
+// DEBUG: echo "ALERTS COUNT: " . $alerts->num_rows;
 
 $lights = $conn->query("SELECT light_id, node_name FROM streetlights ORDER BY node_name");
 
@@ -445,6 +448,7 @@ tbody td {
             </button>
             <?php endif; ?>
         </div>
+        
 
         <div class="table-container">
             <table>
@@ -648,7 +652,7 @@ $alerts->data_seek(0);
 
 <?php $alerts_js = $alerts_js ?? []; ?>
 <script>
-const alertData = <?php echo json_encode($alerts_js); ?>;
+const alertData = <?php echo json_encode($alerts_js, JSON_INVALID_UTF8_SUBSTITUTE); ?>;
 
 function openWorkOrderModal(alertId = null) {
     const modal = document.getElementById('woModal');
