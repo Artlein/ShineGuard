@@ -465,7 +465,7 @@ function refreshFirebaseData() {
                 
                 document.getElementById('brightness-value').textContent = data.brightness + ' val';
                 // Dynamic thresholds using 'high' type (High raw = Very Dark)
-                updateSensorStatus('brightness-tag', data.brightness, null, t.lux_threshold_min, null, t.lux_threshold_critical, 'high');
+                updateSensorStatus('brightness-tag', data.brightness, null, t.ldr_threshold_warning, null, t.ldr_threshold_critical, 'high');
                 
                 document.getElementById('voltage-value').textContent = data.voltage.toFixed(2) + 'V';
                 updateSensorStatus('voltage-tag', data.voltage, t.voltage_threshold_min, null, t.voltage_threshold_critical, null, 'low');

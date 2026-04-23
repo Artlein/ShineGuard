@@ -723,22 +723,13 @@ $csrf = generateCsrfToken();
                         <span class="health-badge hb-ok" id="lampStatus">--</span>
                     </div>
                 </div>
-                <div class="health-card ok" id="hcRelay">
-                    <div class="health-ico" style="background:rgba(59,130,246,0.1);">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+                <div class="health-card ok" id="hcHumidity">
+                    <div class="health-ico" style="background:rgba(6,182,212,0.1);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
                     </div>
                     <div>
-                        <div class="health-lbl">Sensor Integration</div>
-                        <span class="health-badge hb-ok" id="dhtStatus">--</span>
-                    </div>
-                </div>
-                <div class="health-card ok" id="hcTemp">
-                    <div class="health-ico" style="background:rgba(245,158,11,0.1);">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
-                    </div>
-                    <div>
-                        <div class="health-lbl">Sensors Health</div>
-                        <span class="health-badge hb-ok" id="envTempStatus">--</span>
+                        <div class="health-lbl">Environment Humidity</div>
+                        <span class="health-badge hb-ok" id="envHumidityStatus">--</span>
                     </div>
                 </div>
                 <div class="health-card ok" id="hcFault">
@@ -746,8 +737,17 @@ $csrf = generateCsrfToken();
                         <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                     </div>
                     <div>
-                        <div class="health-lbl">Fatal Faults</div>
-                        <span class="health-val" id="lampFaultCounter" style="font-family:var(--mono); color:#ef4444;">0</span>
+                        <div class="health-lbl">DHT Faults</div>
+                        <span class="health-val" id="dhtFaultCounter" style="font-family:var(--mono); color:#ef4444;">0</span>
+                    </div>
+                </div>
+                <div class="health-card ok" id="hcFatal">
+                    <div class="health-ico" style="background:rgba(185,28,28,0.1);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg>
+                    </div>
+                    <div>
+                        <div class="health-lbl">Lamp Faults</div>
+                        <span class="health-val" id="lampFaultCounter" style="font-family:var(--mono); color:#b91c1c;">0</span>
                     </div>
                 </div>
             </div>
@@ -958,7 +958,7 @@ $csrf = generateCsrfToken();
             setBar('ldrBar', (ldr / 4095) * 100);
             // Dynamic evaluation based on DB Raw ADC thresholds
             // Higher LDR = Darker
-            setTag('ldrTag', evalTag(ldr, THRESHOLDS.lux_threshold_min, THRESHOLDS.lux_threshold_critical, null, null)); 
+            setTag('ldrTag', evalTag(ldr, THRESHOLDS.ldr_threshold_warning, THRESHOLDS.ldr_threshold_critical, null, null)); 
         }
 
         const temp = d.temperature ?? null;
@@ -1022,7 +1022,11 @@ $csrf = generateCsrfToken();
         setH('lampStatus', d.lampStatus ?? 'OK');
         setH('dhtStatus', d.dhtStatus ?? 'OK');
         setH('envTempStatus', d.envTempStatus ?? 'OK');
+        setH('envHumidityStatus', d.envHumidityStatus ?? 'OK');
         document.getElementById('lampFaultCounter').textContent = d.lampFaultCounter ?? 0;
+        if (document.getElementById('dhtFaultCounter')) {
+            document.getElementById('dhtFaultCounter').textContent = d.dhtFaultCounter ?? 0;
+        }
     }
 
     function updatePredictiveUI(d) {

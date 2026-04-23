@@ -4,16 +4,16 @@
 -- ===================================================================
 
 -- Update system_config with IoT-based thresholds
-UPDATE system_config SET config_value = '20', description = 'Minimum brightness (lux) - WARNING level - turns KPI yellow' 
-WHERE config_key = 'lux_threshold_min';
+UPDATE system_config SET config_value = '3500', description = 'Warning LDR Raw Value (0-4095) - higher is darker' 
+WHERE config_key = 'ldr_threshold_warning';
 
-UPDATE system_config SET config_value = '10', description = 'Critical brightness (lux) - CRITICAL level - predictive maintenance needed' 
-WHERE config_key = 'lux_threshold_critical';
+UPDATE system_config SET config_value = '4000', description = 'Critical LDR Raw Value (0-4095) - higher is darker' 
+WHERE config_key = 'ldr_threshold_critical';
 
-UPDATE system_config SET config_value = '45', description = 'Maximum temperature (Celsius) - WARNING level - turns KPI yellow' 
+UPDATE system_config SET config_value = '45', description = 'Maximum temperature (Celsius) - WARNING level' 
 WHERE config_key = 'temperature_threshold_max';
 
-UPDATE system_config SET config_value = '55', description = 'Critical temperature (Celsius) - CRITICAL level - immediate maintenance' 
+UPDATE system_config SET config_value = '55', description = 'Critical temperature (Celsius) - CRITICAL level' 
 WHERE config_key = 'temperature_threshold_critical';
 
 UPDATE system_config SET config_value = '0.5', description = 'Maximum current (Amperes) - WARNING level' 
@@ -28,20 +28,21 @@ WHERE config_key = 'voltage_threshold_min';
 UPDATE system_config SET config_value = '1.5', description = 'Critical voltage (V) - CRITICAL level - battery replacement needed' 
 WHERE config_key = 'voltage_threshold_critical';
 
-UPDATE system_config SET config_value = '80', description = 'Maximum humidity (%) - WARNING level' 
+UPDATE system_config SET config_value = '85', description = 'Maximum humidity (%) - WARNING level' 
 WHERE config_key = 'humidity_threshold_max';
 
-UPDATE system_config SET config_value = '90', description = 'Critical humidity (%) - CRITICAL level - environmental protection needed' 
+UPDATE system_config SET config_value = '90', description = 'Critical humidity (%) - CRITICAL level' 
 WHERE config_key = 'humidity_threshold_critical';
 
 -- Add new thresholds if they don't exist
 INSERT IGNORE INTO system_config (config_key, config_value, description, updated_by) VALUES
-('lux_threshold_critical', '10', 'Critical brightness (lux) - CRITICAL level - predictive maintenance needed', 1),
+('ldr_threshold_warning', '3500', 'Warning LDR Raw Value (0-4095) - higher is darker', 1),
+('ldr_threshold_critical', '4000', 'Critical LDR Raw Value (0-4095) - higher is darker', 1),
 ('temperature_threshold_critical', '55', 'Critical temperature (Celsius) - CRITICAL level - immediate maintenance', 1),
 ('current_threshold_critical', '0.7', 'Critical current (Amperes) - CRITICAL level', 1),
 ('voltage_threshold_min', '2.0', 'Minimum voltage (V) - WARNING level', 1),
 ('voltage_threshold_critical', '1.5', 'Critical voltage (V) - CRITICAL level - battery replacement needed', 1),
-('humidity_threshold_max', '80', 'Maximum humidity (%) - WARNING level', 1),
+('humidity_threshold_max', '85', 'Maximum humidity (%) - WARNING level', 1),
 ('humidity_threshold_critical', '90', 'Critical humidity (%) - CRITICAL level', 1),
 ('predictive_window_days', '7', 'Number of days to analyze for predictive maintenance trends', 1),
 ('predictive_threshold_hits', '3', 'Number of threshold hits in window to trigger predictive alert', 1),

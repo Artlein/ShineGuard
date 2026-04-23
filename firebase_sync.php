@@ -36,14 +36,13 @@ function fetchFirebaseData($endpoint, $nodeId = 'SG-NODE2') {
  */
 function syncSpecificNode($conn, $nodeId) {
     echo "🔍 Processing Node: {$nodeId}...\n";
-    $success = true;
     
-    if (!syncSensorData($conn, $nodeId)) $success = false;
-    if (!syncActuatorData($conn, $nodeId)) $success = false;
-    if (!syncHealthData($conn, $nodeId)) $success = false;
-    if (!syncPredictiveData($conn, $nodeId)) $success = false;
+    // Attempt all sync operations regardless of individual failures
+    $sensorRes = syncSensorData($conn, $nodeId);
+    $healthRes = syncHealthData($conn, $nodeId);
+    $predRes   = syncPredictiveData($conn, $nodeId);
     
-    return $success;
+    return ($sensorRes || $healthRes || $predRes);
 }
 
 /**
@@ -140,12 +139,25 @@ function syncPredictiveData($conn, $nodeId = 'SG-NODE2') {
 
     $stmt = $conn->prepare("UPDATE streetlights SET lamp_health = ?, maintenance_alert = ? WHERE node_name = ?");
     $stmt->bind_param("sss", $health, $alert, $mysqlNode);
+    $stmt->execute();
     
-    if ($stmt->execute()) {
-        echo "✅ [{$nodeId}] Predictive data synchronized\n";
-        return true;
+    // Create Alert entry if critical maintenance is needed
+    if ($alert && $alert !== 'None' && $alert !== 'None (Node Power Stable)') {
+        echo "📢 [{$nodeId}] Processing Maintenance Alert: $alert\n";
+        // Find light_id for this node
+        $idStmt = $conn->prepare("SELECT light_id FROM streetlights WHERE node_name = ?");
+        $idStmt->bind_param("s", $mysqlNode);
+        $idStmt->execute();
+        $res = $idStmt->get_result()->fetch_assoc();
+        if ($res) {
+            $severity = ($health === 'REPLACE') ? 'High' : 'Medium';
+            $type = ($health === 'REPLACE') ? 'Fault' : 'Predictive';
+            createAlert($conn, $res['light_id'], $type, $severity, "[Hardware Analytics] " . $alert);
+        }
     }
-    return false;
+
+    echo "✅ [{$nodeId}] Predictive data synchronized\n";
+    return true;
 }
 
 /**
@@ -169,13 +181,22 @@ function syncHealthData($conn, $nodeId = 'SG-NODE2') {
     $metrics = [
         'dhtStatus' => 'Sensor integration warning',
         'envTempStatus' => 'Sensors health alert',
-        'envHumidityStatus' => 'Environment humidity fault'
+        'envHumidityStatus' => 'Environment humidity fault',
+        'lampStatus' => 'Lamp hardware fault'
     ];
 
     foreach ($metrics as $key => $msg) {
         $val = $healthData[$key] ?? 'OK';
-        if ($val !== 'OK' && $val !== 'NORMAL') {
-            createAlert($conn, $light_id, 'Warning', 'Medium', "[{$nodeId}] {$msg}: {$val}");
+        if ($val !== 'OK' && $val !== 'NORMAL' && $val !== 'None') {
+            $severity = 'Medium';
+            $type = 'Warning';
+            
+            if (stripos($val, 'CRITICAL') !== false || stripos($val, 'FAULT') !== false || stripos($val, 'FAILURE') !== false) {
+                $severity = 'High';
+                $type = 'Fault';
+            }
+            
+            createAlert($conn, $light_id, $type, $severity, "[Hardware Health] {$msg}: {$val}");
         }
     }
     
@@ -204,12 +225,12 @@ function checkThresholds($conn, $light_id, $brightness, $temperature, $current, 
     }
     
     // Check brightness threshold (Raw High = Darker)
-    $lux_crit = $thresholds['lux_threshold_critical'] ?? 4000;
-    $lux_warn = $thresholds['lux_threshold_min'] ?? 3500;
-    if ($brightness > $lux_crit) {
-        createAlert($conn, $light_id, 'Fault', 'High', "Extreme Darkness/High Raw LDR detected: {$brightness} val (threshold: {$lux_crit}). Check sensors or node status.");
-    } elseif ($brightness > $lux_warn) {
-        createAlert($conn, $light_id, 'Predictive', 'Medium', "High Raw LDR detected (Very Dark): {$brightness} val (threshold: {$lux_warn})");
+    $ldr_crit = $thresholds['ldr_threshold_critical'] ?? 4000;
+    $ldr_warn = $thresholds['ldr_threshold_warning'] ?? 3500;
+    if ($brightness > $ldr_crit) {
+        createAlert($conn, $light_id, 'Fault', 'High', "Extreme Darkness/High Raw LDR detected: {$brightness} val (threshold: {$ldr_crit}). Check sensors or node status.");
+    } elseif ($brightness > $ldr_warn) {
+        createAlert($conn, $light_id, 'Predictive', 'Medium', "High Raw LDR detected (Very Dark): {$brightness} val (threshold: {$ldr_warn})");
     }
     
     // Check temperature threshold (Higher is worse)
@@ -221,13 +242,20 @@ function checkThresholds($conn, $light_id, $brightness, $temperature, $current, 
         createAlert($conn, $light_id, 'Predictive', 'Medium', "High temperature detected: {$temperature}°C (threshold: {$temp_warn}°C)");
     }
     
-    // Check current threshold (Higher is worse)
+    // Check current threshold 
     $cur_crit = $thresholds['current_threshold_critical'] ?? 0.7;
     $cur_warn = $thresholds['current_threshold_max'] ?? 0.5;
+    $cur_min  = $thresholds['current_min_threshold'] ?? 0.015;
+
     if ($current > $cur_crit) {
-        createAlert($conn, $light_id, 'Fault', 'High', "High current detected: {$current} A (threshold: {$cur_crit} A). Possible overload.");
+        createAlert($conn, $light_id, 'Fault', 'High', "High current/Overload detected: {$current} A (threshold: {$cur_crit} A).");
     } elseif ($current > $cur_warn) {
-        createAlert($conn, $light_id, 'Predictive', 'Medium', "High current detected: {$current} A (threshold: {$cur_warn} A)");
+        createAlert($conn, $light_id, 'Predictive', 'Medium', "Current above expected range: {$current} A (threshold: {$cur_warn} A)");
+    } elseif ($current < $cur_min && $brightness > 100) { 
+        // Note: $brightness here is actually the LDR Raw value (High=Dark). 
+        // We check if it's dark but current is 0 -> Lamp Fault.
+        // Actually, we should check Actuator state, but for now we look at current vs min.
+        createAlert($conn, $light_id, 'Fault', 'High', "Lamp Failure detected: Current is too low ({$current} A) while light should be active. Possible burned bulb.");
     }
     
     // Check voltage threshold (Lower is worse)
@@ -253,10 +281,10 @@ function checkThresholds($conn, $light_id, $brightness, $temperature, $current, 
  * Create alert in database
  */
 function createAlert($conn, $light_id, $type, $severity, $description) {
-    // Check if similar alert already exists in the last hour
+    // Check if similar alert already exists in the last 5 minutes (for better hardware sync)
     $checkStmt = $conn->prepare("SELECT alert_id FROM alerts 
         WHERE light_id = ? AND description = ? AND status = 'Open' 
-        AND timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)");
+        AND created_at > DATE_SUB(NOW(), INTERVAL 5 MINUTE)");
     $checkStmt->bind_param("is", $light_id, $description);
     $checkStmt->execute();
     $result = $checkStmt->get_result();

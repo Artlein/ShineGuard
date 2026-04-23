@@ -46,8 +46,8 @@ if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
     exit();
 }
     $thresholds = [
-        'lux_threshold_min'              => $_POST['lux_threshold_min'],
-        'lux_threshold_critical'         => $_POST['lux_threshold_critical'],
+        'ldr_threshold_warning'          => $_POST['ldr_threshold_warning'],
+        'ldr_threshold_critical'         => $_POST['ldr_threshold_critical'],
         'temperature_threshold_max'      => $_POST['temperature_threshold_max'],
         'temperature_threshold_critical' => $_POST['temperature_threshold_critical'],
         'current_threshold_max'          => $_POST['current_threshold_max'],
@@ -465,7 +465,9 @@ $defaults = [
     'alert_retention_days' => '90',
     'auto_sync_interval' => '30',
     'backup_frequency' => 'daily',
-    'export_format_default' => 'csv'
+    'export_format_default' => 'csv',
+    'ldr_threshold_warning' => '3500',
+    'ldr_threshold_critical' => '4000'
 ];
 
 foreach ($defaults as $key => $value) {
@@ -1240,8 +1242,8 @@ tbody td {
       <?php
       $threshold_groups = [
         ['title' => '💡 Brightness Thresholds', 'fields' => [
-          ['label' => '⚠️ Warning Level (lux)',  'name' => 'lux_threshold_min',      'step' => '0.1', 'default' => 20,  'hint' => 'Below this value triggers yellow warning'],
-          ['label' => '🔴 Critical Level (lux)', 'name' => 'lux_threshold_critical', 'step' => '0.1', 'default' => 10,  'hint' => 'Below this value triggers critical alert'],
+          ['label' => '⚠️ Warning Level (Raw)',  'name' => 'ldr_threshold_warning',      'step' => '1', 'default' => 3500,  'hint' => 'Above this value triggers yellow warning (Darker)'],
+          ['label' => '🔴 Critical Level (Raw)', 'name' => 'ldr_threshold_critical', 'step' => '1', 'default' => 4000,  'hint' => 'Above this value triggers critical alert (Very Dark)'],
         ]],
         ['title' => '🌡️ Temperature Thresholds', 'fields' => [
           ['label' => '⚠️ Warning Level (°C)',  'name' => 'temperature_threshold_max',      'step' => '0.1', 'default' => 45, 'hint' => 'Above this value triggers yellow warning'],
@@ -1256,7 +1258,7 @@ tbody td {
           ['label' => '🔴 Critical Level (V)', 'name' => 'voltage_threshold_critical', 'step' => '0.1', 'default' => 1.5, 'hint' => 'Below this value triggers critical alert'],
         ]],
         ['title' => '💧 Humidity Thresholds', 'fields' => [
-          ['label' => '⚠️ Warning Level (%)',  'name' => 'humidity_threshold_max',      'step' => '1', 'default' => 80, 'hint' => 'Above this value triggers yellow warning'],
+          ['label' => '⚠️ Warning Level (%)',  'name' => 'humidity_threshold_max',      'step' => '1', 'default' => 85, 'hint' => 'Above this value triggers yellow warning'],
           ['label' => '🔴 Critical Level (%)', 'name' => 'humidity_threshold_critical', 'step' => '1', 'default' => 90, 'hint' => 'Above this value triggers critical alert'],
         ]],
       ];
