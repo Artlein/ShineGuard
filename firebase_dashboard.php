@@ -916,9 +916,15 @@ $csrf = generateCsrfToken();
         const fetchOnce = async () => {
             try {
                 const baseUrl = firebaseConfig.databaseURL.replace(/\/$/, "");
-                const res = await fetch(`${baseUrl}/${NODE}.json`);
+                const url = `${baseUrl}/${NODE}.json`;
+                const res = await fetch(url);
+                if (!res.ok) {
+                    addLog('error', 'SYS', `REST Error: HTTP ${res.status}`);
+                    return;
+                }
                 const data = await res.json();
                 if (data) {
+                    addLog('success', 'SYS', 'REST Data: RECEIVED');
                     updateUI(data.Sensor);
                     updateControlUI(data.Control);
                     updateHealthUI(data.Health);
@@ -927,11 +933,16 @@ $csrf = generateCsrfToken();
                     document.getElementById('statusPill').classList.remove('offline');
                     document.getElementById('statusText').textContent = 'REST-SYNC';
                     document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+                } else {
+                    addLog('warn', 'SYS', 'REST Data: EMPTY NODE');
                 }
-            } catch(e) { console.error("REST Fail:", e); }
+            } catch(e) { 
+                addLog('error', 'SYS', `REST Fault: ${e.message}`);
+                console.error("REST Fail:", e); 
+            }
         };
         fetchOnce();
-        setInterval(fetchOnce, 3000); // Poll every 3s
+        setInterval(fetchOnce, 5000); // 5s to be safe
     }
 
     // --- SHARED UI UPDATERS ---
