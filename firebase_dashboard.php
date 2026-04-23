@@ -728,8 +728,8 @@ $csrf = generateCsrfToken();
                         <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
                     </div>
                     <div>
-                        <div class="health-lbl">Relay Switch</div>
-                        <span class="health-badge hb-ok" id="relayStatus">--</span>
+                        <div class="health-lbl">Sensor Integration</div>
+                        <span class="health-badge hb-ok" id="dhtStatus">--</span>
                     </div>
                 </div>
                 <div class="health-card ok" id="hcTemp">
@@ -737,7 +737,7 @@ $csrf = generateCsrfToken();
                         <svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
                     </div>
                     <div>
-                        <div class="health-lbl">Thermal Risk</div>
+                        <div class="health-lbl">Sensors Health</div>
                         <span class="health-badge hb-ok" id="envTempStatus">--</span>
                     </div>
                 </div>
@@ -746,9 +746,41 @@ $csrf = generateCsrfToken();
                         <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                     </div>
                     <div>
-                        <div class="health-lbl">Fault Count</div>
-                        <span class="health-val" id="lampFaultCounter" style="font-family:var(--mono);">0</span>
+                        <div class="health-lbl">Fatal Faults</div>
+                        <span class="health-val" id="lampFaultCounter" style="font-family:var(--mono); color:#ef4444;">0</span>
                     </div>
+                </div>
+            </div>
+
+            <!-- ── PREDICTIVE ANALYSIS ── -->
+            <div class="card" style="grid-area: predictive; background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);">
+                <div class="card-glow" style="background: #a855f7; opacity: 0.15;"></div>
+                <div class="card-head">
+                    <h3 style="color:#a855f7;">
+                        <span class="head-icon" style="background:rgba(168,85,247,0.15);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </span>
+                        Predictive Analysis
+                    </h3>
+                </div>
+                
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
+                    <div style="background:rgba(255,255,255,0.03); padding:15px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+                        <div style="font-size:10px; color:#94a3b8; font-weight:800; text-transform:uppercase; margin-bottom:8px;">Lamp Integrity</div>
+                        <div style="font-size:1.4rem; font-weight:900; color:#10b981;" id="lampHealth">STABLE</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.03); padding:15px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+                        <div style="font-size:10px; color:#94a3b8; font-weight:800; text-transform:uppercase; margin-bottom:8px;">Power Stability</div>
+                        <div style="font-size:1.4rem; font-weight:900; color:#3b82f6;" id="powerStability">--</div>
+                    </div>
+                </div>
+
+                <div style="margin-top:20px; padding:12px; background:rgba(239,68,68,0.05); border:1px solid rgba(239,68,68,0.1); border-radius:10px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                        <span style="width:6px; height:6px; border-radius:50%; background:#ef4444; box-shadow:0 0 8px #ef4444;"></span>
+                        <span style="font-size:11px; font-weight:800; color:#ef4444; text-transform:uppercase;">Predictive Alert</span>
+                    </div>
+                    <div id="maintenanceAlert" style="font-size:12px; color:#e2e8f0; font-family:var(--mono);">Awaiting scan...</div>
                 </div>
             </div>
 
@@ -892,7 +924,7 @@ $csrf = generateCsrfToken();
         });
     });
 
-    onValue(ref(db, NODE + "/Actuator/brightnessPercent"), (snap) => {
+    onValue(ref(db, NODE + "/Control/brightnessPercent"), (snap) => {
         const val = snap.val() ?? 70;
         document.getElementById('brightnessValue').textContent = val + '%';
         
@@ -904,16 +936,34 @@ $csrf = generateCsrfToken();
 
     onValue(ref(db, NODE + "/Health"), (snap) => {
         const d = snap.val() || {};
-        ['lampStatus','relayStatus','envTempStatus'].forEach(id => {
-            const el = document.getElementById(id);
-            const val = d[id] || 'OK';
-            el.textContent = val;
-            el.className = 'health-badge ' + (val === 'OK' ? 'hb-ok' : val === 'WARN' ? 'hb-warn' : 'hb-fail');
-        });
+        
+        // Map new Health structure
+        const lamp = document.getElementById('lampStatus');
+        lamp.textContent = d.lampStatus || 'OFF';
+        lamp.className = 'health-badge ' + (d.lampStatus === 'ON' ? 'hb-ok' : 'hb-fail');
+
+        const dht = document.getElementById('dhtStatus');
+        dht.textContent = d.dhtStatus || 'OK';
+        dht.className = 'health-badge ' + (d.dhtStatus === 'OK' ? 'hb-ok' : d.dhtStatus === 'WARNING' ? 'hb-warn' : 'hb-fail');
+
+        const env = document.getElementById('envTempStatus');
+        env.textContent = d.warningFlag === 0 ? 'OPTIMAL' : 'ANOMALY';
+        env.className = 'health-badge ' + (d.warningFlag === 0 ? 'hb-ok' : 'hb-warn');
+
         const faults = d.lampFaultCounter || 0;
         document.getElementById('lampFaultCounter').textContent = faults;
         const hcFault = document.getElementById('hcFault');
         hcFault.className = 'health-card ' + (faults === 0 ? 'ok' : faults < 3 ? 'warn' : 'fail');
+    });
+
+    onValue(ref(db, NODE + "/Predictive"), (snap) => {
+        const d = snap.val() || {};
+        document.getElementById('lampHealth').textContent = d.lampHealth || 'STABLE';
+        document.getElementById('powerStability').textContent = d.powerStability || '--';
+        document.getElementById('maintenanceAlert').textContent = d.maintenanceAlert || 'System nominal. No alerts.';
+        
+        const healthEl = document.getElementById('lampHealth');
+        healthEl.style.color = d.lampHealth === 'DEGRADED' ? 'var(--red)' : d.lampHealth === 'STABLE' ? 'var(--green)' : 'var(--yellow)';
     });
 
     // ── Actions ──

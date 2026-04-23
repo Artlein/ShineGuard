@@ -40,7 +40,8 @@ class FirebaseConfig {
         'sensor' => '/Sensor.json',
         'actuator' => '/Actuator.json',
         'health' => '/Health.json',
-        'control' => '/Control.json'
+        'control' => '/Control.json',
+        'predictive' => '/Predictive.json'
     ];
 
     /**
