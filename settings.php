@@ -1984,11 +1984,20 @@ async function loadSeeds() {
                         <div style="font-size: 0.85rem; color: var(--text-main); font-weight: 500;">${s.notes || 'Forensic System Image'}</div>
                         <div style="font-size: 0.75rem; color: var(--text-muted);">By ${s.creator_name || 'System Auto-Trigger'}</div>
                     </td>
-                    <td><span class="badge" style="background: rgba(16, 185, 129, 0.1); color: var(--green); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 6px; padding: 4px 8px; font-size: 0.7rem; font-weight: 800;">SHA-256 SEALED</span></td>
+                    <td>
+                        ${s.exists 
+                            ? `<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: var(--green); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 6px; padding: 4px 8px; font-size: 0.7rem; font-weight: 800;">SHA-256 SEALED</span>`
+                            : `<span class="badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 6px; padding: 4px 8px; font-size: 0.7rem; font-weight: 800;">FILE MISSING</span>`
+                        }
+                    </td>
                     <td style="color: var(--text-muted); font-size: 0.85rem;">${s.created_at}</td>
                     <td style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
-                        <button class="btn primary" onclick="handleRestore(${s.id})" style="padding: 6px 12px; font-size: 0.8rem; background: var(--green);">Restore</button>
-                        <button class="btn secondary" onclick="handleDeleteSeed(${s.id})" style="padding: 6px 12px; font-size: 0.8rem; color: #ef4444; border: 1px solid #ef444433; background: transparent;">Delete</button>
+                        ${s.exists 
+                            ? `<button class="btn primary" onclick="handleRestore(${s.id})" style="padding: 6px 12px; font-size: 0.8rem; background: var(--green);">Restore</button>
+                               <a href="backups/${s.filename}" download="${s.filename}" class="btn secondary" style="padding: 6px 12px; font-size: 0.8rem; text-decoration: none; color: var(--primary); border: 1px solid var(--primary); background: transparent;">Download</a>`
+                            : `<button class="btn secondary" disabled style="padding: 6px 12px; font-size: 0.8rem; opacity: 0.5; cursor: not-allowed;">Orphaned</button>`
+                        }
+                        <button class="btn secondary" onclick="handleDeleteSeed(${s.id})" style="padding: 6px 12px; font-size: 0.8rem; color: #ef4444; border: 1px solid #ef444433; background: transparent;">Delete Record</button>
                     </td>
                 </tr>
             `).join('');

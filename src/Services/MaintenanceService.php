@@ -146,7 +146,7 @@ class MaintenanceService {
             
             if ($row['exists']) {
                 $currentHash = hash_file('sha256', $filePath);
-                $row['integrity_valid'] = hash_equals($row['snapshot_hash'] ?? '', $currentHash ?: '');
+                $row['integrity_valid'] = hash_equals($row['seed_hash'] ?? '', $currentHash ?: '');
             } else {
                 $row['integrity_valid'] = false;
             }
