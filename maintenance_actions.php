@@ -48,6 +48,10 @@ try {
                 echo json_encode(['success' => false, 'error' => 'auth_failed', 'message' => 'Admin password required for forensic operations.']);
                 exit();
             }
+
+            // SUCCESS: Lock in the session for 5 minutes (SBA)
+            IdentityService::setRecentlyAuthorized();
+
             $notes = sanitize($_POST['notes'] ?? 'Manual Forensic Seed');
             $result = MaintenanceService::generateForensicSeed($conn, $user_id, $notes);
             echo json_encode($result);
@@ -68,6 +72,10 @@ try {
                 echo json_encode(['success' => false, 'error' => 'auth_failed', 'message' => 'Admin password required for restoration.']);
                 exit();
             }
+
+            // SUCCESS: Lock in the session for 5 minutes (SBA)
+            IdentityService::setRecentlyAuthorized();
+
             $id = (int)($_POST['id'] ?? 0);
             $result = MaintenanceService::restoreForensicSeed($conn, $id, $user_id);
             echo json_encode($result);
