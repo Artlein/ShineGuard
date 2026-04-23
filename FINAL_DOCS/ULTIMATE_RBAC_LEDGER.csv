@@ -1,0 +1,37 @@
+Test ID,Test Title,Test Description,Preconditions,Test Steps,Expected Result
+ADM_01,Secure Entry,Multi-factor login.,Sys Online,"1. Open login.php. 2. Enter Admin credentials. 3. Enter MFA code.",Redirected to Dash; Admin badge active.
+ADM_02,Analytic Audit,Dashboard monitoring.,Logged in,1. Audit KPIs on dash. 2. Verify unmasked PII data.,Full transparency; PII is readable.
+ADM_03,Hardware Control,Manual Relay Toggle.,SBA Active,1. Open Node 2 panel. 2. Click "FORCE ON".,Node state: Green; Relay engages.
+ADM_04,Dimming PWM,PWM Simulation.,SBA Active,1. Drag Intensity Slider to 25%.,Hardware syncs; 25% Duty cycle active.
+ADM_05,Self-Run Test,Cloud Diagnostics.,Logged in,1. Node Detail -> [Run Smart Test]. 2. Wait 3s.,Telemetry sweep returns OK/Healthy.
+ADM_06,CCTV Video,High-Def Immersion.,Feeds active,1. Open CCTV. 2. Click [Expand Fullscreen].,Stream fills display; Real-time verified.
+ADM_07,Snapshot Gallery,Forensic Capture.,Feeds active,1. CCTV Feed -> [Take Secure Snapshot].,Frame saved with SHA-256 integrity.
+ADM_08,Forensic Meta,Evidentiary Audit.,Frame saved,1. Gallery -> Toggle [Forensic Metadata].,Node ID, Hash, and Timestamp visible.
+ADM_09,Alert Lifecycle,Fault Resolution.,Alert Open,1. Alerts -> Acknowledge -> Resolve.,Status: Resolved; Action logged in audit.
+ADM_10,Work Order Init,Repair Management.,Alert Resolved,1. Create WO from Alert. 2. Assign staff.,Work Order registered in registry.
+ADM_11,Smart Schedule,Automated Orchestr.,Admin logged,1. Schedules -> [Add New]. 2. Set Time/Dim.,Auto-trigger added to system policy.
+ADM_12,Export Report,Forensic PDF.,Data exists,1. Logs -> [Export Report] -> [Generate PDF].,Signed forensic PDF downloaded.
+ADM_13,Firebase Raw,Cloud Stream Audit.,Data exists,1. [Firebase Raw Data] -> Monitor stream.,Raw JSON updates live in real-time.
+ADM_14,Global Settings,Global Governance.,Admin Context,1. Settings -> Edit 'System Name' -> Save.,Branding updates site-wide instantly.
+ADM_15,Integrity Audit,Cryptographic check.,Actions done,1. [Security Logs] -> Verify Signature.,Entry turns Green: 'Signed by Kernel'.
+ADM_16,MFA Override,Emergency Identity.,Admin Context,1. User Profile -> [Reset MFA].,User MFA detached; fresh enrollment req.
+MNT_01,Secure Entry,Operational Login.,Mnt Account,1. Open login.php. 2. Enter Maintainer credentials.,Redirected to Dash; Admin menus hidden.
+MNT_02,Ops Dashboard,Field Monitoring.,Logged in,1. Audit telemetry. 2. Verify PII masking.,"Data: A***n R***s (Compliance active)."
+MNT_03,Relay Toggle,Authorized Override.,SBA Active,1. Open Node 2 Detail. 2. Click "Toggle ON".,State updates to active in real-time.
+MNT_04,PWM Dimming,Lighting Optimization.,SBA Active,1. Move slider to 40% intensity.,Dashboard syncs with hardware PWM state.
+MNT_05,Self-Run Test,Integrity Check.,Logged in,1. Node Detail -> [Run Health Sweep].,Hardware check complete; status: OK.
+MNT_06,CCTV Video Feed,Safety Observation.,Feeds active,1. Open CCTV Feed. 2. Monitor site status.,Live video stream active for field safety.
+MNT_07,Alert Handling,Fault Response.,Alert Open,1. Alerts Center -> Click [Acknowledge].,Status: In-Progress; Staff action logged.
+MNT_08,Work Order Log,Task Auditing.,WO Assigned,1. Open [Maintenance Registry]. 2. View Tasks.,Assigned repair orders are visible/auditable.
+MNT_09,Raw Diagnostics,Cloud Transparency.,Dashboard,1. [Firebase Raw Data] -> View Stream.,Verified unprocessed sensor data sync.
+MNT_10,Identity Shield,Access Block A.,Logged in,1. Attempt access to [User Management].,"System redirect: ""Access Denied"" active."
+MNT_11,Backup Shield,Access Block B.,Logged in,1. Attempt access to [Data & Backup].,Menu not rendered; Action is forbidden.
+OBS_01,Secure Entry,Auditing Login.,Obs Account,1. Open login.php. 2. Enter Observer creds.,Redirected to View-Only Dashboard.
+OBS_02,Trend Monitoring,Analytical Insight.,Logged in,1. Observe real-time Lux/Temp charts.,Visualization rendering; All controls hidden.
+OBS_03,Map Status,Pip observation.,Map active,1. Monitor node pips for real-time status.,Icons show Green/Red state via Cloud.
+OBS_04,CCTV View,Site Awareness.,Feeds active,1. Open CCTV Stream.,Live view active; Take Snapshot is hidden.
+OBS_05,Alert History,Observation Log.,Alerts active,1. View historical alert registry.,History visible; Action buttons are removed.
+OBS_06,Analytics Summary,Performance Monitor.,Data exists,1. View weekly performance graphs.,"Data is readable; ""Export PDF"" is disabled."
+OBS_07,Action Block,Command Lockout.,Dashboard,1. Attempt to toggle any node relay state.,Interaction is fully disabled/non-rendered.
+OBS_08,Sec Block A,Setting Lockout.,Dashboard,1. Attempt manual browser access to /settings.,Redirect to Global Access Denied page.
+OBS_09,Sec Block B,Governance Lockout.,Dashboard,1. Attempt manual access to /user_mgmt.,Handled via role-guard; Action logged.
