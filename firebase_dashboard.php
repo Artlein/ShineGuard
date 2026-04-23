@@ -850,6 +850,19 @@ $csrf = generateCsrfToken();
     const app = initializeApp(firebaseConfig);
     const db  = getDatabase(app);
 
+    // DEBUG: Add global error listener for Firebase
+    addLog('info', 'SYS', 'Initializing Firebase mesh...');
+    
+    // Test connectivity
+    const connectedRef = ref(db, ".info/connected");
+    onValue(connectedRef, (snap) => {
+        if (snap.val() === true) {
+            addLog('success', 'SYS', 'Mesh Connection: ESTABLISHED');
+        } else {
+            addLog('error', 'SYS', 'Mesh Connection: LOST / RECONNECTING');
+        }
+    });
+
     // ── Sensor bar helpers ──
     function setBar(id, pct) {
         const el = document.getElementById(id);
