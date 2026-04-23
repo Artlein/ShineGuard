@@ -838,6 +838,33 @@ $csrf = generateCsrfToken();
     </div>
 </div>
 
+<script>
+    // ── Terminal logger ──
+    window.addLog = function(type, tag, msg) {
+        const feed = document.getElementById('controlLog');
+        if (!feed) return;
+        const empty = feed.querySelector('.log-empty-state');
+        if (empty) empty.remove();
+        
+        const div = document.createElement('div');
+        div.className = 'log-entry';
+        const now = new Date();
+        const ts = now.getHours().toString().padStart(2,'0') + ':' + 
+                   now.getMinutes().toString().padStart(2,'0') + ':' + 
+                   now.getSeconds().toString().padStart(2,'0');
+        
+        div.innerHTML = `
+            <span class="log-ts">${ts}</span>
+            <span class="log-type ${type}">${tag}</span>
+            <span class="log-msg ${type}">${msg}</span>
+        `;
+        feed.appendChild(div);
+        feed.scrollTop = feed.scrollHeight;
+    };
+
+    addLog('info', 'SYS', 'System Core: OK');
+</script>
+
 <script type="module">
     const CSRF = '<?php echo $csrf; ?>';
     const THRESHOLDS = <?php echo $thresholds_json; ?>;
@@ -1043,20 +1070,7 @@ $csrf = generateCsrfToken();
         closeSecModal();
     };
 
-    // ── Terminal logger ──
-    window.addLog = function(type, tag, msg) {
-        const feed = document.getElementById('controlLog');
-        const empty = feed.querySelector('.log-empty-state');
-        if (empty) empty.remove();
-        const ts = new Date().toLocaleTimeString('en-GB', {hour12:false});
-        const entry = document.createElement('div');
-        entry.className = 'log-entry';
-        entry.innerHTML =
-            `<span class="log-ts">${ts}</span>` +
-            `<span class="log-type ${type}">[${tag}]</span>` +
-            `<span class="log-msg ${type}">${msg}</span>`;
-        feed.prepend(entry);
-    }
+    // addLog moved to top to prevent race condition
 
     window.clearLog = function() {
         const feed = document.getElementById('controlLog');
