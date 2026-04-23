@@ -118,17 +118,20 @@ $unknown_devices = $conn->query("SELECT ud.*, u.full_name FROM user_devices ud
 ?>
 
 <main class="main-content">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
-        <div>
-            <h1 style="margin:0; font-weight:900; letter-spacing:-0.03em; color:var(--text); font-size:1.8rem; display:flex; align-items:center; gap:12px;">
-                <span style="background:rgba(239,68,68,0.1); color:#ef4444; width:42px; height:42px; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; font-size:22px;">🛡️</span>
-                Security Recovery Hub
-            </h1>
-            <p style="color:var(--dim); margin:4px 0 0; font-size:14px;">Central forensic control for secure machine authorizations and credentials management.</p>
-        </div>
-        <div style="display:flex; gap:10px;">
-            <a href="activity_logs.php" class="btn-action ghost">Forensic Logs</a>
-            <button onclick="location.reload()" class="btn-action primary">Refresh Buffer</button>
+    <div class="page-header" style="margin-bottom: 2rem;">
+        <br><br>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <h1 style="margin:0; font-weight:900; letter-spacing:-0.03em; color:var(--text); font-size:1.8rem; display:flex; align-items:center; gap:12px;">
+                    <span style="background:rgba(239,68,68,0.1); color:#ef4444; width:42px; height:42px; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; font-size:22px;">🛡️</span>
+                    Security Recovery Hub
+                </h1>
+                <p style="color:var(--dim); margin:4px 0 0; font-size:14px;">Forensic control for machine authorizations and credential resets.</p>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <a href="activity_logs.php" class="btn-action ghost" style="padding: 10px 20px;">Forensic Logs</a>
+                <button onclick="location.reload()" class="btn-action primary" style="padding: 10px 20px;">Refresh Buffer</button>
+            </div>
         </div>
     </div>
 
