@@ -386,7 +386,11 @@ $pdf->writeHTML($html2, true, false, true, false, '');
 
 // ── Output PDF ───────────────────────────────────────────────────────────────
 $filename  = 'shineguard_report_' . date('Ymd_His') . '.pdf';
-$save_path = __DIR__ . '/exports/reports/' . $filename;
+$export_dir = __DIR__ . '/exports/reports';
+if (!is_dir($export_dir)) {
+    @mkdir($export_dir, 0777, true);
+}
+$save_path = $export_dir . '/' . $filename;
 $pdf->Output($save_path, 'F');
 
 // Archive to DB
