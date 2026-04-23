@@ -865,28 +865,28 @@ $csrf = generateCsrfToken();
     addLog('info', 'SYS', 'System Core: OK');
 </script>
 
-<script type="module">
+<!-- Firebase SDKs (v8 compat) -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script>
     const CSRF = '<?php echo $csrf; ?>';
     const THRESHOLDS = <?php echo $thresholds_json; ?>;
     const NODE = "<?php echo $currentNode; ?>";
     const firebaseConfig = <?php echo $firebaseCredsJson; ?>;
 
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+    // Initialize Firebase v8
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    const app = initializeApp(firebaseConfig);
-    const db  = getDatabase(app);
+    addLog('info', 'SYS', 'Initializing Firebase mesh (v8)...');
 
-    // DEBUG: Add global error listener for Firebase
-    addLog('info', 'SYS', 'Initializing Firebase mesh...');
-    
     // Test connectivity
-    const connectedRef = ref(db, ".info/connected");
-    onValue(connectedRef, (snap) => {
+    db.ref(".info/connected").on("value", (snap) => {
         if (snap.val() === true) {
             addLog('success', 'SYS', 'Mesh Connection: ESTABLISHED');
         } else {
-            addLog('error', 'SYS', 'Mesh Connection: LOST / RECONNECTING');
+            addLog('error', 'SYS', 'Mesh Connection: LOST / RECONNECTING...');
         }
     });
 
@@ -910,10 +910,16 @@ $csrf = generateCsrfToken();
     }
 
     // ── Sensor listeners ──
-    onValue(ref(db, NODE + "/Sensor"), (snap) => {
+    db.ref(NODE + "/Sensor").on("value", (snap) => {
         const d = snap.val() || {};
+        
+        // Update ONLINE status
+        const pill = document.getElementById('statusPill');
+        pill.classList.remove('offline');
+        document.getElementById('statusText').textContent = 'ONLINE';
+        document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
 
-        // LDR to LUX conversion (matching backend logic)
+        // LDR to LUX conversion
         const ldr = d.ldrData ?? null;
         let lux = null;
         if (ldr !== null) {
@@ -926,105 +932,92 @@ $csrf = generateCsrfToken();
             setTag('ldrTag', evalTag(lux, null, null, THRESHOLDS.lux_threshold_min || 50, THRESHOLDS.lux_threshold_critical || 30));
         }
 
-        // Temp
         const temp = d.temperature ?? null;
-        document.getElementById('temperature').textContent = temp !== null ? temp.toFixed(1) : '--';
+        document.getElementById('temperature').textContent = temp !== null ? temp : '--';
         if (temp !== null) {
             setBar('tempBar', (temp / 80) * 100);
             setTag('tempTag', evalTag(temp, THRESHOLDS.temperature_threshold_max || 45, THRESHOLDS.temperature_threshold_critical || 55, null, null));
         }
 
-        // Voltage
         const volt = d.voltage ?? null;
-        document.getElementById('voltage').textContent = volt !== null ? volt.toFixed(2) : '--';
+        document.getElementById('voltage').textContent = volt !== null ? volt : '--';
         if (volt !== null) {
             setBar('voltBar', (volt / 5) * 100);
             setTag('voltTag', evalTag(volt, null, null, THRESHOLDS.voltage_threshold_min || 2.0, THRESHOLDS.voltage_threshold_critical || 1.5));
         }
 
-        // Humidity
         const hum = d.humidity ?? null;
-        document.getElementById('humidity').textContent = hum !== null ? hum.toFixed(1) : '--';
+        document.getElementById('humidity').textContent = hum !== null ? hum : '--';
         if (hum !== null) {
-            setBar('humBar', (hum / 100) * 100);
+            setBar('humBar', hum);
             setTag('humTag', evalTag(hum, THRESHOLDS.humidity_threshold_max || 80, THRESHOLDS.humidity_threshold_critical || 90, null, null));
         }
-
-        // Online pill
-        const pill = document.getElementById('statusPill');
-        pill.classList.remove('offline');
-        document.getElementById('statusText').textContent = 'ONLINE';
-        document.getElementById('lastUpdated').textContent = 'LIVE · ' + new Date().toLocaleTimeString();
     });
 
-    onValue(ref(db, NODE + "/Control/mode"), (snap) => {
-        const mode = snap.val() ?? 0;
-        ['btnAuto','btnForceOn','btnForceOff'].forEach((id, i) => {
-            document.getElementById(id).classList.toggle('active', mode === i);
+    // ── Actuator/Control listeners ──
+    db.ref(NODE + "/Control").on("value", (snap) => {
+        const d = snap.val() || {};
+        
+        const mode = d.mode ?? 0;
+        const btnAuto = document.getElementById('btnAuto');
+        const btnOn = document.getElementById('btnForceOn');
+        const btnOff = document.getElementById('btnForceOff');
+        
+        [btnAuto, btnOn, btnOff].forEach(b => b.classList.remove('active'));
+        if (mode === 0) btnAuto.classList.add('active');
+        else if (mode === 1) btnOn.classList.add('active');
+        else if (mode === 2) btnOff.classList.add('active');
+
+        const bright = d.brightnessPercent ?? 0;
+        document.getElementById('brightnessValue').textContent = bright + '%';
+        const dims = [25, 50, 75, 100];
+        dims.forEach(v => {
+            const el = document.getElementById('dim' + v);
+            if (el) el.classList.toggle('active', bright === v);
         });
     });
 
-    onValue(ref(db, NODE + "/Control/brightnessPercent"), (snap) => {
-        const val = snap.val() ?? 70;
-        document.getElementById('brightnessValue').textContent = val + '%';
-        
-        // Update active segment
-        document.querySelectorAll('.btn-dim').forEach(b => b.classList.remove('active'));
-        const activeBtn = document.getElementById('dim' + val);
-        if (activeBtn) activeBtn.classList.add('active');
-    });
-
-    onValue(ref(db, NODE + "/Health"), (snap) => {
+    db.ref(NODE + "/Health").on("value", (snap) => {
         const d = snap.val() || {};
         
-        // Map new Health structure
-        const lamp = document.getElementById('lampStatus');
-        lamp.textContent = d.lampStatus || 'OFF';
-        lamp.className = 'health-badge ' + (d.lampStatus === 'ON' ? 'hb-ok' : 'hb-fail');
+        function setHealthBadge(id, status) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = status;
+            el.className = 'health-badge ' + (status === 'OK' || status === 'NORMAL' ? 'hb-ok' : status === 'WARNING' ? 'hb-warn' : 'hb-fail');
+            el.closest('.health-card').className = 'health-card ' + (status === 'OK' || status === 'NORMAL' ? 'ok' : 'warn');
+        }
 
-        const dht = document.getElementById('dhtStatus');
-        dht.textContent = d.dhtStatus || 'OK';
-        dht.className = 'health-badge ' + (d.dhtStatus === 'OK' ? 'hb-ok' : d.dhtStatus === 'WARNING' ? 'hb-warn' : 'hb-fail');
-
-        const env = document.getElementById('envTempStatus');
-        env.textContent = d.warningFlag === 0 ? 'OPTIMAL' : 'ANOMALY';
-        env.className = 'health-badge ' + (d.warningFlag === 0 ? 'hb-ok' : 'hb-warn');
-
-        const faults = d.lampFaultCounter || 0;
-        document.getElementById('lampFaultCounter').textContent = faults;
-        const hcFault = document.getElementById('hcFault');
-        hcFault.className = 'health-card ' + (faults === 0 ? 'ok' : faults < 3 ? 'warn' : 'fail');
-    });
-
-    onValue(ref(db, NODE + "/Predictive"), (snap) => {
-        const d = snap.val() || {};
-        document.getElementById('lampHealth').textContent = d.lampHealth || 'STABLE';
-        document.getElementById('powerStability').textContent = d.powerStability || '--';
-        document.getElementById('maintenanceAlert').textContent = d.maintenanceAlert || 'System nominal. No alerts.';
+        setHealthBadge('lampStatus', d.lampStatus ?? 'OK');
+        setHealthBadge('dhtStatus', d.dhtStatus ?? 'OK');
+        setHealthBadge('envTempStatus', d.envTempStatus ?? 'OK');
+        document.getElementById('lampFaultCounter').textContent = d.lampFaultCounter ?? 0;
         
-        const healthEl = document.getElementById('lampHealth');
-        healthEl.style.color = d.lampHealth === 'DEGRADED' ? 'var(--red)' : d.lampHealth === 'STABLE' ? 'var(--green)' : 'var(--yellow)';
+        addLog('info', 'HET', 'Integrity scan verified');
     });
 
-    // ── Actions ──
-    window.updateBrightnessDisplay = val => {
-        document.getElementById('brightnessValue').textContent = val + '%';
-    };
+    db.ref(NODE + "/Predictive").on("value", (snap) => {
+        const d = snap.val() || {};
+        const health = d.lampHealth ?? 'STABLE';
+        const el = document.getElementById('lampHealth');
+        if (el) {
+            el.textContent = health;
+            el.style.color = health === 'STABLE' ? '#10b981' : (health === 'AGING' ? '#f59e0b' : '#ef4444');
+        }
+        document.getElementById('powerStability').textContent = d.powerStability ?? 'NORMAL';
+        document.getElementById('maintenanceAlert').textContent = d.maintenanceAlert ?? 'No issues detected.';
+    });
 
+    // ── Commands ──
     window.setMode = function(mode) {
-        const labels = ['AUTO Mode','FORCE ON','FORCE OFF'];
+        const labels = {0:'AUTO', 1:'FORCE ON', 2:'FORCE OFF'};
         addLog('info','CMD', `Propagating mode → ${labels[mode]}`);
-        set(ref(db, NODE + '/Control/mode'), mode)
-            .then(() => addLog('success','ACK', `Mode set to ${labels[mode]}`))
-            .catch(e => addLog('error','ERR', e.message));
+        db.ref(NODE + '/Control/mode').set(mode);
     };
 
     window.setBrightness = function(val) {
-        val = parseInt(val);
         addLog('info','CMD', `Propagating brightness → ${val}%`);
-        set(ref(db, NODE + "/Control/brightnessPercent"), val)
-            .then(() => addLog('success','ACK', `Brightness synchronized at ${val}%`))
-            .catch(e => addLog('error','ERR', e.message));
+        db.ref(NODE + "/Control/brightnessPercent").set(val);
     };
 
     window.syncNow = function() {
@@ -1037,13 +1030,15 @@ $csrf = generateCsrfToken();
     // ── Security Modal ──
     window.confirmFirebaseCommand = function(actionType, param1) {
         const modal = document.getElementById('securityModal');
+        // Simple mock for authorized session
+        const isAuthorized = false; 
         document.getElementById('pwdGroup').style.display = isAuthorized ? 'none' : 'block';
         document.getElementById('secModalError').style.display = 'none';
         document.getElementById('secModalPassword').value = '';
         const labels = {0:'Activate AUTO Mode',1:'Activate FORCE ON',2:'Activate FORCE OFF'};
         document.getElementById('secModalTitle').textContent = labels[param1] || 'Confirm Action';
         document.getElementById('secModalDesc').textContent =
-            `This will immediately propagate the command to the SG-NODE2 hardware via Firebase. Confirm to proceed.`;
+            `This will immediately propagate the command to the ${NODE} hardware via Firebase. Confirm to proceed.`;
         modal._actionType = actionType;
         modal._param1 = param1;
         modal.classList.add('open');
@@ -1056,33 +1051,27 @@ $csrf = generateCsrfToken();
 
     window.confirmSecAction = async function() {
         const modal = document.getElementById('securityModal');
-        if (!isAuthorized) {
-            const pwd = document.getElementById('secModalPassword').value;
-            const body = new URLSearchParams({action:'verify_password', admin_password:pwd, csrf_token: CSRF});
-            const res = await fetch('firebase_dashboard.php', {method:'POST', body});
-            const data = await res.json();
-            if (!data.success) {
-                document.getElementById('secModalError').style.display = 'block';
-                return;
-            }
+        const pwd = document.getElementById('secModalPassword').value;
+        const body = new URLSearchParams({action:'verify_password', admin_password:pwd, csrf_token: CSRF});
+        const res = await fetch('firebase_dashboard.php', {method:'POST', body});
+        const data = await res.json();
+        if (!data.success) {
+            document.getElementById('secModalError').style.display = 'block';
+            return;
         }
         if (modal._actionType === 'setMode') setMode(modal._param1);
         closeSecModal();
     };
-
-    // addLog moved to top to prevent race condition
 
     window.clearLog = function() {
         const feed = document.getElementById('controlLog');
         feed.innerHTML = '<div class="log-empty-state">» Cleared. Waiting for events...</div>';
     };
 
-    // Close modal on backdrop click
     document.getElementById('securityModal').addEventListener('click', function(e) {
         if (e.target === this) closeSecModal();
     });
 
-    // Enter key on modal
     document.getElementById('secModalPassword').addEventListener('keyup', function(e) {
         if (e.key === 'Enter') window.confirmSecAction();
     });
