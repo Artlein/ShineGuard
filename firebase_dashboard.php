@@ -1044,7 +1044,7 @@ $csrf = generateCsrfToken();
     };
 
     // ── Terminal logger ──
-    function addLog(type, tag, msg) {
+    window.addLog = function(type, tag, msg) {
         const feed = document.getElementById('controlLog');
         const empty = feed.querySelector('.log-empty-state');
         if (empty) empty.remove();
