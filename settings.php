@@ -1291,7 +1291,7 @@ tbody td {
         <h2>🌱 Forensic Seed & Recovery (FAR)</h2>
         <p class="users-subtext" style="margin-bottom: 25px;">Create high-integrity system snapshots with SHA-256 validation. Every restore operation is forensically verified for tampering.</p>
         
-        <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); padding: 25px; border-radius: 20px; margin-bottom: 30px;">
+        <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); padding: 25px; border-radius: 20px; margin-bottom: 20px;">
             <div style="display: flex; align-items: center; justify-content: space-between;">
                 <div style="display: flex; align-items: center; gap: 15px;">
                     <div class="header-status" style="display: flex; align-items: center; gap: 15px; margin-top: 10px;">
@@ -1305,6 +1305,17 @@ tbody td {
                 <button type="button" class="btn primary" onclick="initiateForensicSeed()" style="display: flex; align-items: center; gap: 10px; background: var(--green);">
                     <span>➕ Initiate Forensic Seed</span>
                 </button>
+            </div>
+        </div>
+
+        <!-- AUTO-SCHEDULING STATUS CARD -->
+        <div style="background: #fff8eb; border: 1px solid #f9731633; padding: 20px; border-radius: 18px; margin-bottom: 30px; display: flex; align-items: flex-start; gap: 15px; box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.05);">
+            <div style="font-size: 1.5rem;">🚀</div>
+            <div>
+                <h4 style="margin: 0; color: #f97316; font-weight: 800; font-size: 0.9rem; letter-spacing: 0.05em; text-transform: uppercase;">Auto-Scheduling</h4>
+                <p style="margin: 5px 0 0 0; color: #334155; font-size: 0.95rem; font-weight: 600;">
+                    Forensic Seed generation scheduled for <span style="color: #1e293b; font-weight: 800;">Every Sunday @ 12:00 AM.</span>
+                </p>
             </div>
         </div>
 
