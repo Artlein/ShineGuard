@@ -12,14 +12,16 @@ echo "<h2>🔧 Applying Database Schema Patch...</h2>";
 $queries = [
     // 1. Expand Brightness Level for 12-bit ADC data
     "ALTER TABLE sensor_data MODIFY brightness_level DECIMAL(10,2);",
-    
-    // 2. Add RUL Estimate to alerts if missing
-    "ALTER TABLE alerts ADD COLUMN IF NOT EXISTS rul_estimate VARCHAR(50) DEFAULT 'N/A' AFTER status;",
-    
-    // 3. Ensure proper indexing for sync performance
-    "ALTER TABLE sensor_data ADD INDEX IF NOT EXISTS idx_timestamp (timestamp);",
-    "ALTER TABLE alerts ADD INDEX IF NOT EXISTS idx_created (created_at);"
 ];
+
+// 2. Add RUL Estimate to alerts (Programmatic check for MySQL Compatibility)
+$check = $conn->query("SHOW COLUMNS FROM alerts LIKE 'rul_estimate'");
+if ($check->num_rows === 0) {
+    $queries[] = "ALTER TABLE alerts ADD COLUMN rul_estimate VARCHAR(50) DEFAULT 'N/A' AFTER status;";
+}
+
+// 3. Optional Indices
+$queries[] = "ALTER TABLE sensor_data ADD INDEX IF NOT EXISTS idx_timestamp (timestamp);";
 
 $successCount = 0;
 foreach ($queries as $sql) {
