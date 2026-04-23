@@ -21,20 +21,20 @@ class FirebaseConfig {
         'SG-NODE2' => [
             'name' => 'Intelligence Node 2',
             'type' => 'ESP32 Control',
-            'mysql_id' => 'SL-002',
+            'mysql_id' => 'SL-001',
             'status' => 'active'
         ],
         'SG-NODE3' => [
             'name' => 'Intelligence Node 3',
             'type' => 'ESP32 Control',
-            'mysql_id' => 'SL-003',
+            'mysql_id' => 'SL-002',
             'status' => 'active'
         ]
     ];
 
     const NODE_MAPPING = [
-        'SG-NODE2' => 'SL-002',
-        'SG-NODE3' => 'SL-003'
+        'SG-NODE2' => 'SL-001',
+        'SG-NODE3' => 'SL-002'
     ];
 
     const ENDPOINTS = [
