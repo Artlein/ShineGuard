@@ -875,56 +875,71 @@ $csrf = generateCsrfToken();
     const NODE = "<?php echo $currentNode; ?>";
     const firebaseConfig = <?php echo $firebaseCredsJson; ?>;
 
-    // Initialize Firebase v8
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    // --- BULLETPROOF INITIALIZATION ---
+    let useRest = false;
 
-    addLog('info', 'SYS', 'Initializing Firebase mesh (v8)...');
-
-    // Test connectivity
-    db.ref(".info/connected").on("value", (snap) => {
-        if (snap.val() === true) {
-            addLog('success', 'SYS', 'Mesh Connection: ESTABLISHED');
-        } else {
-            addLog('error', 'SYS', 'Mesh Connection: LOST / RECONNECTING...');
+    if (typeof firebase !== 'undefined') {
+        try {
+            firebase.initializeApp(firebaseConfig);
+            window.db = firebase.database();
+            addLog('success', 'SYS', 'Firebase SDK: ACTIVE');
+            startSdkListeners();
+        } catch(e) {
+            addLog('warn', 'SYS', 'SDK Load Error. Switching to REST API.');
+            useRest = true;
         }
-    });
-
-    // ── Sensor bar helpers ──
-    function setBar(id, pct) {
-        const el = document.getElementById(id);
-        if (el) el.style.width = Math.min(Math.max(pct,0),100) + '%';
-    }
-    function setTag(id, status) {
-        const el = document.getElementById(id);
-        if (!el) return;
-        el.textContent = status;
-        el.className = 'sensor-status-tag' + (status === 'NORMAL' ? '' : status === 'WARNING' ? ' warn' : status === 'CRITICAL' ? ' crit' : '');
-    }
-    function evalTag(val, warnHi, critHi, warnLo, critLo) {
-        if (critHi !== null && val >= critHi) return 'CRITICAL';
-        if (warnHi !== null && val >= warnHi) return 'WARNING';
-        if (critLo !== null && val <= critLo) return 'CRITICAL';
-        if (warnLo !== null && val <= warnLo) return 'WARNING';
-        return 'NORMAL';
+    } else {
+        addLog('warn', 'SYS', 'SDK Blocked. Switching to REST API.');
+        useRest = true;
     }
 
-    // ── Sensor listeners ──
-    db.ref(NODE + "/Sensor").on("value", (snap) => {
-        const d = snap.val() || {};
-        
-        // Update ONLINE status
-        const pill = document.getElementById('statusPill');
-        pill.classList.remove('offline');
-        document.getElementById('statusText').textContent = 'ONLINE';
-        document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+    if (useRest) {
+        addLog('info', 'SYS', 'REST Tunnel: INITIALIZING...');
+        startRestPolling();
+    }
 
-        // LDR to LUX conversion
+    // --- OPTION A: SDK STREAMING ---
+    function startSdkListeners() {
+        db.ref(".info/connected").on("value", s => {
+            if (s.val()) addLog('success', 'SYS', 'Mesh: ESTABLISHED');
+            else addLog('error', 'SYS', 'Mesh: LOST');
+        });
+
+        db.ref(NODE + "/Sensor").on("value", s => updateUI(s.val()));
+        db.ref(NODE + "/Control").on("value", s => updateControlUI(s.val()));
+        db.ref(NODE + "/Health").on("value", s => updateHealthUI(s.val()));
+        db.ref(NODE + "/Predictive").on("value", s => updatePredictiveUI(s.val()));
+    }
+
+    // --- OPTION B: REST POLLING (FALLBACK) ---
+    async function startRestPolling() {
+        const fetchOnce = async () => {
+            try {
+                const baseUrl = firebaseConfig.databaseURL.replace(/\/$/, "");
+                const res = await fetch(`${baseUrl}/${NODE}.json`);
+                const data = await res.json();
+                if (data) {
+                    updateUI(data.Sensor);
+                    updateControlUI(data.Control);
+                    updateHealthUI(data.Health);
+                    updatePredictiveUI(data.Predictive);
+                    
+                    document.getElementById('statusPill').classList.remove('offline');
+                    document.getElementById('statusText').textContent = 'REST-SYNC';
+                    document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+                }
+            } catch(e) { console.error("REST Fail:", e); }
+        };
+        fetchOnce();
+        setInterval(fetchOnce, 3000); // Poll every 3s
+    }
+
+    // --- SHARED UI UPDATERS ---
+    function updateUI(d) {
+        if (!d) return;
         const ldr = d.ldrData ?? null;
         let lux = null;
-        if (ldr !== null) {
-            lux = Math.max(0, 100 - (ldr / 40));
-        }
+        if (ldr !== null) lux = Math.max(0, 100 - (ldr / 40));
         
         document.getElementById('ldrData').textContent = lux !== null ? Math.round(lux) : '--';
         if (lux !== null) {
@@ -952,61 +967,61 @@ $csrf = generateCsrfToken();
             setBar('humBar', hum);
             setTag('humTag', evalTag(hum, THRESHOLDS.humidity_threshold_max || 80, THRESHOLDS.humidity_threshold_critical || 90, null, null));
         }
-    });
+    }
 
-    // ── Actuator/Control listeners ──
-    db.ref(NODE + "/Control").on("value", (snap) => {
-        const d = snap.val() || {};
-        
+    function updateControlUI(d) {
+        if (!d) return;
         const mode = d.mode ?? 0;
-        const btnAuto = document.getElementById('btnAuto');
-        const btnOn = document.getElementById('btnForceOn');
-        const btnOff = document.getElementById('btnForceOff');
-        
-        [btnAuto, btnOn, btnOff].forEach(b => b.classList.remove('active'));
-        if (mode === 0) btnAuto.classList.add('active');
-        else if (mode === 1) btnOn.classList.add('active');
-        else if (mode === 2) btnOff.classList.add('active');
-
+        ['btnAuto','btnForceOn','btnForceOff'].forEach((id, i) => {
+            document.getElementById(id).classList.toggle('active', mode === i);
+        });
         const bright = d.brightnessPercent ?? 0;
         document.getElementById('brightnessValue').textContent = bright + '%';
-        const dims = [25, 50, 75, 100];
-        dims.forEach(v => {
+        [25, 50, 75, 100].forEach(v => {
             const el = document.getElementById('dim' + v);
             if (el) el.classList.toggle('active', bright === v);
         });
-    });
+    }
 
-    db.ref(NODE + "/Health").on("value", (snap) => {
-        const d = snap.val() || {};
-        
-        function setHealthBadge(id, status) {
+    function updateHealthUI(d) {
+        if (!d) return;
+        const setH = (id, s) => {
             const el = document.getElementById(id);
             if (!el) return;
-            el.textContent = status;
-            el.className = 'health-badge ' + (status === 'OK' || status === 'NORMAL' ? 'hb-ok' : status === 'WARNING' ? 'hb-warn' : 'hb-fail');
-            el.closest('.health-card').className = 'health-card ' + (status === 'OK' || status === 'NORMAL' ? 'ok' : 'warn');
-        }
-
-        setHealthBadge('lampStatus', d.lampStatus ?? 'OK');
-        setHealthBadge('dhtStatus', d.dhtStatus ?? 'OK');
-        setHealthBadge('envTempStatus', d.envTempStatus ?? 'OK');
+            el.textContent = s;
+            el.className = 'health-badge ' + (s === 'OK' || s === 'NORMAL' ? 'hb-ok' : 'hb-fail');
+        };
+        setH('lampStatus', d.lampStatus ?? 'OK');
+        setH('dhtStatus', d.dhtStatus ?? 'OK');
+        setH('envTempStatus', d.envTempStatus ?? 'OK');
         document.getElementById('lampFaultCounter').textContent = d.lampFaultCounter ?? 0;
-        
-        addLog('info', 'HET', 'Integrity scan verified');
-    });
+    }
 
-    db.ref(NODE + "/Predictive").on("value", (snap) => {
-        const d = snap.val() || {};
-        const health = d.lampHealth ?? 'STABLE';
-        const el = document.getElementById('lampHealth');
-        if (el) {
-            el.textContent = health;
-            el.style.color = health === 'STABLE' ? '#10b981' : (health === 'AGING' ? '#f59e0b' : '#ef4444');
-        }
+    function updatePredictiveUI(d) {
+        if (!d) return;
+        document.getElementById('lampHealth').textContent = d.lampHealth ?? 'STABLE';
         document.getElementById('powerStability').textContent = d.powerStability ?? 'NORMAL';
         document.getElementById('maintenanceAlert').textContent = d.maintenanceAlert ?? 'No issues detected.';
-    });
+    }
+
+    // --- Helpers ---
+    function setBar(id, pct) {
+        const el = document.getElementById(id);
+        if (el) el.style.width = Math.min(Math.max(pct,0),100) + '%';
+    }
+    function setTag(id, status) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = status;
+        el.className = 'sensor-status-tag' + (status === 'NORMAL' ? '' : status === 'WARNING' ? ' warn' : status === 'CRITICAL' ? ' crit' : '');
+    }
+    function evalTag(val, warnHi, critHi, warnLo, critLo) {
+        if (critHi !== null && val >= critHi) return 'CRITICAL';
+        if (warnHi !== null && val >= warnHi) return 'WARNING';
+        if (critLo !== null && val <= critLo) return 'CRITICAL';
+        if (warnLo !== null && val <= warnLo) return 'WARNING';
+        return 'NORMAL';
+    }
 
     // ── Commands ──
     window.setMode = function(mode) {
