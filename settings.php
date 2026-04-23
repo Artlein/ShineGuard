@@ -1994,7 +1994,7 @@ async function loadSeeds() {
                     <td style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
                         ${s.exists 
                             ? `<button class="btn primary" onclick="handleRestore(${s.id})" style="padding: 6px 12px; font-size: 0.8rem; background: var(--green);">Restore</button>
-                               <a href="backups/${s.filename}" download="${s.filename}" class="btn secondary" style="padding: 6px 12px; font-size: 0.8rem; text-decoration: none; color: var(--primary); border: 1px solid var(--primary); background: transparent;">Download</a>`
+                               <button class="btn secondary" onclick="handleDownloadSeed('${s.filename}')" style="padding: 6px 12px; font-size: 0.8rem; color: var(--primary); border: 1px solid var(--primary); background: transparent;">Download</button>`
                             : `<button class="btn secondary" disabled style="padding: 6px 12px; font-size: 0.8rem; opacity: 0.5; cursor: not-allowed;">Orphaned</button>`
                         }
                         <button class="btn secondary" onclick="handleDeleteSeed(${s.id})" style="padding: 6px 12px; font-size: 0.8rem; color: #ef4444; border: 1px solid #ef444433; background: transparent;">Delete Record</button>
@@ -2032,7 +2032,9 @@ async function initiateForensicSeed() {
 }
 
 async function handleRestore(id) {
+    if (!id) return;
     openForensicChallenge(async (password) => {
+        // Validation check is done server side
         const formData = new FormData();
         formData.append('action', 'restore_seed');
         formData.append('id', id);
@@ -2046,10 +2048,40 @@ async function handleRestore(id) {
                 showAppAlert('Restoration Successful', 'The system has been forensically re-seeded. The page will reload.', 'success');
                 setTimeout(() => location.reload(), 3000);
             } else {
-                handleForensicAuthError(data.message || 'Forensic match failed');
+                handleForensicAuthError(data.message || 'Restoration failed');
             }
         } catch (e) {
-            handleForensicAuthError('Network failure during restoration.');
+            handleForensicAuthError('Network Error: Controller unreachable');
+        }
+    });
+}
+
+function handleDownloadSeed(filename) {
+    if (!filename) return;
+    openForensicChallenge(async (password) => {
+        // We verify the password first via an AJAX check if we want strict security, 
+        // but since they have to enter it to trigger this, and the folder is protected...
+        // Actually, let's verify it via auth_session.php
+        const formData = new URLSearchParams();
+        formData.append('admin_password', password);
+        formData.append('action', 'verify');
+        formData.append('csrf_token', '<?php echo generateCsrfToken(); ?>');
+
+        try {
+            const response = await fetch('api/auth_session.php', { method: 'POST', body: formData });
+            const result = await response.json();
+            if (result.success) {
+                const link = document.createElement('a');
+                link.href = 'backups/' + filename;
+                link.download = filename;
+                link.click();
+                closeModal('forensicAuthModal');
+                window.sgToast('📥', 'Download Started', 'The forensic seed is being pulled to your local disk.', '#10b981', '#ecfdf5');
+            } else {
+                handleForensicAuthError(result.error || 'Identity verification failed.');
+            }
+        } catch (e) {
+             handleForensicAuthError('Verification system unreachable.');
         }
     });
 }
@@ -2092,19 +2124,26 @@ function processForensicAuth() {
 }
 
 async function handleDeleteSeed(id) {
-    showAppConfirm('Delete Seed?', 'Permanently remove this forensic file from disk?', async () => {
+    if (!id) return;
+    openForensicChallenge(async (password) => {
         const formData = new FormData();
         formData.append('action', 'delete_seed');
         formData.append('id', id);
         formData.append('csrf_token', '<?php echo generateCsrfToken(); ?>');
+        formData.append('password', password); // Consistent naming
 
-        const response = await fetch('maintenance_actions.php', { method: 'POST', body: formData });
-        const data = await response.json();
-        if (data.success) {
-            loadSeeds();
-            showAppAlert('Seed Purged', 'Forensic seed deleted successfully.', 'info');
-        } else {
-            showAppAlert('Delete Failed', data.message, 'error');
+        try {
+            const response = await fetch('maintenance_actions.php', { method: 'POST', body: formData });
+            const data = await response.json();
+            if (data.success) {
+                loadSeeds();
+                showAppAlert('Seed Purged', 'Forensic seed deleted successfully.', 'info');
+                closeModal('forensicAuthModal');
+            } else {
+                handleForensicAuthError(data.message || 'Delete failed');
+            }
+        } catch (e) {
+            handleForensicAuthError('Network Error: Controller unreachable');
         }
     });
 }
