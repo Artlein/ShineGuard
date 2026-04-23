@@ -1289,7 +1289,7 @@ tbody td {
 
     <div class="setting-group group-data" style="margin-top: 2rem; border-top: 2px solid var(--border); padding-top: 3rem;">
         <h2>🌱 Forensic Seed & Recovery (FAR)</h2>
-        <p class="users-subtext" style="margin-bottom: 25px;">Create high-integrity system snapshots with SHA-256 validation. Every restore operation is forensically verified for tampering.</p>
+        <p class="users-subtext" style="margin-bottom: 25px;">Create high-integrity system Seeds with SHA-256 validation. Every restore operation is forensically verified for tampering.</p>
         
         <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); padding: 25px; border-radius: 20px; margin-bottom: 20px;">
             <div style="display: flex; align-items: center; justify-content: space-between;">
@@ -1970,27 +1970,25 @@ async function loadSeeds() {
     try {
         const response = await fetch('maintenance_actions.php?action=list_seeds');
         const data = await response.json();
+        
         if (data.success) {
-            if (data.snapshots.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">No forensic seeds found.</td></tr>';
+            if (!data.seeds || data.seeds.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">No forensic seeds found in the archive.</td></tr>`;
                 return;
             }
-            tbody.innerHTML = data.snapshots.map(s => `
+
+            tbody.innerHTML = data.seeds.map(s => `
                 <tr>
-                    <td style="font-family: monospace; color: #10b981;">#${s.id}</td>
+                    <td style="font-family: monospace; font-size: 0.85rem; color: var(--primary);">🌱 ${s.filename}</td>
                     <td>
-                        <div style="font-weight: 600;">${s.filename}</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted);">${s.notes || 'No description'}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-main); font-weight: 500;">${s.notes || 'Forensic System Image'}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">By ${s.creator_name || 'System Auto-Trigger'}</div>
                     </td>
-                    <td>${s.created_at}</td>
-                    <td>
-                        ${s.integrity_valid 
-                            ? '<span style="color: #10b981;">✅ Verified Integrity</span>' 
-                            : '<span style="color: var(--red);">⚠️ Hash Mismatch</span>'}
-                    </td>
-                    <td style="display: flex; gap: 8px;">
-                        <button class="btn-icon" title="Restore Data" onclick="handleRestore(${s.id})">🔄</button>
-                        <button class="btn-icon delete" title="Delete Permanent" onclick="handleDeleteSeed(${s.id})">🗑️</button>
+                    <td><span class="badge" style="background: rgba(16, 185, 129, 0.1); color: var(--green); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 6px; padding: 4px 8px; font-size: 0.7rem; font-weight: 800;">SHA-256 SEALED</span></td>
+                    <td style="color: var(--text-muted); font-size: 0.85rem;">${s.created_at}</td>
+                    <td style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+                        <button class="btn primary" onclick="handleRestore(${s.id})" style="padding: 6px 12px; font-size: 0.8rem; background: var(--green);">Restore</button>
+                        <button class="btn secondary" onclick="handleDeleteSeed(${s.id})" style="padding: 6px 12px; font-size: 0.8rem; color: #ef4444; border: 1px solid #ef444433; background: transparent;">Delete</button>
                     </td>
                 </tr>
             `).join('');

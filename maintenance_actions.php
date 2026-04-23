@@ -1,7 +1,7 @@
 <?php
 /**
  * FAR CONTROLLER - Forensic Archive & Recovery
- * Handles AJAX requests for system snapshots and restorations.
+ * Handles AJAX requests for system seeds and restorations.
  */
 require_once 'dbconnect.php';
 requireLoginApi('System Admin');
@@ -91,7 +91,7 @@ try {
         case 'list_seeds':
             // No CSRF strictly required for read-only listing in this context
             $seeds = MaintenanceService::getForensicSeeds($conn);
-            echo json_encode(['success' => true, 'snapshots' => $seeds]);
+            echo json_encode(['success' => true, 'seeds' => $seeds]);
             break;
 
         case 'check_sba':

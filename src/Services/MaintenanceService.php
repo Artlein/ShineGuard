@@ -109,7 +109,7 @@ class MaintenanceService {
         $fileSize = filesize($filePath);
 
         // 6. Register in Database
-        $stmt = $conn->prepare("INSERT INTO backup_registry (filename, snapshot_hash, filesize, notes, created_by) VALUES (?, ?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO backup_registry (filename, seed_hash, filesize, notes, created_by) VALUES (?, ?, ?, ?, ?)");
         $stmt->bind_param("ssisi", $filename, $hash, $fileSize, $notes, $admin_id);
         
         if ($stmt->execute()) {
@@ -184,7 +184,7 @@ class MaintenanceService {
 
         // 3. FORENSIC VALIDATION: Check for tampering
         $currentHash = hash_file('sha256', $filePath);
-        if (!hash_equals($seed['snapshot_hash'], $currentHash)) {
+        if (!hash_equals($seed['seed_hash'], $currentHash)) {
             AuditService::logActivity($conn, $admin_id, 'FAR_TAMPER_DETECTED', "CRITICAL: Attempted restore from tampered file: {$seed['filename']}");
             return ['success' => false, 'error' => 'tampered', 'message' => 'FORENSIC ALERT: Seed hash mismatch. File has been tampered with.'];
         }
