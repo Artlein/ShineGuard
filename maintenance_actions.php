@@ -33,7 +33,7 @@ if ($tableCheck->num_rows === 0) {
 
 try {
     switch ($action) {
-        case 'generate_snapshot':
+        case 'generate_seed':
             checkCsrf();
             $password = $_POST['password'] ?? '';
             $user_id = $_SESSION['user_id'];
@@ -48,12 +48,12 @@ try {
                 echo json_encode(['success' => false, 'error' => 'auth_failed', 'message' => 'Admin password required for forensic operations.']);
                 exit();
             }
-            $notes = sanitize($_POST['notes'] ?? 'Manual Forensic Snapshot');
-            $result = MaintenanceService::generateForensicSnapshot($conn, $user_id, $notes);
+            $notes = sanitize($_POST['notes'] ?? 'Manual Forensic Seed');
+            $result = MaintenanceService::generateForensicSeed($conn, $user_id, $notes);
             echo json_encode($result);
             break;
 
-        case 'restore_snapshot':
+        case 'restore_seed':
             checkCsrf();
             $password = $_POST['password'] ?? '';
             $user_id = $_SESSION['user_id'];
@@ -69,21 +69,21 @@ try {
                 exit();
             }
             $id = (int)($_POST['id'] ?? 0);
-            $result = MaintenanceService::restoreForensicSnapshot($conn, $id, $user_id);
+            $result = MaintenanceService::restoreForensicSeed($conn, $id, $user_id);
             echo json_encode($result);
             break;
 
-        case 'delete_snapshot':
+        case 'delete_seed':
             checkCsrf();
             $id = (int)($_POST['id'] ?? 0);
-            $result = MaintenanceService::deleteForensicSnapshot($conn, $id, IdentityService::getUserId());
+            $result = MaintenanceService::deleteForensicSeed($conn, $id, IdentityService::getUserId());
             echo json_encode($result);
             break;
 
-        case 'list_snapshots':
+        case 'list_seeds':
             // No CSRF strictly required for read-only listing in this context
-            $snapshots = MaintenanceService::getForensicSnapshots($conn);
-            echo json_encode(['success' => true, 'snapshots' => $snapshots]);
+            $seeds = MaintenanceService::getForensicSeeds($conn);
+            echo json_encode(['success' => true, 'snapshots' => $seeds]);
             break;
 
         case 'check_sba':

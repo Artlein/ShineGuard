@@ -68,11 +68,11 @@ class MaintenanceService {
     // ── FORENSIC ARCHIVE & RECOVERY (FAR) ENGINE ──
 
     /**
-     * Generates a complete database snapshot with a forensic SHA-256 hash
+     * Generates a complete database Seed with a forensic SHA-256 hash
      */
-    public static function generateForensicSnapshot($conn, $admin_id, $notes = '') {
-        // 1. Security Check: Must be recently authorized via SBA
-        if (!IdentityService::isRecentlyAuthorized()) {
+    public static function generateForensicSeed($conn, $admin_id, $notes = '', $isAutomated = false) {
+        // 1. Security Check: Must be recently authorized via SBA (If manual)
+        if (!$isAutomated && !IdentityService::isRecentlyAuthorized()) {
             return ['success' => false, 'error' => 'not_authorized', 'message' => 'Secure session expired. Please re-verify.'];
         }
 
@@ -80,7 +80,8 @@ class MaintenanceService {
         if (!is_dir($backupDir)) mkdir($backupDir, 0755, true);
 
         $timestamp = date('Ymd_His');
-        $filename = "SG_FORENSIC_SNAP_{$timestamp}_" . bin2hex(random_bytes(4)) . ".sql";
+        $prefix = $isAutomated ? "SG_AUTO_SEED" : "SG_FORENSIC_SEED";
+        $filename = "{$prefix}_{$timestamp}_" . bin2hex(random_bytes(4)) . ".sql";
         $filePath = $backupDir . $filename;
 
         // 2. Identify Environment and Binary
@@ -112,27 +113,28 @@ class MaintenanceService {
         $stmt->bind_param("ssisi", $filename, $hash, $fileSize, $notes, $admin_id);
         
         if ($stmt->execute()) {
-            AuditService::logActivity($conn, $admin_id, 'FAR_SNAPSHOT_CREATED', "Forensic snapshot generated: $filename (Hash: " . substr($hash, 0, 8) . "...)");
+            $logType = $isAutomated ? 'FAR_AUTO_SEED_CREATED' : 'FAR_SEED_CREATED';
+            AuditService::logActivity($conn, $admin_id, $logType, "Forensic Seed generated: $filename (Hash: " . substr($hash, 0, 8) . "...)");
             return ['success' => true, 'filename' => $filename, 'hash' => $hash];
         }
 
-        return ['success' => false, 'error' => 'registry_failed', 'message' => 'Failed to log snapshot in registry.'];
+        return ['success' => false, 'error' => 'registry_failed', 'message' => 'Failed to log seed in registry.'];
     }
 
     /**
-     * Lists all forensic snapshots with real-time integrity status
+     * Lists all forensic Seeds with real-time integrity status
      */
-    public static function getForensicSnapshots($conn) {
+    public static function getForensicSeeds($conn) {
         $sql = "SELECT r.*, u.full_name as admin_name 
                 FROM backup_registry r 
                 LEFT JOIN users u ON r.created_by = u.user_id 
                 ORDER BY r.created_at DESC";
         
         $result = $conn->query($sql);
-        $snapshots = [];
+        $seeds = [];
         
         if (!$result) {
-            error_log("FAR ERROR: Database query failed in getForensicSnapshots: " . $conn->error);
+            error_log("FAR ERROR: Database query failed in getForensicSeeds: " . $conn->error);
             return [];
         }
 
@@ -149,32 +151,32 @@ class MaintenanceService {
                 $row['integrity_valid'] = false;
             }
             
-            $snapshots[] = $row;
+            $seeds[] = $row;
         }
-        return $snapshots;
+        return $seeds;
     }
 
     /**
      * Restores the system to a previous forensic state
      */
-    public static function restoreForensicSnapshot($conn, $snapshot_id, $admin_id) {
+    public static function restoreForensicSeed($conn, $seed_id, $admin_id) {
         // 1. Security Check: Must be recently authorized via SBA
         if (!IdentityService::isRecentlyAuthorized()) {
             return ['success' => false, 'error' => 'not_authorized', 'message' => 'Secure session required for restoration.'];
         }
 
-        // 2. Fetch Snapshot Metadata
+        // 2. Fetch Seed Metadata
         $stmt = $conn->prepare("SELECT * FROM backup_registry WHERE id = ?");
-        $stmt->bind_param("i", $snapshot_id);
+        $stmt->bind_param("i", $seed_id);
         $stmt->execute();
-        $snapshot = $stmt->get_result()->fetch_assoc();
+        $seed = $stmt->get_result()->fetch_assoc();
         
-        if (!$snapshot) {
-            return ['success' => false, 'error' => 'not_found', 'message' => 'Snapshot not found in registry.'];
+        if (!$seed) {
+            return ['success' => false, 'error' => 'not_found', 'message' => 'Seed not found in registry.'];
         }
 
         $backupDir = __DIR__ . '/../../backups/';
-        $filePath = $backupDir . $snapshot['filename'];
+        $filePath = $backupDir . $seed['filename'];
 
         if (!file_exists($filePath)) {
             return ['success' => false, 'error' => 'file_missing', 'message' => 'Physical backup file was deleted from disk.'];
@@ -182,9 +184,9 @@ class MaintenanceService {
 
         // 3. FORENSIC VALIDATION: Check for tampering
         $currentHash = hash_file('sha256', $filePath);
-        if (!hash_equals($snapshot['snapshot_hash'], $currentHash)) {
-            AuditService::logActivity($conn, $admin_id, 'FAR_TAMPER_DETECTED', "CRITICAL: Attempted restore from tampered file: {$snapshot['filename']}");
-            return ['success' => false, 'error' => 'tampered', 'message' => 'FORENSIC ALERT: Snapshot hash mismatch. File has been tampered with.'];
+        if (!hash_equals($seed['snapshot_hash'], $currentHash)) {
+            AuditService::logActivity($conn, $admin_id, 'FAR_TAMPER_DETECTED', "CRITICAL: Attempted restore from tampered file: {$seed['filename']}");
+            return ['success' => false, 'error' => 'tampered', 'message' => 'FORENSIC ALERT: Seed hash mismatch. File has been tampered with.'];
         }
 
         // 4. Identify Environment and Binary
@@ -203,7 +205,7 @@ class MaintenanceService {
         exec($command, $output, $returnVar);
 
         if ($returnVar === 0) {
-            AuditService::logActivity($conn, $admin_id, 'FAR_RESTORE_COMPLETE', "System restored to state: {$snapshot['filename']}");
+            AuditService::logActivity($conn, $admin_id, 'FAR_RESTORE_COMPLETE', "System restored to state: {$seed['filename']}");
             return ['success' => true];
         }
 
@@ -211,15 +213,15 @@ class MaintenanceService {
     }
 
     /**
-     * Deletes a forensic snapshot permanently
+     * Deletes a forensic Seed permanently
      */
-    public static function deleteForensicSnapshot($conn, $snapshot_id, $admin_id) {
+    public static function deleteForensicSeed($conn, $seed_id, $admin_id) {
         if (!IdentityService::isRecentlyAuthorized()) {
             return ['success' => false, 'error' => 'not_authorized', 'message' => 'Secure session required.'];
         }
 
         $stmt = $conn->prepare("SELECT filename FROM backup_registry WHERE id = ?");
-        $stmt->bind_param("i", $snapshot_id);
+        $stmt->bind_param("i", $seed_id);
         $stmt->execute();
         $res = $stmt->get_result()->fetch_assoc();
 
@@ -228,10 +230,10 @@ class MaintenanceService {
             if (file_exists($filePath)) unlink($filePath);
             
             $del = $conn->prepare("DELETE FROM backup_registry WHERE id = ?");
-            $del->bind_param("i", $snapshot_id);
+            $del->bind_param("i", $seed_id);
             $del->execute();
             
-            AuditService::logActivity($conn, $admin_id, 'FAR_SNAPSHOT_DELETED', "Snapshot deleted: {$res['filename']}");
+            AuditService::logActivity($conn, $admin_id, 'FAR_SEED_DELETED', "Seed deleted: {$res['filename']}");
             return ['success' => true];
         }
         return ['success' => false, 'error' => 'not_found'];

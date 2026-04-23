@@ -1153,7 +1153,7 @@ tbody td {
     <?php if ($isAdmin): ?>
     <button class="tab <?php echo $active_tab === 'preferences' ? 'active' : ''; ?>" onclick="switchTab('preferences', this)">🎨 System Preferences</button>
     <button class="tab <?php echo $active_tab === 'thresholds'  ? 'active' : ''; ?>" onclick="switchTab('thresholds', this)">📊 Predictive Thresholds</button>
-    <button class="tab <?php echo $active_tab === 'data'        ? 'active' : ''; ?>" onclick="switchTab('data', this)">💾 Data & Backup</button>
+    <button class="tab <?php echo $active_tab === 'data'        ? 'active' : ''; ?>" onclick="switchTab('data', this)">🌱 Seed & Recovery</button>
     <?php endif; ?>
     <button class="tab <?php echo $active_tab === 'security'    ? 'active' : ''; ?>" onclick="switchTab('security', this)">🛡️ Security</button>
     <?php if ($isAdmin): ?>
@@ -1288,7 +1288,7 @@ tbody td {
   <div id="data" class="tab-content <?php echo $active_tab === 'data' ? 'active' : ''; ?>">
 
     <div class="setting-group group-data" style="margin-top: 2rem; border-top: 2px solid var(--border); padding-top: 3rem;">
-        <h2>📂 Forensic Archive & Recovery (FAR)</h2>
+        <h2>🌱 Forensic Seed & Recovery (FAR)</h2>
         <p class="users-subtext" style="margin-bottom: 25px;">Create high-integrity system snapshots with SHA-256 validation. Every restore operation is forensically verified for tampering.</p>
         
         <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); padding: 25px; border-radius: 20px; margin-bottom: 30px;">
@@ -1298,28 +1298,28 @@ tbody td {
                         <img src="https://img.icons8.com/isometric/512/shield.png" style="width: 45px; filter: hue-rotate(100deg); image-rendering: -webkit-optimize-contrast;">
                         <div>
                             <h3 style="margin: 0; color: #10b981; font-size: 1rem;">Password Authorization Active</h3>
-                            <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">High-integrity snapshots require administrator password verification.</p>
+                            <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">High-integrity seeds require administrator password verification.</p>
                         </div>
                     </div>
                 </div>
-                <button type="button" class="btn primary" onclick="initiateForensicBackup()" style="display: flex; align-items: center; gap: 10px; background: var(--green);">
-                    <span>➕ Initiate Forensic Snapshot</span>
+                <button type="button" class="btn primary" onclick="initiateForensicSeed()" style="display: flex; align-items: center; gap: 10px; background: var(--green);">
+                    <span>➕ Initiate Forensic Seed</span>
                 </button>
             </div>
         </div>
 
         <div class="table-wrapper" style="min-height: 150px;">
-           <table id="snapshot_table">
+           <table id="seed_table">
                <thead>
                    <tr>
-                       <th>Snapshot ID</th>
+                       <th>Seed ID</th>
+                       <th>Filename</th>
                        <th>Created At</th>
-                       <th>Size</th>
                        <th>Integrity</th>
                        <th>Actions</th>
                    </tr>
                </thead>
-               <tbody id="snapshot_list_body">
+               <tbody id="seed_list_body">
                    <tr>
                        <td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">
                            <div class="spinner"></div> Loading forensic archive...
@@ -1946,80 +1946,63 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize FAR if on data tab
     if (tab === 'data') {
-        loadSnapshots();
+        loadSeeds();
     }
 });
 
 // ── FORENSIC ARCHIVE & RECOVERY (FAR) LOGIC ──
 
-async function loadSnapshots() {
-    const tbody = document.getElementById('snapshot_list_body');
+async function loadSeeds() {
+    const tbody = document.getElementById('seed_list_body');
     if (!tbody) return;
 
     try {
-        const response = await fetch('maintenance_actions.php?action=list_snapshots');
-        if (!response.ok) throw new Error('HTTP status ' + response.status);
-        
+        const response = await fetch('maintenance_actions.php?action=list_seeds');
         const data = await response.json();
-
         if (data.success) {
             if (data.snapshots.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">No forensic snapshots found.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">No forensic seeds found.</td></tr>';
                 return;
             }
-
             tbody.innerHTML = data.snapshots.map(s => `
                 <tr>
-                    <td><code style="font-size:0.85rem; color:var(--blue);">SNAP_${s.filename.split('_').slice(-1)[0].replace('.sql', '').substring(0,6)}</code></td>
-                    <td style="font-size:0.85rem;">${new Date(s.created_at).toLocaleString()}</td>
-                    <td style="font-size:0.85rem;">${(s.filesize / 1024 / 1024).toFixed(2)} MB</td>
+                    <td style="font-family: monospace; color: #10b981;">#${s.id}</td>
+                    <td>
+                        <div style="font-weight: 600;">${s.filename}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">${s.notes || 'No description'}</div>
+                    </td>
+                    <td>${s.created_at}</td>
                     <td>
                         ${s.integrity_valid 
-                            ? '<span class="badge ok" style="background:#10b98122; color:#10b981; border:1px solid #10b98144;">✅ Valid</span>' 
-                            : '<span class="badge fail" title="SHA-256 Mismatch Detected">⚠️ Tampered</span>'}
+                            ? '<span style="color: #10b981;">✅ Verified Integrity</span>' 
+                            : '<span style="color: var(--red);">⚠️ Hash Mismatch</span>'}
                     </td>
-                    <td>
-                        <div style="display: flex; gap: 8px;">
-                            <button class="btn-icon reset" title="Verify & Restore" onclick="handleRestore(${s.id})">🔄</button>
-                            <button class="btn-icon delete" title="Delete Permanent" onclick="handleDeleteSnapshot(${s.id})">🗑️</button>
-                        </div>
+                    <td style="display: flex; gap: 8px;">
+                        <button class="btn-icon" title="Restore Data" onclick="handleRestore(${s.id})">🔄</button>
+                        <button class="btn-icon delete" title="Delete Permanent" onclick="handleDeleteSeed(${s.id})">🗑️</button>
                     </td>
                 </tr>
             `).join('');
-        } else {
-            let errorHtml = `${data.error || 'Access Denied'}<br><small style="opacity:0.7;">Please refresh the page to re-verify session.</small>`;
-            
-            if (data.error && data.error.includes('table missing')) {
-                errorHtml = `${data.error}<br><a href="aws_migrate.php" class="btn primary" style="margin-top:15px; display:inline-block; font-size:0.8rem; padding:8px 15px;">🚀 Run Database Migration</a>`;
-            }
-
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--red);">
-                <div style="font-size:1.5rem; margin-bottom:10px;">🔒</div>
-                ${errorHtml}
-            </td></tr>`;
         }
-    } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--red); padding: 40px;">
-            <div style="margin-bottom:10px;">❌ Connection Failed</div>
-            <small>${err.message}</small>
-        </td></tr>`;
+    } catch (e) {
+        console.error("FAR LOAD ERROR:", e);
     }
 }
 
-async function initiateForensicBackup() {
+async function initiateForensicSeed() {
     openForensicChallenge(async (password) => {
         const formData = new FormData();
-        formData.append('action', 'generate_snapshot');
+        formData.append('action', 'generate_seed');
         formData.append('csrf_token', '<?php echo generateCsrfToken(); ?>');
-        formData.append('notes', 'Manual Admin Snapshot');
+        formData.append('notes', 'Manual Admin Seed');
         formData.append('password', password);
 
         try {
             const response = await fetch('maintenance_actions.php', { method: 'POST', body: formData });
             const data = await response.json();
             if (data.success) {
-                showAppAlert('Snapshot Created', 'Forensic backup successfully generated and logged in the registry.', 'success');
-                loadSnapshots();
+                showAppAlert('Seed Generated', 'Forensic seed successfully generated and logged in the registry.', 'success');
+                loadSeeds();
                 closeModal('forensicAuthModal');
             } else {
                 handleForensicAuthError(data.message || 'Verification failed');
@@ -2033,7 +2016,7 @@ async function initiateForensicBackup() {
 async function handleRestore(id) {
     openForensicChallenge(async (password) => {
         const formData = new FormData();
-        formData.append('action', 'restore_snapshot');
+        formData.append('action', 'restore_seed');
         formData.append('id', id);
         formData.append('csrf_token', '<?php echo generateCsrfToken(); ?>');
         formData.append('password', password);
@@ -2042,7 +2025,7 @@ async function handleRestore(id) {
             const response = await fetch('maintenance_actions.php', { method: 'POST', body: formData });
             const data = await response.json();
             if (data.success) {
-                showAppAlert('Restoration Successful', 'The system has been forensically rolled back. The page will reload.', 'success');
+                showAppAlert('Restoration Successful', 'The system has been forensically re-seeded. The page will reload.', 'success');
                 setTimeout(() => location.reload(), 3000);
             } else {
                 handleForensicAuthError(data.message || 'Forensic match failed');
@@ -2090,17 +2073,18 @@ function processForensicAuth() {
     }
 }
 
-async function handleDeleteSnapshot(id) {
-    showAppConfirm('Delete Snapshot?', 'Permanently remove this forensic file from disk?', async () => {
+async function handleDeleteSeed(id) {
+    showAppConfirm('Delete Seed?', 'Permanently remove this forensic file from disk?', async () => {
         const formData = new FormData();
-        formData.append('action', 'delete_snapshot');
+        formData.append('action', 'delete_seed');
         formData.append('id', id);
         formData.append('csrf_token', '<?php echo generateCsrfToken(); ?>');
 
         const response = await fetch('maintenance_actions.php', { method: 'POST', body: formData });
         const data = await response.json();
         if (data.success) {
-            loadSnapshots();
+            loadSeeds();
+            showAppAlert('Seed Purged', 'Forensic seed deleted successfully.', 'info');
         } else {
             showAppAlert('Delete Failed', data.message, 'error');
         }
