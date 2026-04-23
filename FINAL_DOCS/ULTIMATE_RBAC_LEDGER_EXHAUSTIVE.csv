@@ -15,6 +15,8 @@ ADM_13,Firebase Raw,Cloud Stream Audit.,Data exists,1. [Firebase Raw Data] -> Mo
 ADM_14,Global Settings,Global Governance.,Admin Context,1. Settings -> Edit 'System Name' -> Save.,Branding updates site-wide instantly.,Shineguard Hub,,
 ADM_15,Integrity Audit,Cryptographic check.,Actions done,1. [Security Logs] -> Verify Signature.,"Entry turns Green: 'Signed by Kernel'.",Log Hash,,
 ADM_16,MFA Override,Emergency Identity.,Admin Context,1. User Profile -> [Reset MFA].,User MFA detached; fresh enrollment req.,Stale Token,,
+ADM_17,Snapshot Init,Forensic Backup.,Admin logged,"1. Data & Backup -> [Initiate Snapshot]. 2. Enter Admin Password.",SQL Archive generated with SHA-256 seal.,System Image,,
+ADM_18,System Restore,Forensic Rollback.,Snapshot exists,"1. [Verify & Restore] -> Enter Admin Pass.",Database state restored; Page reloads.,Forensic Log,,
 
 MNT_01,Ops Entry,Operational Entry.,Mnt Account,1. Login with Maintainer credentials.,Restricted Dashboard loads; Admin menus hidden.,Mnt Account,,
 MNT_02,Ops Dashboard,Field Monitoring.,Logged in,1. Audit telemetry. 2. Verify PII masking.,"Data: A***n R***s (Data Privacy active).",Resident PII,,

@@ -1297,8 +1297,8 @@ tbody td {
                     <div class="header-status" style="display: flex; align-items: center; gap: 15px; margin-top: 10px;">
                         <img src="https://img.icons8.com/isometric/512/shield.png" style="width: 45px; filter: hue-rotate(100deg); image-rendering: -webkit-optimize-contrast;">
                         <div>
-                            <h3 style="margin: 0; color: #10b981; font-size: 1rem;">MFA Authorization Active</h3>
-                            <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">High-integrity snapshots require physical token verification.</p>
+                            <h3 style="margin: 0; color: #10b981; font-size: 1rem;">Password Authorization Active</h3>
+                            <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">High-integrity snapshots require administrator password verification.</p>
                         </div>
                     </div>
                 </div>
@@ -2007,12 +2007,12 @@ async function loadSnapshots() {
 }
 
 async function initiateForensicBackup() {
-    openForensicChallenge(async (mfaCode) => {
+    openForensicChallenge(async (password) => {
         const formData = new FormData();
         formData.append('action', 'generate_snapshot');
         formData.append('csrf_token', '<?php echo generateCsrfToken(); ?>');
         formData.append('notes', 'Manual Admin Snapshot');
-        formData.append('mfa_code', mfaCode);
+        formData.append('password', password);
 
         try {
             const response = await fetch('maintenance_actions.php', { method: 'POST', body: formData });
@@ -2020,23 +2020,23 @@ async function initiateForensicBackup() {
             if (data.success) {
                 showAppAlert('Snapshot Created', 'Forensic backup successfully generated and logged in the registry.', 'success');
                 loadSnapshots();
-                closeModal('forensicMfaModal');
+                closeModal('forensicAuthModal');
             } else {
-                handleForensicMfaError(data.message || 'Verification failed');
+                handleForensicAuthError(data.message || 'Verification failed');
             }
         } catch (e) {
-            handleForensicMfaError('Network Error: Controller unreachable');
+            handleForensicAuthError('Network Error: Controller unreachable');
         }
     });
 }
 
 async function handleRestore(id) {
-    openForensicChallenge(async (mfaCode) => {
+    openForensicChallenge(async (password) => {
         const formData = new FormData();
         formData.append('action', 'restore_snapshot');
         formData.append('id', id);
         formData.append('csrf_token', '<?php echo generateCsrfToken(); ?>');
-        formData.append('mfa_code', mfaCode);
+        formData.append('password', password);
 
         try {
             const response = await fetch('maintenance_actions.php', { method: 'POST', body: formData });
@@ -2045,27 +2045,27 @@ async function handleRestore(id) {
                 showAppAlert('Restoration Successful', 'The system has been forensically rolled back. The page will reload.', 'success');
                 setTimeout(() => location.reload(), 3000);
             } else {
-                handleForensicMfaError(data.message || 'Forensic match failed');
+                handleForensicAuthError(data.message || 'Forensic match failed');
             }
         } catch (e) {
-            handleForensicMfaError('Network failure during restoration.');
+            handleForensicAuthError('Network failure during restoration.');
         }
     });
 }
 
-// ── Forensic MFA Controller ──
+// ── Forensic Authorization Controller ──
 let activeForensicAction = null;
 
 function openForensicChallenge(actionCallback) {
-    document.getElementById('forensic_mfa_code').value = '';
-    document.getElementById('forensicMfaError').style.display = 'none';
+    document.getElementById('forensic_password').value = '';
+    document.getElementById('forensicAuthError').style.display = 'none';
     activeForensicAction = actionCallback;
-    openModal('forensicMfaModal');
-    setTimeout(() => document.getElementById('forensic_mfa_code').focus(), 300);
+    openModal('forensicAuthModal');
+    setTimeout(() => document.getElementById('forensic_password').focus(), 300);
 }
 
-function handleForensicMfaError(msg) {
-    const errEl = document.getElementById('forensicMfaError');
+function handleForensicAuthError(msg) {
+    const errEl = document.getElementById('forensicAuthError');
     errEl.textContent = msg;
     errEl.style.display = 'block';
     
@@ -2076,17 +2076,17 @@ function handleForensicMfaError(msg) {
     btn.style.opacity = '1';
 }
 
-function processForensicMfa() {
+function processForensicAuth() {
     const btn = document.getElementById('confirmForensicBtn');
-    const code = document.getElementById('forensic_mfa_code').value.trim().replace(/\s/g, '');
+    const password = document.getElementById('forensic_password').value;
     
-    if (code.length === 6 && activeForensicAction) {
+    if (password.length > 0 && activeForensicAction) {
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-small"></span> Authorizing...';
         btn.style.opacity = '0.7';
-        activeForensicAction(code);
+        activeForensicAction(password);
     } else {
-        handleForensicMfaError('Please enter a valid 6-digit code.');
+        handleForensicAuthError('Please enter your administrator password.');
     }
 }
 
@@ -2116,30 +2116,30 @@ async function checkSBA() {
 }
 </script>
 
-<!-- Forensic MFA Challenge Modal -->
-<div id="forensicMfaModal" class="modal">
+<!-- Forensic Password Challenge Modal -->
+<div id="forensicAuthModal" class="modal">
   <div class="modal-content modal-spring" style="max-width: 400px; border: 1px solid rgba(16, 185, 129, 0.3);">
     <div class="modal-header" style="border-bottom: 1px solid var(--border); margin-bottom: 20px; padding-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
       <h2 style="margin: 0; font-size: 1.25rem; color: #10b981;">🛡️ Forensic Authorization</h2>
-      <button type="button" class="btn-sm" onclick="closeModal('forensicMfaModal')" style="border: none; background: none; font-size: 1.2rem; cursor: pointer;">✕</button>
+      <button type="button" class="btn-sm" onclick="closeModal('forensicAuthModal')" style="border: none; background: none; font-size: 1.2rem; cursor: pointer;">✕</button>
     </div>
     <div class="modal-body-content" style="text-align: center;">
       <div class="info-box" style="background: rgba(16, 185, 129, 0.05); color: #10b981; border: 1px dashed rgba(16, 185, 129, 0.3); margin-bottom: 25px; padding: 15px; border-radius: 12px; font-size: 0.9rem;">
           <strong>Confidential Operation Detected</strong><br>
-          A fresh physical token verification is required to proceed with this forensic transaction.
+          Administrator password verification is required to proceed with this forensic transaction.
       </div>
 
       <div class="setting-item" style="margin-bottom: 25px;">
-          <label style="display: block; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem; color: var(--text);">Enter 6-Digit MFA Code</label>
-          <input type="text" id="forensic_mfa_code" placeholder="000 000" maxlength="6" 
-                 style="width: 100%; text-align: center; font-size: 1.8rem; letter-spacing: 0.2em; font-weight: 800; padding: 15px; border-radius: 12px; border: 2px solid var(--border); background: var(--surface-2); color: var(--text);" 
-                 required autofocus autocomplete="off">
-          <div id="forensicMfaError" style="color: var(--red); font-size: 0.85rem; margin-top: 10px; display: none;">Invalid or expired code.</div>
+          <label style="display: block; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem; color: var(--text);">Enter Admin Password</label>
+          <input type="password" id="forensic_password" placeholder="Verify your password" 
+                 style="width: 100%; text-align: center; font-size: 1.2rem; font-weight: 800; padding: 15px; border-radius: 12px; border: 2px solid var(--border); background: var(--surface-2); color: var(--text);" 
+                 required autofocus autocomplete="current-password">
+          <div id="forensicAuthError" style="color: var(--red); font-size: 0.85rem; margin-top: 10px; display: none;">Invalid password.</div>
       </div>
       
       <div style="display: flex; gap: 12px; justify-content: stretch; border-top: 1px solid var(--border); padding-top: 20px;">
-          <button type="button" class="btn" onclick="closeModal('forensicMfaModal')" style="flex: 1; padding: 12px; border-radius: 10px;">Cancel</button>
-          <button type="button" class="btn primary" id="confirmForensicBtn" onclick="processForensicMfa()" style="flex: 2; background: #10b981; color: white; padding: 12px; border-radius: 10px; font-weight: 700; transition: all 0.2s;">Authorize Transaction</button>
+          <button type="button" class="btn" onclick="closeModal('forensicAuthModal')" style="flex: 1; padding: 12px; border-radius: 10px;">Cancel</button>
+          <button type="button" class="btn primary" id="confirmForensicBtn" onclick="processForensicAuth()" style="flex: 2; background: #10b981; color: white; padding: 12px; border-radius: 10px; font-weight: 700; transition: all 0.2s;">Authorize Transaction</button>
       </div>
     </div>
   </div>

@@ -20,6 +20,11 @@ This is the definitive guide for your live demonstration. Each row follows the *
 | **ADM_10** | **FAR Snapshot** | Forensic Backup. | SBA Active | 1. Settings -> Backup.<br>2. Click **[Generate Snapshot]**. | Progress bar finishes; Snap hash: `0xBE...` shown. | DB Registry | Snapshot OK | PASS |
 | **ADM_11** | **User Lifecycle** | Role & Identity Gov. | Admin Context| 1. Settings -> Users.<br>2. Update Operator to Admin. | Permission trees rebuild; user has full access. | User: Arvin | Role Update | PASS |
 | **ADM_12** | **MFA Override** | Emergency Identity Reset.| Admin Context| 1. In User Profile, push **[Reset MFA]**.<br>2. Confirm with Admin Password. | User MFA detached; fresh enrollment required. | Stale Token | MFA Reset OK | PASS |
+| **ADM_13** | **CCTV Immersion** | Full-screen live video audit. | Feeds active | 1. Navigate to **[CCTV Feeds]**.<br>2. Select 'Node SL-002' stream.<br>3. Click **[Expand Fullscreen]** icon. | High-def stream fills display; real-time video verified. | SL-002 Stream | Working OK | PASS |
+| **ADM_14** | **Alert Lifecycle** | Fault resolution and audit trail. | Alerts active | 1. Access **[Alerts Center]**.<br>2. Click **[Acknowledge]** on fault.<br>3. Input note and click **[Resolve]**. | Status: Resolved; timestamp and user ID persisted. | High-Severity | Resolved | PASS |
+| **ADM_15** | **Smart Scheduling** | View and add operational schedules. | Admin Context | 1. Click **[Schedules]** on sidebar.<br>2. Audit list and click **[Add New]**.<br>3. Set time/dim level and click **[Save]**. | Schedule added to registry; automated triggers updated. | 18:00 @ 50% | Schedule OK | PASS |
+| **ADM_16** | **Raw Firebase Data**| Audit unprocessed IoT telemetry. | Admin Context | 1. Click **[Firebase Raw Data]** on sidebar.<br>2. Inspect live JSON stream from SG-NODE2. | Raw attributes (ldrData, temp) update live in real-time. | Firebase JSON | Data Live | PASS |
+| **ADM_17** | **Global Governance**| Manage core settings & system identity. | Admin Context | 1. Go to **[Settings]**.<br>2. Audit Prefs, Thresholds, Backup, Security, Users.<br>3. Edit 'System Name' -> 'ShineGuard City Hub' & Save. | Prefs synchronized; System name updates site-wide. | ShineGuard City Hub | Identity Sync | PASS |
 
 ---
 

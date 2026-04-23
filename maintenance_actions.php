@@ -35,27 +35,41 @@ try {
     switch ($action) {
         case 'generate_snapshot':
             checkCsrf();
-            $mfa = $_POST['mfa_code'] ?? '';
-            if (!IdentityService::verifyActionMfa($conn, $mfa)) {
+            $password = $_POST['password'] ?? '';
+            $user_id = $_SESSION['user_id'];
+            $stmt = $conn->prepare("SELECT password_hash FROM users WHERE user_id = ?");
+            $stmt->bind_param("i", $user_id);
+            $stmt->execute();
+            $user_data = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            
+            if (!$user_data || !password_verify($password, $user_data['password_hash'])) {
                 http_response_code(403);
-                echo json_encode(['success' => false, 'error' => 'mfa_failed', 'message' => 'Valid MFA code required for forensic operations.']);
+                echo json_encode(['success' => false, 'error' => 'auth_failed', 'message' => 'Admin password required for forensic operations.']);
                 exit();
             }
             $notes = sanitize($_POST['notes'] ?? 'Manual Forensic Snapshot');
-            $result = MaintenanceService::generateForensicSnapshot($conn, IdentityService::getUserId(), $notes);
+            $result = MaintenanceService::generateForensicSnapshot($conn, $user_id, $notes);
             echo json_encode($result);
             break;
 
         case 'restore_snapshot':
             checkCsrf();
-            $mfa = $_POST['mfa_code'] ?? '';
-            if (!IdentityService::verifyActionMfa($conn, $mfa)) {
+            $password = $_POST['password'] ?? '';
+            $user_id = $_SESSION['user_id'];
+            $stmt = $conn->prepare("SELECT password_hash FROM users WHERE user_id = ?");
+            $stmt->bind_param("i", $user_id);
+            $stmt->execute();
+            $user_data = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            
+            if (!$user_data || !password_verify($password, $user_data['password_hash'])) {
                 http_response_code(403);
-                echo json_encode(['success' => false, 'error' => 'mfa_failed', 'message' => 'Valid MFA code required for restoration.']);
+                echo json_encode(['success' => false, 'error' => 'auth_failed', 'message' => 'Admin password required for restoration.']);
                 exit();
             }
             $id = (int)($_POST['id'] ?? 0);
-            $result = MaintenanceService::restoreForensicSnapshot($conn, $id, IdentityService::getUserId());
+            $result = MaintenanceService::restoreForensicSnapshot($conn, $id, $user_id);
             echo json_encode($result);
             break;
 

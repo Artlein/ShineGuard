@@ -25,6 +25,8 @@ This manual provides the definitive demonstration flow for all system roles (Adm
 | **ADM_14** | **Global Settings**| Global Governance. | Admin Context| 1. Settings -> Edit 'System Name' -> Save. | Branding updates site-wide instantly. |
 | **ADM_15** | **Integrity Audit** | Cryptographic check.| Actions done | 1. [Security Logs] -> Verify Signature. | Entry turns Green: 'Signed by Kernel'. |
 | **ADM_16** | **MFA Override** | Emergency Identity.| Admin Context| 1. User Profile -> [Reset MFA]. | User MFA detached; fresh enrollment req. |
+| **ADM_17** | **Snapshot Init** | Forensic Backup. | Admin logged | 1. Data & Backup -> [Initiate Snapshot]. 2. Enter Admin Password. | SQL Archive generated with SHA-256 seal. |
+| **ADM_18** | **System Restore** | Forensic Rollback. | Snapshot exists| 1. [Verify & Restore] -> Enter Admin Pass. | Database state restored; Page reloads. |
 
 ---
 
