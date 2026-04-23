@@ -80,7 +80,38 @@ $uptime_pct = ($system_stats['total_lights'] > 0)
 
 $generated_by = $_SESSION['full_name'] ?? 'Administrator';
 $generated_at = date('F d, Y h:i A');
+
+$maintenance_rows = [];
+$maint_stmt = $conn->prepare("SELECT 
+    l.log_id, s.node_name, l.action_taken, l.maintenance_date, l.status
+FROM maintenance_logs l
+JOIN streetlights s ON l.light_id = s.light_id
+WHERE l.maintenance_date BETWEEN ? AND ?
+ORDER BY l.maintenance_date DESC
+LIMIT 10");
+$maint_stmt->bind_param("ss", $start_date, $end_date_full);
+$maint_stmt->execute();
+$maint_res = $maint_stmt->get_result();
+while ($r = $maint_res->fetch_assoc()) $maintenance_rows[] = $r;
+$maint_stmt->close();
+$generated_at = date('F d, Y h:i A');
 $period_label = date('M d, Y', strtotime($start_date)) . ' – ' . date('M d, Y', strtotime($end_date));
+
+$audit_rows = [];
+$audit_stmt = $conn->prepare("SELECT 
+    a.event_type, a.details, a.created_at, u.full_name
+FROM audit_logs a
+LEFT JOIN users u ON a.user_id = u.user_id
+WHERE a.created_at BETWEEN ? AND ?
+AND (a.event_type LIKE '%Security%' OR a.event_type LIKE '%FAR%' OR a.event_type LIKE '%AUTH%')
+ORDER BY a.created_at DESC
+LIMIT 8");
+$audit_stmt->bind_param("ss", $start_date, $end_date_full);
+$audit_stmt->execute();
+$audit_res = $audit_stmt->get_result();
+while ($r = $audit_res->fetch_assoc()) $audit_rows[] = $r;
+$audit_stmt->close();
+
 $logoPath     = realpath(__DIR__ . '/img/ShineGuard3.png');
 
 // ── PDF Password ─────────────────────────────────────────────────────────────
@@ -271,12 +302,91 @@ $html = '
 </p>
 ';
 
+// ── Build rows for new sections ──
+$maint_table_rows = '';
+if (!empty($maintenance_rows)) {
+    foreach ($maintenance_rows as $r) {
+        $date = date('M d, Y', strtotime($r['maintenance_date']));
+        $node = htmlspecialchars($r['node_name']);
+        $action = htmlspecialchars($r['action_taken']);
+        $status = $r['status'] === 'Completed' ? '<span style="color:#059669">Complete</span>' : '<span style="color:#d97706">Pending</span>';
+        $maint_table_rows .= "<tr><td>$date</td><td><b>$node</b></td><td>$action</td><td style='text-align:right'>$status</td></tr>";
+    }
+} else {
+    $maint_table_rows = "<tr><td colspan='4' style='text-align:center;color:#888;'>No maintenance activity recorded.</td></tr>";
+}
+
+$audit_table_rows = '';
+if (!empty($audit_rows)) {
+    foreach ($audit_rows as $r) {
+        $date = date('M d, H:i', strtotime($r['created_at']));
+        $type = htmlspecialchars($r['event_type']);
+        $details = htmlspecialchars($r['details']);
+        $user = htmlspecialchars($r['full_name'] ?? 'System');
+        $audit_table_rows .= "<tr><td><span style='font-size:7pt;color:#64748b'>$date</span></td><td><b>$type</b></td><td style='font-size:7.5pt'>$details</td><td style='text-align:right;color:#64748b'>$user</td></tr>";
+    }
+} else {
+    $audit_table_rows = "<tr><td colspan='4' style='text-align:center;color:#888;'>No critical security events detected.</td></tr>";
+}
+
 $pdf->writeHTML($html, true, false, true, false, '');
+
+// ── PAGE 2: Maintenance & Audit ─────────────────────────────────────────────
+$pdf->AddPage();
+
+$html2 = '
+<style>
+    body  { font-family: helvetica; font-size: 9pt; color: #0f172a; }
+    h2    { font-size: 11pt; font-weight: bold; color: #0f172a; margin: 18px 0 8px 0; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 5px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
+    th    { background: #f8fafc; color: #64748b; font-size: 7.5pt; font-weight: bold; padding: 8px; text-align: left; border-bottom: 1.5px solid #e2e8f0; }
+    td    { padding: 8px; font-size: 8.5pt; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+</style>
+
+<h2>Field Maintenance Ledger</h2>
+<p style="color:#64748b; margin-bottom:10px;">Chronological log of recent technical interventions and hardware optimizations.</p>
+<table>
+    <thead>
+        <tr>
+            <th width="15%">Date</th>
+            <th width="25%">Target Node</th>
+            <th width="45%">Action Taken</th>
+            <th width="15%" style="text-align:right">Status</th>
+        </tr>
+    </thead>
+    <tbody>' . $maint_table_rows . '</tbody>
+</table>
+
+<div style="margin-top:30px;"></div>
+
+<h2>Security & Forensic Audit Highlights</h2>
+<p style="color:#64748b; margin-bottom:10px;">Summary of critical security authorizations, forensic actions (FAR), and administrative identity checks.</p>
+<table>
+    <thead>
+        <tr>
+            <th width="18%">Timestamp</th>
+            <th width="22%">Event Class</th>
+            <th width="45%">Operational Details</th>
+            <th width="15%" style="text-align:right">Author</th>
+        </tr>
+    </thead>
+    <tbody>' . $audit_table_rows . '</tbody>
+</table>
+
+<div style="margin-top:40px; border:1px dashed #e2e8f0; padding:15px; border-radius:8px; background:#f8fafc;">
+    <h3 style="margin:0 0 5px 0; font-size:9pt; color:#1e293b;">Forensic Integrity Statement</h3>
+    <p style="font-size:8pt; line-height:1.4; color:#64748b; margin:0;">
+        This document contains cryptographically sensitive data. Its generation has been logged in the ShineGuard System Forensic Registry. 
+        Any unauthorized reproduction or tampering with the data contained herein may be detected via subsequent forensic cross-referencing of the system "Seeds."
+    </p>
+</div>
+';
+
+$pdf->writeHTML($html2, true, false, true, false, '');
 
 // ── Output PDF ───────────────────────────────────────────────────────────────
 $filename  = 'shineguard_report_' . date('Ymd_His') . '.pdf';
 $save_path = __DIR__ . '/exports/reports/' . $filename;
-
 $pdf->Output($save_path, 'F');
 
 // Archive to DB
@@ -290,15 +400,15 @@ $pdf->Output($save_path, 'F');
 );
 
 // Log the export
-logActivity($conn, $_SESSION['user_id'], 'Report Exported', "Password-protected PDF report generated for period $start_date to $end_date");
+logActivity($conn, $_SESSION['user_id'], 'Report Exported', "Detailed 2-page PDF report generated for period $start_date to $end_date");
 
 // Store password in session so reports.php can show it in a toast
 $_SESSION['pdf_toast'] = [
-    'icon'  => '🔐',
-    'title' => 'PDF Ready — Password Protected',
-    'msg'   => 'File password: ' . $pdf_user_pass . '  |  Valid today only.',
-    'color' => '#3b82f6',
-    'bg'    => '#eff6ff',
+    'icon'  => '👑',
+    'title' => 'Enhanced Report Ready',
+    'msg'   => 'Detailed 2-page forensic report generated. Password Protected.',
+    'color' => '#10b981',
+    'bg'    => '#ecfdf5',
 ];
 
 // Stream to browser for download
