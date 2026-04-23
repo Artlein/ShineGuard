@@ -53,6 +53,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isRecentlyAuthorized()) {
             }
         }
         
+        if ($action === 'approve_reset') {
+            $email = $_POST['email'];
+            $stmt = $conn->prepare("UPDATE password_resets SET status = 'Approved', admin_notes = 'Approved by admin' WHERE email = ? AND status = 'Pending'");
+            $stmt->bind_param("s", $email);
+            if ($stmt->execute()) {
+                logActivity($conn, $_SESSION['user_id'], 'Recovery Control', "Approved password reset for $email");
+            }
+        }
+        
         // 2. Manage Unknown Devices
         if ($action === 'acknowledge_device') {
             $token = $_POST['device_token'];
@@ -178,6 +187,12 @@ $unknown_devices = $conn->query("SELECT ud.*, u.full_name FROM user_devices ud
                                 <?php echo date('M d, H:i', strtotime($pr['created_at'])); ?>
                             </td>
                             <td style="padding:16px 20px; text-align:right;">
+                                <form method="POST" style="display:inline;">
+                                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                                    <input type="hidden" name="action" value="approve_reset">
+                                    <input type="hidden" name="email" value="<?php echo $pr['email']; ?>">
+                                    <button type="submit" class="btn-action primary" style="padding:4px 12px; font-size:11px; background:#10b981; border:none; margin-right:5px;">Approve</button>
+                                </form>
                                 <form method="POST" style="display:inline;">
                                     <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                                     <input type="hidden" name="action" value="dismiss_reset">

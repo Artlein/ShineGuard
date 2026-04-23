@@ -14,7 +14,7 @@ $is_valid = false;
 
 // 1. Verify token
 $token_hash = hash('sha256', $token);
-$stmt = $conn->prepare("SELECT * FROM password_resets WHERE email = ? AND token_hash = ? LIMIT 1");
+$stmt = $conn->prepare("SELECT * FROM password_resets WHERE email = ? AND token_hash = ? AND status = 'Approved' LIMIT 1");
 $stmt->bind_param("ss", $email, $token_hash);
 $stmt->execute();
 $res = $stmt->get_result();
