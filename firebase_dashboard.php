@@ -420,7 +420,7 @@ $csrf = generateCsrfToken();
         }
         .t-dot { width: 10px; height: 10px; border-radius: 50%; }
         .terminal-title { font-size: 11px; font-weight: 700; color: var(--green); margin-left: 6px; font-family: var(--mono); }
-        .terminal-body { padding: 14px; max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+        .terminal-body { padding: 14px; max-height: 230px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
         .terminal-body::-webkit-scrollbar { width: 4px; }
         .terminal-body::-webkit-scrollbar-track { background: transparent; }
         .terminal-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
@@ -924,7 +924,7 @@ $csrf = generateCsrfToken();
                 }
                 const data = await res.json();
                 if (data && !data.error) {
-                    addLog('success', 'SYS', 'Sovereign Sync: ACTIVE');
+                    // SILENCED: addLog('success', 'SYS', 'Sovereign Sync: ACTIVE');
                     updateUI(data.Sensor);
                     updateControlUI(data.Control);
                     updateHealthUI(data.Health);
