@@ -1,6 +1,6 @@
 <?php
 require_once 'dbconnect.php';
-requireLogin(['System Admin', 'System Observer']);
+requireLogin(['System Admin']);
 
 // Standalone "Critical Access" Authorization Handler
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'critical_auth') {

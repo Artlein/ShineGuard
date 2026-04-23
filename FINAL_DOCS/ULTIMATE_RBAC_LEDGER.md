@@ -61,6 +61,7 @@ This manual provides the definitive demonstration flow for all system roles (Adm
 | **OBS_07** | **Action Block** | Command Lockout. | Dashboard | 1. Attempt to toggle any node relay state. | Interaction is fully disabled/non-rendered. |
 | **OBS_08** | **Sec Block A** | Setting Lockout. | Dashboard | 1. Attempt manual browser access to /settings.| Redirect to Global Access Denied page. |
 | **OBS_09** | **Sec Block B** | Governance Lockout. | Dashboard | 1. Attempt manual access to /user_mgmt. | Handled via role-guard; Action logged. |
+| **OBS_10** | **Audit Lockout** | Forensic Log Lockout. | Dashboard | 1. Manually navigate to `activity_logs.php`. | Redirected to **Access Denied UI** instantly. |
 
 ---
 *Manual Version: ULTIMATE_V7.0 | Narrative: ShineGuard Operational Core*
