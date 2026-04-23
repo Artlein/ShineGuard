@@ -911,38 +911,37 @@ $csrf = generateCsrfToken();
         db.ref(NODE + "/Predictive").on("value", s => updatePredictiveUI(s.val()));
     }
 
-    // --- OPTION B: REST POLLING (FALLBACK) ---
+    // --- OPTION B: SERVER PROXY (SOVEREIGN SYNC) ---
     async function startRestPolling() {
         const fetchOnce = async () => {
             try {
-                const baseUrl = firebaseConfig.databaseURL.replace(/\/$/, "");
-                const url = `${baseUrl}/${NODE}.json`;
+                // Fetch from our OWN server proxy to bypass network blocks
+                const url = `firebase_proxy.php?node=${NODE}`;
                 const res = await fetch(url);
                 if (!res.ok) {
-                    addLog('error', 'SYS', `REST Error: HTTP ${res.status}`);
+                    addLog('error', 'SYS', `Proxy Error: HTTP ${res.status}`);
                     return;
                 }
                 const data = await res.json();
-                if (data) {
-                    addLog('success', 'SYS', 'REST Data: RECEIVED');
+                if (data && !data.error) {
+                    addLog('success', 'SYS', 'Sovereign Sync: ACTIVE');
                     updateUI(data.Sensor);
                     updateControlUI(data.Control);
                     updateHealthUI(data.Health);
                     updatePredictiveUI(data.Predictive);
                     
                     document.getElementById('statusPill').classList.remove('offline');
-                    document.getElementById('statusText').textContent = 'REST-SYNC';
+                    document.getElementById('statusText').textContent = 'SOVEREIGN-SYNC';
                     document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
                 } else {
-                    addLog('warn', 'SYS', 'REST Data: EMPTY NODE');
+                    addLog('warn', 'SYS', `Proxy Fail: ${data.error || 'Empty Data'}`);
                 }
             } catch(e) { 
-                addLog('error', 'SYS', `REST Fault: ${e.message}`);
-                console.error("REST Fail:", e); 
+                addLog('error', 'SYS', `Local Proxy Fault: ${e.message}`);
             }
         };
         fetchOnce();
-        setInterval(fetchOnce, 5000); // 5s to be safe
+        setInterval(fetchOnce, 5000); 
     }
 
     // --- SHARED UI UPDATERS ---
