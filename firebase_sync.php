@@ -11,6 +11,19 @@ if (php_sapi_name() !== 'cli') {
 
 require_once 'firebase_config.php';
 
+// EMERGENCY LOAD: If .env variables are missing, try to reload them explicitly
+if (empty(FirebaseConfig::getConstant('DATABASE_URL')) && class_exists('Dotenv\Dotenv')) {
+    try {
+        $reloader = Dotenv\Dotenv::createImmutable(__DIR__);
+        $reloader->load();
+    } catch (Exception $e) {}
+}
+
+// CONFIG DUMP FOR DEBUG
+$configCheck = FirebaseConfig::getNodeConfig();
+$maskedUrl = !empty($configCheck['databaseURL']) ? substr($configCheck['databaseURL'], 0, 15) . '...' : 'EMPTY';
+echo "🛠️  [SYSTEM DIAG] Config Load: " . (!empty($configCheck['databaseURL']) ? "VALID" : "FAILED") . " | URL: $maskedUrl\n\n";
+
 
 function fetchFirebaseData($endpoint, $nodeId = 'SG-NODE2') {
     $url = FirebaseConfig::getUrl($endpoint, $nodeId);
