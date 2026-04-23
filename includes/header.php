@@ -745,7 +745,7 @@ header {
         
         $total_security_alerts = $resets_count + $devices_count;
         ?>
-        <?php if ($total_security_alerts > 0): ?>
+        <?php if ($total_security_alerts > 0 && getUserRole() === 'System Admin'): ?>
         <a href="security_recovery.php" class="hdr-notif" 
            title="<?php echo $total_security_alerts; ?> Critical Security Alert(s) (<?php echo $resets_count; ?> Redemptions, <?php echo $devices_count; ?> New Hardware)" 
            style="background: #3b82f6; border-color: #3b82f6; color: white; animation: pulseRecovery 2.5s infinite;">
