@@ -97,8 +97,6 @@ $maint_stmt->close();
 $generated_at = date('F d, Y h:i A');
 $period_label = date('M d, Y', strtotime($start_date)) . ' – ' . date('M d, Y', strtotime($end_date));
 
-$maint_stmt->close();
-
 // -- Sector connectivity stats --
 $sector_rows = [];
 $sector_stmt = $conn->prepare("SELECT 
