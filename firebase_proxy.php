@@ -5,18 +5,40 @@ require_once 'firebase_config.php';
 header('Content-Type: application/json');
 
 $node = $_GET['node'] ?? 'SG-NODE2';
-$url = FirebaseConfig::getUrl('sensor', $node);
 
-// Append .json if not present (though getUrl usually handles it)
-if (strpos($url, '.json') === false) {
-    // Basic path handling if getUrl returns base
-    $url = rtrim($url, '/') . '/' . $node . '.json';
-} else {
-    // If it already has Sensor.json, we want the whole node for the dashboard
-    $url = str_replace('Sensor.json', '.json', $url);
+// --- WRITE LOGIC (COMMANDS) ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $path = $input['path'] ?? '';
+    $data = $input['data'] ?? null;
+    
+    if (!$path) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing path']);
+        exit;
+    }
+
+    // Direct REST PUT to Firebase from AWS Server
+    $baseUrl = rtrim(FirebaseConfig::getConstant('DATABASE_URL'), '/');
+    $writeUrl = $baseUrl . '/' . $node . '/' . ltrim($path, '/') . '.json';
+    
+    $ch = curl_init($writeUrl);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    
+    $res = curl_exec($ch);
+    echo $res;
+    exit;
 }
 
-$ch = curl_init($url);
+// --- READ LOGIC (TELEMETRY) ---
+$baseUrl = rtrim(FirebaseConfig::getConstant('DATABASE_URL'), '/');
+$readUrl = $baseUrl . '/' . $node . '.json';
+
+$ch = curl_init($readUrl);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 curl_setopt($ch, CURLOPT_TIMEOUT, 10);

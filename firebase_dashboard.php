@@ -1033,16 +1033,32 @@ $csrf = generateCsrfToken();
         return 'NORMAL';
     }
 
-    // ── Commands ──
+    // ── Commands via Proxy ──
     window.setMode = function(mode) {
         const labels = {0:'AUTO', 1:'FORCE ON', 2:'FORCE OFF'};
         addLog('info','CMD', `Propagating mode → ${labels[mode]}`);
-        db.ref(NODE + '/Control/mode').set(mode);
+        
+        fetch(`firebase_proxy.php?node=${NODE}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ path: 'Control/mode', data: mode })
+        })
+        .then(r => r.json())
+        .then(() => addLog('success', 'ACK', `Mode confirmed: ${labels[mode]}`))
+        .catch(() => addLog('error', 'ERR', 'Command failed to reach Proxy'));
     };
 
     window.setBrightness = function(val) {
         addLog('info','CMD', `Propagating brightness → ${val}%`);
-        db.ref(NODE + "/Control/brightnessPercent").set(val);
+        
+        fetch(`firebase_proxy.php?node=${NODE}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ path: 'Control/brightnessPercent', data: val })
+        })
+        .then(r => r.json())
+        .then(() => addLog('success', 'ACK', `Brightness set: ${val}%`))
+        .catch(() => addLog('error', 'ERR', 'Command failed to reach Proxy'));
     };
 
     window.syncNow = function() {
