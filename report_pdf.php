@@ -97,20 +97,35 @@ $maint_stmt->close();
 $generated_at = date('F d, Y h:i A');
 $period_label = date('M d, Y', strtotime($start_date)) . ' – ' . date('M d, Y', strtotime($end_date));
 
-$audit_rows = [];
-$audit_stmt = $conn->prepare("SELECT 
-    a.action as event_type, a.details, a.created_at, u.full_name
-FROM activity_logs a
-LEFT JOIN users u ON a.user_id = u.user_id
-WHERE a.created_at BETWEEN ? AND ?
-AND (a.action LIKE '%Security%' OR a.action LIKE '%FAR%' OR a.action LIKE '%Auth%' OR a.action LIKE '%Diagnostic%')
+$maint_stmt->close();
+
+// -- Sector connectivity stats --
+$sector_rows = [];
+$sector_stmt = $conn->prepare("SELECT 
+    location, 
+    COUNT(*) as total, 
+    SUM(CASE WHEN status = 'Active' THEN 1 ELSE 0 END) as active
+FROM streetlights 
+GROUP BY location
+ORDER BY total DESC");
+$sector_stmt->execute();
+$sector_res = $sector_stmt->get_result();
+while ($r = $sector_res->fetch_assoc()) $sector_rows[] = $r;
+$sector_stmt->close();
+
+// -- High Priority Alert Summary --
+$recent_alerts_rows = [];
+$ra_stmt = $conn->prepare("SELECT 
+    s.node_name, a.alert_type, a.severity, a.created_at
+FROM alerts a
+JOIN streetlights s ON a.light_id = s.light_id
+WHERE a.status = 'Open' AND a.severity = 'High'
 ORDER BY a.created_at DESC
 LIMIT 8");
-$audit_stmt->bind_param("ss", $start_date, $end_date_full);
-$audit_stmt->execute();
-$audit_res = $audit_stmt->get_result();
-while ($r = $audit_res->fetch_assoc()) $audit_rows[] = $r;
-$audit_stmt->close();
+$ra_stmt->execute();
+$ra_res = $ra_stmt->get_result();
+while ($r = $ra_res->fetch_assoc()) $recent_alerts_rows[] = $r;
+$ra_stmt->close();
 
 $logoPath     = realpath(__DIR__ . '/img/ShineGuard3.png');
 
@@ -308,7 +323,8 @@ if (!empty($maintenance_rows)) {
     foreach ($maintenance_rows as $r) {
         $date = date('M d, Y', strtotime($r['maintenance_date']));
         $node = htmlspecialchars($r['node_name']);
-        $action = htmlspecialchars($r['action_taken']);
+        // Clean and trim XSS payloads for professional printing
+        $action = mb_strimwidth(htmlspecialchars($r['action_taken']), 0, 50, '...');
         $status = $r['status'] === 'Completed' ? '<span style="color:#059669">Complete</span>' : '<span style="color:#d97706">Pending</span>';
         $maint_table_rows .= "<tr><td>$date</td><td><b>$node</b></td><td>$action</td><td style='text-align:right'>$status</td></tr>";
     }
@@ -316,23 +332,39 @@ if (!empty($maintenance_rows)) {
     $maint_table_rows = "<tr><td colspan='4' style='text-align:center;color:#888;'>No maintenance activity recorded.</td></tr>";
 }
 
-$audit_table_rows = '';
-if (!empty($audit_rows)) {
-    foreach ($audit_rows as $r) {
+$sector_table_rows = '';
+foreach ($sector_rows as $r) {
+    $loc = htmlspecialchars($r['location']);
+    $total = $r['total'];
+    $active = $r['active'];
+    $pct = round(($active / $total) * 100, 1);
+    $color = $pct >= 95 ? '#059669' : ($pct >= 75 ? '#d97706' : '#dc2626');
+    $sector_table_rows .= "
+    <tr>
+        <td><b>$loc</b></td>
+        <td style='text-align:center'>$total</td>
+        <td style='text-align:center'>$active</td>
+        <td style='text-align:right; color:$color;'><b>$pct%</b></td>
+    </tr>";
+}
+
+$alert_table_rows = '';
+if (!empty($recent_alerts_rows)) {
+    foreach ($recent_alerts_rows as $r) {
         $date = date('M d, H:i', strtotime($r['created_at']));
-        $type = htmlspecialchars($r['event_type']);
-        $details = htmlspecialchars($r['details']);
-        $user = htmlspecialchars($r['full_name'] ?? 'System');
-        $audit_table_rows .= "<tr><td><span style='font-size:7pt;color:#64748b'>$date</span></td><td><b>$type</b></td><td style='font-size:7.5pt'>$details</td><td style='text-align:right;color:#64748b'>$user</td></tr>";
+        $node = htmlspecialchars($r['node_name']);
+        $type = htmlspecialchars($r['alert_type']);
+        $alert_table_rows .= "<tr><td><span style='font-size:7pt;color:#64748b'>$date</span></td><td><b>$node</b></td><td><span style='color:#dc2626'>$type</span></td><td style='text-align:right;color:#dc2626'><b>HIGH</b></td></tr>";
     }
 } else {
-    $audit_table_rows = "<tr><td colspan='4' style='text-align:center;color:#888;'>No critical security events detected.</td></tr>";
+    $alert_table_rows = "<tr><td colspan='4' style='text-align:center;color:#888;'>Zero high-priority failures detected.</td></tr>";
 }
 
 try {
+    // ── PAGE 1 ───────────────────────────────────────────────────────────────
     $pdf->writeHTML($html, true, false, true, false, '');
 
-    // ── PAGE 2: Maintenance & Audit ─────────────────────────────────────────────
+    // ── PAGE 2: Operations & Failures ─────────────────────────────────────────
     $pdf->AddPage();
 
     $html2 = '
@@ -344,48 +376,63 @@ try {
         td    { padding: 8px; font-size: 8.5pt; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
     </style>
 
-    <h2>Field Maintenance Ledger</h2>
-    <p style="color:#64748b; margin-bottom:10px;">Chronological log of recent technical interventions and hardware optimizations.</p>
+    <h2>Sector Connectivity Analysis</h2>
+    <p style="color:#64748b; margin-bottom:10px;">Regional breakdown of node online status and infrastructure reliability by sector.</p>
     <table>
         <thead>
             <tr>
+                <th width="40%">Sector Location</th>
+                <th width="20%" style="text-align:center">Total Nodes</th>
+                <th width="20%" style="text-align:center">Active</th>
+                <th width="20%" style="text-align:right">Health Index</th>
+            </tr>
+        </thead>
+        <tbody>' . $sector_table_rows . '</tbody>
+    </table>
+
+    <div style="margin-top:20px;"></div>
+
+    <h2>Critical Node Failures</h2>
+    <p style="color:#64748b; margin-bottom:10px;">Summary of active high-priority alerts requiring immediate technical intervention.</p>
+    <table>
+        <thead>
+            <tr>
+                <th width="18%">Detected</th>
+                <th width="25%">Node Identity</th>
+                <th width="42%">Failure Classification</th>
+                <th width="15%" style="text-align:right">Severity</th>
+            </tr>
+        </thead>
+        <tbody>' . $alert_table_rows . '</tbody>
+    </table>
+
+    <div style="margin-top:20px;"></div>
+
+    <h2>Field Maintenance Ledger</h2>
+    <p style="color:#64748b; margin-bottom:10px;">Recent hardware optimizations and technical maintenance logs.</p>
+    <table style="margin-bottom:10px;">
+        <thead>
+            <tr>
                 <th width="15%">Date</th>
-                <th width="25%">Target Node</th>
-                <th width="45%">Action Taken</th>
+                <th width="25%">Target</th>
+                <th width="45%">Action Summary</th>
                 <th width="15%" style="text-align:right">Status</th>
             </tr>
         </thead>
         <tbody>' . $maint_table_rows . '</tbody>
     </table>
 
-    <div style="margin-top:30px;"></div>
-
-    <h2>Security & Forensic Audit Highlights</h2>
-    <p style="color:#64748b; margin-bottom:10px;">Summary of critical security authorizations, forensic actions (FAR), and administrative identity checks.</p>
-    <table>
-        <thead>
-            <tr>
-                <th width="18%">Timestamp</th>
-                <th width="22%">Event Class</th>
-                <th width="45%">Operational Details</th>
-                <th width="15%" style="text-align:right">Author</th>
-            </tr>
-        </thead>
-        <tbody>' . $audit_table_rows . '</tbody>
-    </table>
-
-    <div style="margin-top:40px; border:1px dashed #e2e8f0; padding:15px; border-radius:8px; background:#f8fafc;">
-        <h3 style="margin:0 0 5px 0; font-size:9pt; color:#1e293b;">Forensic Integrity Statement</h3>
+    <div style="margin-top:30px; border:1px dashed #e2e8f0; padding:15px; border-radius:8px; background:#f8fafc;">
+        <h3 style="margin:0 0 5px 0; font-size:9pt; color:#1e293b;">Infrastructure Reliability Statement</h3>
         <p style="font-size:8pt; line-height:1.4; color:#64748b; margin:0;">
-            This document contains cryptographically sensitive data. Its generation has been logged in the ShineGuard System Forensic Registry. 
-            Any unauthorized reproduction or tampering with the data contained herein may be detected via subsequent forensic cross-referencing of the system "Seeds."
+            This report represents the live operational state of the ShineGuard IoT mesh. Failure data is cross-referenced with forensic telemetry to ensure the integrity of maintenance accountability.
         </p>
     </div>
     ';
 
     $pdf->writeHTML($html2, true, false, true, false, '');
 
-    // ── Output PDF ───────────────────────────────────────────────────────────────
+    // ── Output PDF ───────────────────────────────────────────────────────────
     $filename  = 'shineguard_report_' . date('Ymd_His') . '.pdf';
     $export_dir = __DIR__ . '/exports/reports';
     if (!is_dir($export_dir)) {
