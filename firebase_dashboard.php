@@ -233,7 +233,7 @@ $csrf = generateCsrfToken();
 
         /* ── SENSOR CARDS ── */
         .sensors-area { grid-area: sensors; }
-        .sensor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        .sensor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
 
         .sensor-card {
             background: var(--bg-panel); border: 1px solid var(--border);
@@ -637,6 +637,25 @@ $csrf = generateCsrfToken();
                         <span class="sensor-status-tag" id="humTag">READING</span>
                     </div>
 
+                    <!-- Current (Ampere) -->
+                    <div class="sensor-card" style="--sensor-color:#8b5cf6; --sensor-bg:rgba(139,92,246,0.1);">
+                        <div class="sensor-top">
+                            <div class="sensor-label">Current Consumption</div>
+                            <div class="sensor-icon-wrap">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 11-12h-9l1-8z"/></svg>
+                            </div>
+                        </div>
+                        <div class="sensor-value">
+                            <span id="current">--</span>
+                            <span class="sensor-unit">A</span>
+                        </div>
+                        <div class="sensor-bar-wrap">
+                            <div class="sensor-bar-track"><div class="sensor-bar-fill" id="currBar" style="background:#8b5cf6;"></div></div>
+                            <div class="sensor-bar-label"><span>0A</span><span>5A</span></div>
+                        </div>
+                        <span class="sensor-status-tag" id="currTag">READING</span>
+                    </div>
+
                 </div>
             </div>
 
@@ -980,6 +999,13 @@ $csrf = generateCsrfToken();
         if (hum !== null) {
             setBar('humBar', hum);
             setTag('humTag', evalTag(hum, THRESHOLDS.humidity_threshold_max || 80, THRESHOLDS.humidity_threshold_critical || 90, null, null));
+        }
+
+        const curr = d.current ?? null;
+        document.getElementById('current').textContent = curr !== null ? curr : '--';
+        if (curr !== null) {
+            setBar('currBar', (curr / 5) * 100);
+            setTag('currTag', evalTag(curr, THRESHOLDS.current_threshold_max || 4.0, THRESHOLDS.current_threshold_critical || 5.0, null, null));
         }
     }
 
