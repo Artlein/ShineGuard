@@ -13,7 +13,8 @@ class FirebaseConfig {
             'APP_ID'              => 'FIREBASE_APP_ID',
             'MEASUREMENT_ID'      => 'FIREBASE_MEASUREMENT_ID'
         ];
-        return $_ENV[$envMap[$key]] ?? '';
+        $envKey = $envMap[$key] ?? '';
+        return $_ENV[$envKey] ?? $_SERVER[$envKey] ?? getenv($envKey) ?: '';
     }
 
     const IOT_DEVICES = [
@@ -62,12 +63,10 @@ class FirebaseConfig {
         ];
 
         // NODE 3 SPECIFIC (Different Firebase)
-        // Note: These can be mapped to unique ENV variables like FIREBASE_NODE3_API_KEY
         if ($nodeId === 'SG-NODE3') {
-            $config['apiKey']      = $_ENV['FIREBASE_NODE3_API_KEY'] ?? $config['apiKey'];
-            $config['databaseURL'] = $_ENV['FIREBASE_NODE3_DATABASE_URL'] ?? 'https://sg-node3-default-rtdb.firebaseio.com';
-            $config['projectId']   = $_ENV['FIREBASE_NODE3_PROJECT_ID'] ?? 'sg-node3-project';
-            // ... add others as needed
+            $config['apiKey']      = self::getConstant('NODE3_API_KEY') ?: $config['apiKey'];
+            $config['databaseURL'] = self::getConstant('NODE3_DATABASE_URL') ?: $config['databaseURL'];
+            $config['projectId']   = self::getConstant('NODE3_PROJECT_ID') ?: $config['projectId'];
         }
 
         return $config;
