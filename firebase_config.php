@@ -10,7 +10,8 @@ class FirebaseConfig {
             'PROJECT_ID'          => 'FIREBASE_PROJECT_ID',
             'STORAGE_BUCKET'      => 'FIREBASE_STORAGE_BUCKET',
             'MESSAGING_SENDER_ID' => 'FIREBASE_MESSAGING_SENDER_ID',
-            'APP_ID'              => 'FIREBASE_APP_ID'
+            'APP_ID'              => 'FIREBASE_APP_ID',
+            'MEASUREMENT_ID'      => 'FIREBASE_MEASUREMENT_ID'
         ];
         return $_ENV[$envMap[$key]] ?? '';
     }
@@ -55,7 +56,8 @@ class FirebaseConfig {
             'projectId'         => self::getConstant('PROJECT_ID'),
             'storageBucket'     => self::getConstant('STORAGE_BUCKET'),
             'messagingSenderId' => self::getConstant('MESSAGING_SENDER_ID'),
-            'appId'             => self::getConstant('APP_ID')
+            'appId'             => self::getConstant('APP_ID'),
+            'measurementId'     => self::getConstant('MEASUREMENT_ID')
         ];
 
         // NODE 3 SPECIFIC (Different Firebase)
