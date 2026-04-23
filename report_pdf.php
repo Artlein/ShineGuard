@@ -99,11 +99,11 @@ $period_label = date('M d, Y', strtotime($start_date)) . ' – ' . date('M d, Y'
 
 $audit_rows = [];
 $audit_stmt = $conn->prepare("SELECT 
-    a.event_type, a.details, a.created_at, u.full_name
-FROM audit_logs a
+    a.action as event_type, a.details, a.created_at, u.full_name
+FROM activity_logs a
 LEFT JOIN users u ON a.user_id = u.user_id
 WHERE a.created_at BETWEEN ? AND ?
-AND (a.event_type LIKE '%Security%' OR a.event_type LIKE '%FAR%' OR a.event_type LIKE '%AUTH%')
+AND (a.action LIKE '%Security%' OR a.action LIKE '%FAR%' OR a.action LIKE '%Auth%' OR a.action LIKE '%Diagnostic%')
 ORDER BY a.created_at DESC
 LIMIT 8");
 $audit_stmt->bind_param("ss", $start_date, $end_date_full);
