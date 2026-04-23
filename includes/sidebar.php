@@ -372,19 +372,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </a>
             <?php endif; ?>
             <?php if (canDo('view_activity_logs')): ?>
-            <?php $is_auth = isRecentlyAuthorized(); ?>
-            <a href="<?php echo $is_auth ? 'security_recovery.php' : 'javascript:void(0)'; ?>" 
-               onclick="<?php echo $is_auth ? '' : "openAuthModal('security_recovery.php')"; ?>"
-               class="<?php echo $current_page=='security_recovery.php'?'active':''; ?>">
-                <div class="sb-ico">🔐</div>
-                <span class="sb-nav-lbl">Recovery Hub</span>
-                <?php
-                $sq = $conn->query("SELECT (SELECT COUNT(*) FROM password_resets WHERE status='Pending') + (SELECT COUNT(*) FROM user_devices WHERE is_acknowledged=0) as total");
-                $st = $sq->fetch_assoc()['total'];
-                if ($st > 0): ?>
-                <span class="sb-badge" style="background:#ef4444;"><?php echo $st; ?></span>
-                <?php endif; ?>
-            </a>
             <a href="activity_logs.php" class="<?php echo $current_page=='activity_logs.php'?'active':''; ?>">
                 <div class="sb-ico">🛡️</div>
                 <span class="sb-nav-lbl">Activity Logs</span>
