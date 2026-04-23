@@ -356,6 +356,14 @@ tbody td {
 
 .badge.fail::before { content: '●'; font-size: 0.5rem; }
 
+.badge.warning {
+  background: #fff7ed;
+  color: #ea580c;
+  border: 1px solid #fed7aa;
+}
+
+.badge.warning::before { content: '●'; font-size: 0.5rem; }
+
 .actions-cell { display: flex; gap: 0.5rem; }
 
 .btn {

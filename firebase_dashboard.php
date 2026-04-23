@@ -1019,10 +1019,19 @@ $csrf = generateCsrfToken();
             el.textContent = s;
             el.className = 'health-badge ' + (s === 'OK' || s === 'NORMAL' ? 'hb-ok' : 'hb-fail');
         };
-        setH('lampStatus', d.lampStatus ?? 'OK');
-        setH('dhtStatus', d.dhtStatus ?? 'OK');
-        setH('envTempStatus', d.envTempStatus ?? 'OK');
-        setH('envHumidityStatus', d.envHumidityStatus ?? 'OK');
+        const check = (id, label, val) => {
+            const old = document.getElementById(id)?.textContent;
+            setH(id, val);
+            if (val !== 'OK' && val !== 'NORMAL' && val !== old && old !== '--') {
+                window.addLog('warn', 'HEALTH', `${label}: ${val}`);
+            }
+        };
+
+        check('lampStatus', 'Lamp', d.lampStatus ?? 'OK');
+        check('dhtStatus', 'Sensor', d.dhtStatus ?? 'OK');
+        check('envTempStatus', 'Temp', d.envTempStatus ?? 'OK');
+        check('envHumidityStatus', 'Humid', d.envHumidityStatus ?? 'OK');
+        
         document.getElementById('lampFaultCounter').textContent = d.lampFaultCounter ?? 0;
         if (document.getElementById('dhtFaultCounter')) {
             document.getElementById('dhtFaultCounter').textContent = d.dhtFaultCounter ?? 0;

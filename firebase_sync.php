@@ -1,4 +1,6 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 require_once 'dbconnect.php';
 
@@ -173,11 +175,15 @@ function syncHealthData($conn, $nodeId = 'SG-NODE2') {
     $stmt->execute();
     $result = $stmt->get_result();
     
-    if ($result->num_rows === 0) return false;
+    if ($result->num_rows === 0) {
+        echo "❌ [{$nodeId}] MySQL Node $mysqlNode NOT FOUND in streetlights table\n"; 
+        return false;
+    }
     $row = $result->fetch_assoc();
     $light_id = $row['light_id'];
+    echo "🔍 [{$nodeId}] Synced to Light ID: $light_id\n";
     
-    // Check various health metrics (Ignoring 'ON'/'OFF' status messages)
+    // Check various health metrics
     $metrics = [
         'dhtStatus' => 'Sensor integration warning',
         'envTempStatus' => 'Sensors health alert',
@@ -187,6 +193,7 @@ function syncHealthData($conn, $nodeId = 'SG-NODE2') {
 
     foreach ($metrics as $key => $msg) {
         $val = $healthData[$key] ?? 'OK';
+        echo "   -> Checking $key: status = $val\n";
         if ($val !== 'OK' && $val !== 'NORMAL' && $val !== 'None') {
             $severity = 'Medium';
             $type = 'Warning';
@@ -196,6 +203,7 @@ function syncHealthData($conn, $nodeId = 'SG-NODE2') {
                 $type = 'Fault';
             }
             
+            echo "   🚨 Alert Condition Found for $key ($val). Attempting to create alert...\n";
             createAlert($conn, $light_id, $type, $severity, "[Hardware Health] {$msg}: {$val}");
         }
     }
