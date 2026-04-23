@@ -77,6 +77,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isRecentlyAuthorized()) {
     }
 }
 
+// ── SECURE ACCESS GATE ──
+if (!isRecentlyAuthorized()) {
+    include 'includes/secure_auth_ui.php';
+    exit();
+}
+
+$page_title = 'Security Recovery Hub';
+$current_page = 'security_recovery.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -100,12 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isRecentlyAuthorized()) {
 <?php include 'includes/sidebar.php'; ?>
 <?php include 'includes/header.php'; ?>
 
-// If not authorized for the session, show the shield
-if (!isRecentlyAuthorized()) {
-    include 'includes/secure_auth_ui.php';
-    exit();
-}
-
+<?php
 // Fetch Pending Resets
 $pending_resets = $conn->query("SELECT pr.*, u.full_name FROM password_resets pr 
                                LEFT JOIN users u ON pr.email = u.email 
