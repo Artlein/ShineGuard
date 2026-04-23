@@ -746,7 +746,10 @@ header {
         $total_security_alerts = $resets_count + $devices_count;
         ?>
         <?php if ($total_security_alerts > 0 && getUserRole() === 'System Admin'): ?>
-        <a href="security_recovery.php" class="hdr-notif" 
+        <?php $is_authorized = isRecentlyAuthorized(); ?>
+        <a href="<?php echo $is_authorized ? 'security_recovery.php' : 'javascript:void(0)'; ?>" 
+           onclick="<?php echo $is_authorized ? '' : "openAuthModal('security_recovery.php')"; ?>"
+           class="hdr-notif" 
            title="<?php echo $total_security_alerts; ?> Critical Security Alert(s) (<?php echo $resets_count; ?> Redemptions, <?php echo $devices_count; ?> New Hardware)" 
            style="background: #3b82f6; border-color: #3b82f6; color: white; animation: pulseRecovery 2.5s infinite;">
             🛡️
@@ -1177,7 +1180,10 @@ header {
         startSbaTimer();
     };
 
-    function openAuthModal() {
+    let postAuthRedirect = '';
+
+    function openAuthModal(redirectUrl = '') {
+        postAuthRedirect = redirectUrl;
         document.getElementById('globalAuthModal').style.display = 'flex';
         const input = document.getElementById('globalAuthPwd');
         input.value = '';
@@ -1213,7 +1219,11 @@ header {
 
             const data = await response.json();
             if (data.success) {
-                location.reload();
+                if (typeof postAuthRedirect !== 'undefined' && postAuthRedirect) {
+                    window.location.href = postAuthRedirect;
+                } else {
+                    location.reload();
+                }
             } else {
                 err.style.display = 'block';
                 err.textContent = data.error || 'Invalid password.';
@@ -1268,7 +1278,11 @@ header {
             });
             const data = await response.json();
             if (data.success) {
-                location.reload();
+                if (typeof postAuthRedirect !== 'undefined' && postAuthRedirect) {
+                    window.location.href = postAuthRedirect;
+                } else {
+                    location.reload();
+                }
             } else {
                 err.style.display = 'block';
                 err.textContent = data.error || 'Invalid password.';

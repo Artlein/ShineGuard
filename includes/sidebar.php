@@ -372,7 +372,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </a>
             <?php endif; ?>
             <?php if (canDo('view_activity_logs')): ?>
-            <a href="security_recovery.php" class="<?php echo $current_page=='security_recovery.php'?'active':''; ?>">
+            <?php $is_auth = isRecentlyAuthorized(); ?>
+            <a href="<?php echo $is_auth ? 'security_recovery.php' : 'javascript:void(0)'; ?>" 
+               onclick="<?php echo $is_auth ? '' : "openAuthModal('security_recovery.php')"; ?>"
+               class="<?php echo $current_page=='security_recovery.php'?'active':''; ?>">
                 <div class="sb-ico">🔐</div>
                 <span class="sb-nav-lbl">Recovery Hub</span>
                 <?php
