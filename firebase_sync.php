@@ -143,6 +143,12 @@ function syncPredictiveData($conn, $nodeId = 'SG-NODE2') {
     $stmt->bind_param("sss", $health, $alert, $mysqlNode);
     $stmt->execute();
     
+    // Determine RUL Estimate based on lamp health
+    $rul = "N/A";
+    if ($health === 'GOOD') $rul = "90%+ Life";
+    elseif ($health === 'DEGRADING') $rul = "~40% Life";
+    elseif ($health === 'REPLACE') $rul = "<10% Life";
+
     // Create Alert entry if critical maintenance is needed
     if ($alert && $alert !== 'None' && $alert !== 'None (Node Power Stable)') {
         echo "📢 [{$nodeId}] Processing Maintenance Alert: $alert\n";
@@ -154,7 +160,7 @@ function syncPredictiveData($conn, $nodeId = 'SG-NODE2') {
         if ($res) {
             $severity = ($health === 'REPLACE') ? 'High' : 'Medium';
             $type = ($health === 'REPLACE') ? 'Fault' : 'Predictive';
-            createAlert($conn, $res['light_id'], $type, $severity, "[Hardware Analytics] " . $alert);
+            createAlert($conn, $res['light_id'], $type, $severity, "[Hardware Analytics] " . $alert, $rul);
         }
     }
 
@@ -288,7 +294,7 @@ function checkThresholds($conn, $light_id, $brightness, $temperature, $current, 
 /**
  * Create alert in database
  */
-function createAlert($conn, $light_id, $type, $severity, $description) {
+function createAlert($conn, $light_id, $type, $severity, $description, $rul = null) {
     // Check if similar alert already exists in the last 5 minutes (for better hardware sync)
     $checkStmt = $conn->prepare("SELECT alert_id FROM alerts 
         WHERE light_id = ? AND description = ? AND status = 'Open' 
@@ -302,13 +308,13 @@ function createAlert($conn, $light_id, $type, $severity, $description) {
         return; // Alert already exists
     }
     
-    $stmt = $conn->prepare("INSERT INTO alerts 
-        (light_id, alert_type, severity, description, status) 
-        VALUES (?, ?, ?, ?, 'Open')");
-    $stmt->bind_param("isss", $light_id, $type, $severity, $description);
+    $stmt = $conn->prepare("INSERT INTO alerts (light_id, alert_type, severity, description, rul_estimate, status) 
+                            VALUES (?, ?, ?, ?, ?, 'Open')");
+    $stmt->bind_param("issss", $light_id, $type, $severity, $description, $rul);
     
     if ($stmt->execute()) {
         echo "🚨 Alert created: $description\n";
+        return true;
     }
 }
 
