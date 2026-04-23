@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS streetlights (
 CREATE TABLE IF NOT EXISTS sensor_data (
     data_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     light_id INT NOT NULL,
-    brightness_level DECIMAL(5,2),
+    brightness_level DECIMAL(10,2),
     current_consumption DECIMAL(6,3),
     voltage DECIMAL(5,2),
     temperature DECIMAL(4,1),
