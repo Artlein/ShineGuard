@@ -329,95 +329,106 @@ if (!empty($audit_rows)) {
     $audit_table_rows = "<tr><td colspan='4' style='text-align:center;color:#888;'>No critical security events detected.</td></tr>";
 }
 
-$pdf->writeHTML($html, true, false, true, false, '');
+try {
+    $pdf->writeHTML($html, true, false, true, false, '');
 
-// ── PAGE 2: Maintenance & Audit ─────────────────────────────────────────────
-$pdf->AddPage();
+    // ── PAGE 2: Maintenance & Audit ─────────────────────────────────────────────
+    $pdf->AddPage();
 
-$html2 = '
-<style>
-    body  { font-family: helvetica; font-size: 9pt; color: #0f172a; }
-    h2    { font-size: 11pt; font-weight: bold; color: #0f172a; margin: 18px 0 8px 0; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 5px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
-    th    { background: #f8fafc; color: #64748b; font-size: 7.5pt; font-weight: bold; padding: 8px; text-align: left; border-bottom: 1.5px solid #e2e8f0; }
-    td    { padding: 8px; font-size: 8.5pt; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
-</style>
+    $html2 = '
+    <style>
+        body  { font-family: helvetica; font-size: 9pt; color: #0f172a; }
+        h2    { font-size: 11pt; font-weight: bold; color: #0f172a; margin: 18px 0 8px 0; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
+        th    { background: #f8fafc; color: #64748b; font-size: 7.5pt; font-weight: bold; padding: 8px; text-align: left; border-bottom: 1.5px solid #e2e8f0; }
+        td    { padding: 8px; font-size: 8.5pt; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+    </style>
 
-<h2>Field Maintenance Ledger</h2>
-<p style="color:#64748b; margin-bottom:10px;">Chronological log of recent technical interventions and hardware optimizations.</p>
-<table>
-    <thead>
-        <tr>
-            <th width="15%">Date</th>
-            <th width="25%">Target Node</th>
-            <th width="45%">Action Taken</th>
-            <th width="15%" style="text-align:right">Status</th>
-        </tr>
-    </thead>
-    <tbody>' . $maint_table_rows . '</tbody>
-</table>
+    <h2>Field Maintenance Ledger</h2>
+    <p style="color:#64748b; margin-bottom:10px;">Chronological log of recent technical interventions and hardware optimizations.</p>
+    <table>
+        <thead>
+            <tr>
+                <th width="15%">Date</th>
+                <th width="25%">Target Node</th>
+                <th width="45%">Action Taken</th>
+                <th width="15%" style="text-align:right">Status</th>
+            </tr>
+        </thead>
+        <tbody>' . $maint_table_rows . '</tbody>
+    </table>
 
-<div style="margin-top:30px;"></div>
+    <div style="margin-top:30px;"></div>
 
-<h2>Security & Forensic Audit Highlights</h2>
-<p style="color:#64748b; margin-bottom:10px;">Summary of critical security authorizations, forensic actions (FAR), and administrative identity checks.</p>
-<table>
-    <thead>
-        <tr>
-            <th width="18%">Timestamp</th>
-            <th width="22%">Event Class</th>
-            <th width="45%">Operational Details</th>
-            <th width="15%" style="text-align:right">Author</th>
-        </tr>
-    </thead>
-    <tbody>' . $audit_table_rows . '</tbody>
-</table>
+    <h2>Security & Forensic Audit Highlights</h2>
+    <p style="color:#64748b; margin-bottom:10px;">Summary of critical security authorizations, forensic actions (FAR), and administrative identity checks.</p>
+    <table>
+        <thead>
+            <tr>
+                <th width="18%">Timestamp</th>
+                <th width="22%">Event Class</th>
+                <th width="45%">Operational Details</th>
+                <th width="15%" style="text-align:right">Author</th>
+            </tr>
+        </thead>
+        <tbody>' . $audit_table_rows . '</tbody>
+    </table>
 
-<div style="margin-top:40px; border:1px dashed #e2e8f0; padding:15px; border-radius:8px; background:#f8fafc;">
-    <h3 style="margin:0 0 5px 0; font-size:9pt; color:#1e293b;">Forensic Integrity Statement</h3>
-    <p style="font-size:8pt; line-height:1.4; color:#64748b; margin:0;">
-        This document contains cryptographically sensitive data. Its generation has been logged in the ShineGuard System Forensic Registry. 
-        Any unauthorized reproduction or tampering with the data contained herein may be detected via subsequent forensic cross-referencing of the system "Seeds."
-    </p>
-</div>
-';
+    <div style="margin-top:40px; border:1px dashed #e2e8f0; padding:15px; border-radius:8px; background:#f8fafc;">
+        <h3 style="margin:0 0 5px 0; font-size:9pt; color:#1e293b;">Forensic Integrity Statement</h3>
+        <p style="font-size:8pt; line-height:1.4; color:#64748b; margin:0;">
+            This document contains cryptographically sensitive data. Its generation has been logged in the ShineGuard System Forensic Registry. 
+            Any unauthorized reproduction or tampering with the data contained herein may be detected via subsequent forensic cross-referencing of the system "Seeds."
+        </p>
+    </div>
+    ';
 
-$pdf->writeHTML($html2, true, false, true, false, '');
+    $pdf->writeHTML($html2, true, false, true, false, '');
 
-// ── Output PDF ───────────────────────────────────────────────────────────────
-$filename  = 'shineguard_report_' . date('Ymd_His') . '.pdf';
-$export_dir = __DIR__ . '/exports/reports';
-if (!is_dir($export_dir)) {
-    @mkdir($export_dir, 0777, true);
+    // ── Output PDF ───────────────────────────────────────────────────────────────
+    $filename  = 'shineguard_report_' . date('Ymd_His') . '.pdf';
+    $export_dir = __DIR__ . '/exports/reports';
+    if (!is_dir($export_dir)) {
+        @mkdir($export_dir, 0777, true);
+    }
+    $save_path = $export_dir . '/' . $filename;
+    $pdf->Output($save_path, 'F');
+
+    // Archive to DB
+    \ShineGuard\Services\ReportingService::archiveReport(
+        $conn,
+        'Analytical Report: ' . $period_label,
+        'Analytical',
+        $period_label,
+        $filename,
+        $_SESSION['user_id']
+    );
+
+    // Log the export
+    logActivity($conn, $_SESSION['user_id'], 'Report Exported', "Detailed 2-page PDF report generated for period $start_date to $end_date");
+
+    // Store password in session so reports.php can show it in a toast
+    $_SESSION['pdf_toast'] = [
+        'icon'  => '👑',
+        'title' => 'Enhanced Report Ready',
+        'msg'   => 'Detailed 2-page forensic report generated. Password Protected.',
+        'color' => '#10b981',
+        'bg'    => '#ecfdf5',
+    ];
+
+    // Stream to browser for download
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Content-Length: ' . filesize($save_path));
+    readfile($save_path);
+    exit();
+
+} catch (Exception $e) {
+    // ── EMERGENCY DIAGNOSTICS ──
+    $diag_file = __DIR__ . '/logs/pdf_diag_error.txt';
+    $msg = "[" . date('Y-m-d H:i:s') . "] PDF FATAL: " . $e->getMessage() . "\n" . $e->getTraceAsString();
+    file_put_contents($diag_file, $msg, FILE_APPEND);
+    
+    echo "<h1>PDF Engine Error</h1><p>A fatal error occurred during report generation. Diagnostic logs updated.</p><p>Error: " . $e->getMessage() . "</p>";
+    exit();
 }
-$save_path = $export_dir . '/' . $filename;
-$pdf->Output($save_path, 'F');
-
-// Archive to DB
-\ShineGuard\Services\ReportingService::archiveReport(
-    $conn,
-    'Analytical Report: ' . $period_label,
-    'Analytical',
-    $period_label,
-    $filename,
-    $_SESSION['user_id']
-);
-
-// Log the export
-logActivity($conn, $_SESSION['user_id'], 'Report Exported', "Detailed 2-page PDF report generated for period $start_date to $end_date");
-
-// Store password in session so reports.php can show it in a toast
-$_SESSION['pdf_toast'] = [
-    'icon'  => '👑',
-    'title' => 'Enhanced Report Ready',
-    'msg'   => 'Detailed 2-page forensic report generated. Password Protected.',
-    'color' => '#10b981',
-    'bg'    => '#ecfdf5',
-];
-
-// Stream to browser for download
-header('Content-Type: application/pdf');
-header('Content-Disposition: attachment; filename="' . $filename . '"');
-header('Content-Length: ' . filesize($save_path));
-readfile($save_path);
-exit();
