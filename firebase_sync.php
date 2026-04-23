@@ -42,6 +42,7 @@ function syncSpecificNode($conn, $nodeId) {
     if (!syncSensorData($conn, $nodeId)) $success = false;
     if (!syncActuatorData($conn, $nodeId)) $success = false;
     if (!syncHealthData($conn, $nodeId)) $success = false;
+    if (!syncPredictiveData($conn, $nodeId)) $success = false;
     
     return $success;
 }
@@ -77,12 +78,14 @@ function syncSensorData($conn, $nodeId = 'SG-NODE2') {
     $temperature = $sensorData['temperature'] ?? 0;
     $voltage = $sensorData['voltage'] ?? 0;
     $humidity = $sensorData['humidity'] ?? 0;
-    $current = $voltage > 0 ? ($voltage / 220) * 0.5 : 0;
+    
+    // Use actual current if provided, else fall back to calculation
+    $current = $sensorData['current'] ?? ($voltage > 0 ? ($voltage / 220) * 0.5 : 0);
     
     $insertStmt = $conn->prepare("INSERT INTO sensor_data 
-        (light_id, brightness_level, current_consumption, voltage, temperature) 
-        VALUES (?, ?, ?, ?, ?)");
-    $insertStmt->bind_param("idddd", $light_id, $brightness, $current, $voltage, $temperature);
+        (light_id, brightness_level, current_consumption, voltage, temperature, humidity) 
+        VALUES (?, ?, ?, ?, ?, ?)");
+    $insertStmt->bind_param("iddddd", $light_id, $brightness, $current, $voltage, $temperature, $humidity);
     
     if ($insertStmt->execute()) {
         echo "✅ [{$nodeId}] Sensor data synced to MySQL\n";
@@ -102,13 +105,11 @@ function syncActuatorData($conn, $nodeId = 'SG-NODE2') {
     if ($actuatorData === null) return false;
     
     $mysqlNode = FirebaseConfig::getMySQLNode($nodeId);
-    $lightOn = $actuatorData['lightOn'] ?? false;
-    $brightnessPercent = $actuatorData['brightnessPercent'] ?? 100;
-    $currentMode = $actuatorData['currentMode'] ?? 0;
     
-    if ($controlData !== null && isset($controlData['mode'])) {
-        $currentMode = $controlData['mode'];
-    }
+    // Support multiple hardware iterations (lightOn vs lampStatus)
+    $lightOn = $actuatorData['lightOn'] ?? ($actuatorData['lampStatus'] === 'ON' ? true : false);
+    $brightnessPercent = $actuatorData['brightnessPercent'] ?? 100;
+    $currentMode = $actuatorData['currentMode'] ?? ($controlData['mode'] ?? 0);
     
     $powerState = $lightOn ? 'ON' : 'OFF';
     $stmt = $conn->prepare("UPDATE streetlights 
@@ -118,6 +119,27 @@ function syncActuatorData($conn, $nodeId = 'SG-NODE2') {
     
     if ($stmt->execute()) {
         echo "✅ [{$nodeId}] Actuator state synced (Mode: {$currentMode})\n";
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Sync predictive analysis results
+ */
+function syncPredictiveData($conn, $nodeId = 'SG-NODE2') {
+    $predictive = fetchFirebaseData('predictive', $nodeId);
+    if ($predictive === null) return false;
+
+    $mysqlNode = FirebaseConfig::getMySQLNode($nodeId);
+    $health = $predictive['lampHealth'] ?? 'STABLE';
+    $alert = $predictive['maintenanceAlert'] ?? null;
+
+    $stmt = $conn->prepare("UPDATE streetlights SET lamp_health = ?, maintenance_alert = ? WHERE node_name = ?");
+    $stmt->bind_param("sss", $health, $alert, $mysqlNode);
+    
+    if ($stmt->execute()) {
+        echo "✅ [{$nodeId}] Predictive data synchronized\n";
         return true;
     }
     return false;
@@ -140,17 +162,16 @@ function syncHealthData($conn, $nodeId = 'SG-NODE2') {
     $row = $result->fetch_assoc();
     $light_id = $row['light_id'];
     
-    // Check various health metrics
+    // Check various health metrics (Ignoring 'ON'/'OFF' status messages)
     $metrics = [
-        'lampStatus' => 'Fault detected',
-        'relayStatus' => 'Relay issue',
-        'envTempStatus' => 'Temp warning',
-        'envHumidityStatus' => 'Humidity warning'
+        'dhtStatus' => 'Sensor integration warning',
+        'envTempStatus' => 'Sensors health alert',
+        'envHumidityStatus' => 'Environment humidity fault'
     ];
 
     foreach ($metrics as $key => $msg) {
         $val = $healthData[$key] ?? 'OK';
-        if ($val !== 'OK') {
+        if ($val !== 'OK' && $val !== 'NORMAL') {
             createAlert($conn, $light_id, 'Warning', 'Medium', "[{$nodeId}] {$msg}: {$val}");
         }
     }
