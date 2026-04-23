@@ -874,6 +874,7 @@ $csrf = generateCsrfToken();
     const THRESHOLDS = <?php echo $thresholds_json; ?>;
     const NODE = "<?php echo $currentNode; ?>";
     const firebaseConfig = <?php echo $firebaseCredsJson; ?>;
+    let isSbaActive = <?php echo isRecentlyAuthorized() ? 'true' : 'false'; ?>;
 
     // --- BULLETPROOF INITIALIZATION ---
     let useRest = false;
@@ -1070,10 +1071,15 @@ $csrf = generateCsrfToken();
 
     // ── Security Modal ──
     window.confirmFirebaseCommand = function(actionType, param1) {
+        // --- SBA BYPASS ---
+        if (isSbaActive) {
+            addLog('info', 'SBA', 'Authorized session detected - Propagating bypassing login...');
+            if (actionType === 'setMode') setMode(param1);
+            return;
+        }
+
         const modal = document.getElementById('securityModal');
-        // Simple mock for authorized session
-        const isAuthorized = false; 
-        document.getElementById('pwdGroup').style.display = isAuthorized ? 'none' : 'block';
+        document.getElementById('pwdGroup').style.display = 'block';
         document.getElementById('secModalError').style.display = 'none';
         document.getElementById('secModalPassword').value = '';
         const labels = {0:'Activate AUTO Mode',1:'Activate FORCE ON',2:'Activate FORCE OFF'};
@@ -1100,8 +1106,16 @@ $csrf = generateCsrfToken();
             document.getElementById('secModalError').style.display = 'block';
             return;
         }
+        
+        // Elevate local state
+        isSbaActive = true;
+        
         if (modal._actionType === 'setMode') setMode(modal._param1);
         closeSecModal();
+        
+        // Optional: Refresh page or header to show lock icon if needed, 
+        // but for now, the local JS bypass is enough for the user.
+        addLog('success', 'SBA', 'Secure Session Established');
     };
 
     window.clearLog = function() {
