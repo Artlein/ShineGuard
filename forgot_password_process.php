@@ -39,7 +39,7 @@ $token_hash = hash('sha256', $token);
 $expires_at = date('Y-m-d H:i:s', strtotime('+1 hour'));
 
 // 4. Store token
-$stmt = $conn->prepare("INSERT INTO password_resets (email, token_hash, expires_at) VALUES (?, ?, ?)");
+$stmt = $conn->prepare("INSERT INTO password_resets (email, token_hash, expires_at, status) VALUES (?, ?, ?, 'Pending')");
 $stmt->bind_param("sss", $email, $token_hash, $expires_at);
 
 if ($stmt->execute()) {
