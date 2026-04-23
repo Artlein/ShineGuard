@@ -67,14 +67,18 @@ foreach(['SG-NODE2', 'SG-NODE3'] as $node) {
 }
 
 echo "<h3>4. Environment Variables</h3>";
-$keys = ['FIREBASE_PROJECT_ID', 'FIREBASE_DB_URL', 'FIREBASE_API_KEY'];
-foreach($keys as $k) {
-    $val = FirebaseConfig::getConstant($k);
+$keys = [
+    'API_KEY'      => 'FIREBASE_API_KEY', 
+    'DATABASE_URL' => 'FIREBASE_DB_URL', 
+    'PROJECT_ID'   => 'FIREBASE_PROJECT_ID'
+];
+foreach($keys as $shortKey => $envKey) {
+    $val = FirebaseConfig::getConstant($shortKey);
     if($val && $val !== '') {
         $masked = substr($val, 0, 5) . "..." . substr($val, -3);
-        echo "✅ VARIABLE '$k': <span class='ok'>LOADED ($masked)</span><br>";
+        echo "✅ VARIABLE '$envKey': <span class='ok'>LOADED ($masked)</span><br>";
     } else {
-        echo "❌ VARIABLE '$k': <span class='fail'>EMPTY! Check .env on server</span><br>";
+        echo "❌ VARIABLE '$envKey': <span class='fail'>EMPTY! Check .env on server</span><br>";
         $errors++;
     }
 }
