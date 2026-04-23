@@ -125,8 +125,10 @@ class StreetlightController {
         $nodeData = $nodeQuery->get_result()->fetch_assoc();
 
         if ($nodeData && $nodeData['node_name'] === 'SL-001') {
-            // Updated call with target node ID (1) as first argument
-            IOTService::sendBulkCommand(1, ($power === 'ON' ? 1 : 2), ($power === 'ON' ? $nodeData['dimming_level'] : 0));
+            // Fix: Manual (1) for forced state, 0 brightness for OFF
+            $hwMode = 1;
+            $hwBright = ($power === 'ON' ? $nodeData['dimming_level'] : 0);
+            IOTService::sendBulkCommand(1, $hwMode, $hwBright);
         }
 
         logActivity($this->conn, $_SESSION['user_id'], 'Light Control', "Toggled light #$light_id to $power");
@@ -186,14 +188,14 @@ class StreetlightController {
             $stmt = $this->conn->prepare("UPDATE streetlights SET power_state = 'ON', dimming_level = ?" . $where_clause);
             $stmt->bind_param("i", $dimming);
             $stmt->execute();
-            // Updated call with 'all' as nodeId
+            // Bulk ON -> Manual (1) at $dimming
             IOTService::sendBulkCommand('all', 1, $dimming);
             logActivity($this->conn, $_SESSION['user_id'], 'Bulk Control', "Turned $scope_desc ON at $dimming%");
         } else {
             $stmt = $this->conn->prepare("UPDATE streetlights SET power_state = 'OFF'" . $where_clause);
             $stmt->execute();
-            // Updated call with 'all' as nodeId
-            IOTService::sendBulkCommand('all', 2, 0);
+            // Bulk OFF -> Manual (1) at 0
+            IOTService::sendBulkCommand('all', 1, 0);
             logActivity($this->conn, $_SESSION['user_id'], 'Bulk Control', "Turned $scope_desc OFF");
         }
 

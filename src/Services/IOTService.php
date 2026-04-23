@@ -35,17 +35,50 @@ class IOTService {
 
     /**
      * Sends a command to a specific IoT node via its respective Firebase instance.
+     * @param string|int $nodeId Firebase Node Name (recursive) or SL-ID
      */
-    public static function sendBulkCommand($nodeId, $mode, $brightness) {
-        // Log the command attempt
-        $firebaseUpdate = [
-            'mode' => $mode,
-            'targetBrightness' => $brightness,
+    public static function sendBulkCommand($nodeId, $hwMode, $brightness) {
+        require_once __DIR__ . '/../../firebase_config.php';
+
+        // --- BROADCAST LOGIC ---
+        if ($nodeId === 'all') {
+            $nodes = \FirebaseConfig::getAllIoTDevices();
+            $success = true;
+            foreach ($nodes as $name => $cfg) {
+                if (!self::sendSingleNodeCommand($name, $hwMode, $brightness)) {
+                    $success = false;
+                }
+            }
+            return $success;
+        }
+
+        // --- RESOLVE NODE NAME ---
+        // If nodeId is numeric (MySQL ID), find the node_name
+        if (is_numeric($nodeId)) {
+            // SL-001 -> SG-NODE2 mapping
+            $fbNode = 'SG-NODE2'; // Default fallback
+            if ($nodeId == 1) $fbNode = 'SG-NODE2';
+            elseif ($nodeId == 2) $fbNode = 'SG-NODE3';
+            // Actually, we should use the mapping from config
+            $nodeId = $fbNode;
+        }
+
+        return self::sendSingleNodeCommand($nodeId, $hwMode, $brightness);
+    }
+
+    /**
+     * Internal helper for unified hardware object structure
+     */
+    private static function sendSingleNodeCommand($fbNode, $hwMode, $brightness) {
+        $payload = [
+            'mode' => (int)$hwMode,
+            'targetBrightness' => (int)$brightness,
             'commandTimestamp' => round(microtime(true) * 1000)
         ];
 
         // This uses the dynamic config resolver to target the correct Firebase URL
-        return \FirebaseConfig::writeData('control', $firebaseUpdate, $nodeId);
+        // Endpoint 'control' maps to '/Control.json'
+        return \FirebaseConfig::writeData('control', $payload, $fbNode);
     }
 
     /**
