@@ -77,10 +77,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isRecentlyAuthorized()) {
     }
 }
 
-$page_title = 'Security Recovery Hub';
-$current_page = 'security_recovery.php';
-include 'includes/header.php';
-include 'includes/sidebar.php';
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <title>Security Recovery HUB - Shine Guard Hulo</title>
+    <link rel="icon" type="image/png" href="img/ShineGuard3.png">
+    <style><?php include 'assets/style.css'; ?></style>
+    <style>
+        :root { 
+            --accent: <?php echo $isAdmin ? '#f43f5e' : '#3b82f6'; ?>;
+            --surface: var(--panel);
+            --border: var(--border);
+            --shadow: 0 4px 20px var(--shadow);
+        }
+        .main-content { padding: 2.2rem 2.6rem; background: var(--bg); }
+    </style>
+</head>
+<body style="margin:0; padding:0; height:100%; font-family:'Inter', sans-serif;">
+<div class="layout">
+<?php include 'includes/sidebar.php'; ?>
+<?php include 'includes/header.php'; ?>
 
 // If not authorized for the session, show the shield
 if (!isRecentlyAuthorized()) {
@@ -225,6 +243,9 @@ $unknown_devices = $conn->query("SELECT ud.*, u.full_name FROM user_devices ud
 
     </div>
 </main>
+</div> <!-- End .layout -->
+
+<style>
 
 <style>
     .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 4px 12px var(--shadow); position: relative; transition: transform 0.2s; }
