@@ -982,7 +982,7 @@ $csrf = generateCsrfToken();
     window.setBrightness = function(val) {
         val = parseInt(val);
         addLog('info','CMD', `Propagating brightness → ${val}%`);
-        set(ref(db, NODE + "/Actuator/brightnessPercent"), val)
+        set(ref(db, NODE + "/Control/brightnessPercent"), val)
             .then(() => addLog('success','ACK', `Brightness synchronized at ${val}%`))
             .catch(e => addLog('error','ERR', e.message));
     };
