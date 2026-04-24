@@ -23,12 +23,19 @@ $snapshot = $result->fetch_assoc();
 $filepath = $snapshot['filepath'];
 $iv_hex = $snapshot['encryption_iv'];
 
-if (!file_exists($filepath)) {
+// ── RESILIENCE: Path Normalization ──
+// Ensure paths like "snapshots/..." work correctly regardless of relative pathing
+$root_path = dirname(__DIR__) . '/';
+$normalized_path = (strpos($filepath, '../') === 0) 
+    ? $root_path . substr($filepath, 3) 
+    : $root_path . $filepath;
+
+if (!file_exists($normalized_path)) {
     http_response_code(404);
     die('Image file is missing from the server.');
 }
 
-$encrypted_data = file_get_contents($filepath);
+$encrypted_data = file_get_contents($normalized_path);
 
 if (!empty($iv_hex)) {
     $encryption_key = 'shineguard_secure_snapshot_key_!@#'; 
@@ -45,10 +52,9 @@ if (!empty($iv_hex)) {
     header('Content-Length: ' . strlen($decrypted_data));
     echo $decrypted_data;
 } else {
-    
     header('Content-Type: image/jpeg');
-    header('Content-Length: ' . filesize($filepath));
-    readfile($filepath);
+    header('Content-Length: ' . strlen($encrypted_data));
+    echo $encrypted_data;
 }
 
 exit();
