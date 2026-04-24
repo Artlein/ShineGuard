@@ -1514,6 +1514,7 @@ $cameras_result->data_seek(0);
                 formData.append('action', 'verify_password');
                 formData.append('admin_password', pwdInput.value);
                 formData.append('source', 'gallery');
+                formData.append('csrf_token', '<?php echo $_SESSION['csrf_token'] ?? ''; ?>');
 
                 const response = await fetch('streetlights.php', {
                     method: 'POST',
