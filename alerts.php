@@ -740,5 +740,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
+<div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 0.7rem; opacity: 0.5;">
+    📡 ENV: <?php echo gethostbyname(gethostname()); ?> | 🗄️ DB: <?php echo $host . ' / ' . $database; ?> | 🏷️ Ver: HardwareSync v2.1
+</div>
 </body>
 </html>
