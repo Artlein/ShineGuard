@@ -1,5 +1,13 @@
 <?php
 require_once '../dbconnect.php';
+
+// Diagnostic: Log current user info
+if (!isLoggedIn()) {
+    error_log("SNAPSHOT AUTH FAIL: User not logged in", 3, "/tmp/shineguard_api.log");
+} else {
+    error_log("SNAPSHOT AUTH OK: User=" . ($_SESSION['username'] ?? 'unknown') . " Role=" . ($_SESSION['role'] ?? 'none'), 3, "/tmp/shineguard_api.log");
+}
+
 requireLogin(['System Admin', 'Maintenance Operator']);
 
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
