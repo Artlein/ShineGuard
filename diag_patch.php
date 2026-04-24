@@ -14,7 +14,7 @@ if (getUserRole() !== 'System Admin') {
 echo "<h2>ShineGuard Diagnostic Schema Patch</h2>";
 
 $sql = "CREATE TABLE IF NOT EXISTS diagnostic_logs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    diagnostic_id INT AUTO_INCREMENT PRIMARY KEY,
     light_id INT NOT NULL,
     test_type VARCHAR(100) NOT NULL,
     result JSON NOT NULL,
