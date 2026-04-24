@@ -2,6 +2,9 @@
 require_once '../dbconnect.php';
 requireLoginApi();
 
+// Clean any buffer noise before outputting JSON
+if (ob_get_length()) ob_clean();
+
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -150,11 +153,14 @@ $results = [
 
 // Log it to diagnostic logs
 $log_stmt = $conn->prepare("INSERT INTO diagnostic_logs (light_id, test_type, result, notes, tested_at) VALUES (?, 'Smart Self-Check', ?, ?, NOW())");
-$result_json = json_encode($results);
-$notes = "Automated Smart Diagnostics";
-$log_stmt->bind_param("iss", $light_id, $result_json, $notes);
-$log_stmt->execute();
-$diagnostic_id = $conn->insert_id;
+$diagnostic_id = 0;
+if ($log_stmt) {
+    $result_json = json_encode($results);
+    $notes = "Automated Smart Diagnostics";
+    $log_stmt->bind_param("iss", $light_id, $result_json, $notes);
+    $log_stmt->execute();
+    $diagnostic_id = $conn->insert_id;
+}
 
 logActivity($conn, $_SESSION['user_id'], 'Diagnostics', "Ran Smart Diagnostic on {$light['node_name']} (Health: {$score}%)");
 
@@ -162,15 +168,19 @@ logActivity($conn, $_SESSION['user_id'], 'Diagnostics', "Ran Smart Diagnostic on
 if ($network_status === 'Fail') {
     $alert_desc = "Smart Diagnostic failed Network check. Cannot reach IoT node. (Auto-generated)";
     $q = $conn->prepare("INSERT INTO alerts (light_id, alert_type, severity, description, status) VALUES (?, 'Connection Lost', 'High', ?, 'Open')");
-    $q->bind_param("is", $light_id, $alert_desc);
-    $q->execute();
+    if ($q) {
+        $q->bind_param("is", $light_id, $alert_desc);
+        $q->execute();
+    }
 }
 
 if ($relay_status === 'Fail') {
     $alert_desc = "Smart Diagnostic detected Relay mismatch. Hardware may be damaged. (Auto-generated)";
     $q = $conn->prepare("INSERT INTO alerts (light_id, alert_type, severity, description, status) VALUES (?, 'Hardware Failure', 'High', ?, 'Open')");
-    $q->bind_param("is", $light_id, $alert_desc);
-    $q->execute();
+    if ($q) {
+        $q->bind_param("is", $light_id, $alert_desc);
+        $q->execute();
+    }
 }
 
 echo json_encode([
