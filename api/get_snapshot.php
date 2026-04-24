@@ -31,11 +31,17 @@ $normalized_path = (strpos($filepath, '../') === 0)
     : $root_path . $filepath;
 
 if (!file_exists($normalized_path)) {
+    error_log("SNAPSHOT 404: File not found at $normalized_path | Original: $filepath", 3, "/tmp/shineguard_api.log");
     http_response_code(404);
     die('Image file is missing from the server.');
 }
+error_log("SNAPSHOT SUCCESS: Serving $normalized_path", 3, "/tmp/shineguard_api.log");
 
 $encrypted_data = file_get_contents($normalized_path);
+
+// ── BUFFER CLEARANCE ──
+// Remove any accidental whitespace/outputs from included files
+if (ob_get_length()) ob_clean();
 
 if (!empty($iv_hex)) {
     $encryption_key = 'shineguard_secure_snapshot_key_!@#'; 
